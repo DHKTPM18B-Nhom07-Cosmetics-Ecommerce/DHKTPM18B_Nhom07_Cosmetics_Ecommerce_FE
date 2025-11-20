@@ -1,44 +1,97 @@
-import { Droplet, Brush, Leaf, Heart, Sparkles, Wind } from 'lucide-react'
+import { useEffect, useState } from 'react';
+import { Leaf, Heart } from 'lucide-react';
+import { MdWaterDrop, MdSunny } from 'react-icons/md';
+import { GiLipstick } from 'react-icons/gi';
+import { FaGift } from 'react-icons/fa6';
 
-const categories = [
-  { name: 'Skincare', icon: Droplet },
-  { name: 'Makeup', icon: Brush },
-  { name: 'Top Care', icon: Leaf },
-  { name: 'Body Care', icon: Heart },
-  { name: 'Hair Care', icon: Sparkles },
-  { name: 'Wellness', icon: Wind },
-]
+// Mapping tên category với icon
+const categoryIcons = {
+    Skincare: MdWaterDrop,
+    Makeup: GiLipstick,
+    Haircare: Leaf,
+    'Body Care': Heart,
+    'Sun Care': MdSunny,
+    'Gift Sets': FaGift,
+};
 
 export default function CategoryShop() {
-  return (
-    <section className="bg-gradient-to-b from-white to-[#F5F9FB] py-20">
-      <div className="max-w-7xl mx-auto px-4">
-        <h2 className="text-3xl font-light text-[#2E5F6D] text-center mb-2">
-          SHOP BY CATEGORY
-        </h2>
-        <p className="text-gray-500 text-center mb-12 text-sm">
-          Find exactly what you're looking for
-        </p>
+    const [categories, setCategories] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-          {categories.map((category, index) => {
-            const Icon = category.icon
-            return (
-              <div
-                key={index}
-                className="flex flex-col items-center gap-4 p-6 bg-white rounded-lg hover:shadow-lg transition cursor-pointer group"
-              >
-                <div className="bg-[#D4E5ED] p-4 rounded-full group-hover:bg-[#A8C9D8] transition">
-                  <Icon size={24} className="text-[#2E5F6D]" />
+    useEffect(() => {
+        // Fetch categories từ API
+        fetch('http://localhost:8080/api/categories')
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch categories');
+                }
+                return response.json();
+            })
+            .then((data) => {
+                // Map data từ API với icon
+                const categoriesWithIcons = data.map((cat) => ({
+                    id: cat.id,
+                    name: cat.name,
+                    icon: categoryIcons[cat.name] || MdWaterDrop, // Icon mặc định nếu không tìm thấy
+                }));
+                setCategories(categoriesWithIcons);
+                setLoading(false);
+            })
+            .catch((err) => {
+                setError(err.message);
+                setLoading(false);
+            });
+    }, []);
+
+    if (loading) {
+        return (
+            <section className="bg-light py-20">
+                <div className="max-w-7xl mx-auto px-4 text-center">
+                    <p className="text-primary">Loading categories...</p>
                 </div>
-                <span className="text-sm font-medium text-[#2E5F6D] text-center">
-                  {category.name}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </section>
-  )
+            </section>
+        );
+    }
+
+    if (error) {
+        return (
+            <section className="bg-light py-20">
+                <div className="max-w-7xl mx-auto px-4 text-center">
+                    <p className="text-red-500">Error: {error}</p>
+                </div>
+            </section>
+        );
+    }
+
+    return (
+        <section className="bg-light py-20">
+            <div className="max-w-7xl mx-auto px-4">
+                <h2 className="text-3xl font-light text-primary text-center mb-10">
+                    CATEGORY
+                </h2>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 p-5">
+                    {categories.map((category) => {
+                        const Icon = category.icon;
+                        return (
+                            <div
+                                key={category.id}
+                                className="flex flex-col items-center gap-4 p-6 rounded-lg hover:shadow-lg transition cursor-pointer group">
+                                <div className="bg-[#D4E5ED] h-16 w-16 rounded-full group-hover:bg-[#A8C9D8] transition flex items-center justify-center">
+                                    <Icon
+                                        size={24}
+                                        className="text-primary h-10 w-10"
+                                    />
+                                </div>
+                                <span className="text-sm font-medium text-primary text-center">
+                                    {category.name}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </section>
+    );
 }
