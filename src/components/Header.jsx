@@ -7,15 +7,37 @@ import {
     Leaf,
     Heart as HeartIcon,
     Shield,
+    ChevronDown,
+    MapPin,
+    LogOut,
 } from 'lucide-react';
 import { LiaShippingFastSolid } from 'react-icons/lia';
 import { FaLeaf, FaHeart } from 'react-icons/fa';
-import { FaUserDoctor } from 'react-icons/fa6';
-import { useState } from 'react';
+import { FaUserDoctor, FaStore } from 'react-icons/fa6';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Header() {
     const navigate = useNavigate();
+    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    // Đóng dropdown khi click bên ngoài
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (
+                dropdownRef.current &&
+                !dropdownRef.current.contains(event.target)
+            ) {
+                setIsUserMenuOpen(false);
+            }
+        }
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     return (
         <>
@@ -67,9 +89,52 @@ export default function Header() {
                                 0
                             </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <User className="w-6 h-6" />
-                            <span className="text-sm">Hello, Guest</span>
+                        {/* User Dropdown */}
+                        <div className="relative" ref={dropdownRef}>
+                            <div
+                                className="flex items-center gap-2 cursor-pointer hover:text-teal-100 transition"
+                                onClick={() =>
+                                    setIsUserMenuOpen(!isUserMenuOpen)
+                                }>
+                                <User className="w-6 h-6" />
+                                <span className="text-sm">Hello, Guest</span>
+                                <ChevronDown
+                                    className={`w-4 h-4 transition-transform ${
+                                        isUserMenuOpen ? 'rotate-180' : ''
+                                    }`}
+                                />
+                            </div>
+
+                            {/* Dropdown Menu */}
+                            {isUserMenuOpen && (
+                                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg py-2 z-50">
+                                    <button className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition flex items-center gap-3">
+                                        <User className="w-4 h-4" />
+                                        <span>Tài khoản của bạn</span>
+                                    </button>
+                                    <button className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition flex items-center gap-3">
+                                        <ShoppingCart className="w-4 h-4" />
+                                        <span>Quản lý đơn hàng</span>
+                                    </button>
+                                    <button className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition flex items-center gap-3">
+                                        <FaStore className="w-4 h-4" />
+                                        <span>Quản lý cửa hàng</span>
+                                    </button>
+                                    <button className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition flex items-center gap-3">
+                                        <Heart className="w-4 h-4" />
+                                        <span>Sản phẩm yêu thích</span>
+                                    </button>
+                                    <button className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition flex items-center gap-3">
+                                        <MapPin className="w-4 h-4" />
+                                        <span>Địa chỉ giao hàng</span>
+                                    </button>
+                                    <hr className="my-2 border-gray-200" />
+                                    <button className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition flex items-center gap-3">
+                                        <LogOut className="w-4 h-4" />
+                                        <span>Thoát</span>
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
