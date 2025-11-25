@@ -1,7 +1,5 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import Header from '../components/Header'
-import Footer from '../components/Footer'
 import { Heart, ShoppingCart } from 'lucide-react'
 
 export default function ProductDetailPage() {
@@ -66,7 +64,6 @@ export default function ProductDetailPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header />
 
       <div className="max-w-7xl mx-auto w-full px-4 py-8 flex-1">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -292,7 +289,6 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      <Footer />
     </div>
   )
 }

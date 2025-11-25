@@ -105,7 +105,6 @@ export default function ProductsPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header />
 
       <div className="flex flex-1 max-w-7xl mx-auto w-full gap-6 px-4 py-8">
         {/* Sidebar Filters */}
@@ -221,7 +220,6 @@ export default function ProductsPage() {
         </main>
       </div>
 
-      <Footer />
     </div>
   )
 }

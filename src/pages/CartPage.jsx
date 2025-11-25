@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2, ShoppingBag } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import { getCartData, updateCartItemQuantity, removeCartItem } from '../services/cartService';
 import CartItem from '../components/CartItem';
 import CartSummary from '../components/CartSummary';
@@ -44,40 +44,38 @@ export default function CartPage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Đang tải...</div>;
+    return <div className="min-h-screen flex items-center justify-center text-lg">Đang tải...</div>;
   }
 
   if (!cartData || cartData.items.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-        <div className="text-center py-20">
-          <ShoppingBag className="mx-auto mb-4 w-16 h-16 text-gray-300" />
-          <h2 className="text-2xl font-semibold text-gray-600 mb-4">Giỏ hàng trống</h2>
-          <Link to="/products" className="text-blue-600 hover:underline">
-            Tiếp tục mua hàng
-          </Link>
-        </div>
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+        <ShoppingBag className="w-20 h-20 text-gray-300 mb-4" />
+        <h2 className="text-2xl font-semibold text-gray-600 mb-3">Giỏ hàng trống</h2>
+        <Link to="/products" className="text-teal-600 hover:underline">
+          Tiếp tục mua hàng
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white pb-16">
+    <div className="min-h-screen bg-gray-50 pb-24">
       {/* Breadcrumb */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 py-3 text-sm text-gray-600">
-          <Link to="/" className="hover:text-blue-600">Trang chủ</Link>
-          <span className="mx-2">&gt;</span>
+          <Link to="/" className="hover:text-teal-600">Trang chủ</Link>
+          <span className="mx-2">›</span>
           <span className="text-gray-900 font-medium">Giỏ hàng</span>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-teal-700 mb-8">Giỏ hàng</h1>
+      {/* Main */}
+      <div className="max-w-7xl mx-auto px-4 py-10">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Giỏ hàng</h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Cart Items */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          {/* Items */}
           <div className="lg:col-span-2 space-y-4">
             {cartData.items.map((item) => (
               <CartItem
@@ -89,20 +87,18 @@ export default function CartPage() {
             ))}
           </div>
 
-          {/* Cart Summary */}
+          {/* Summary */}
           <div className="lg:col-span-1">
             <CartSummary cartData={cartData} />
           </div>
         </div>
 
-        {/* Continue Shopping Link */}
-        <div className="mt-8">
+        <div className="mt-6">
           <Link 
-            to="/products"
-            className="text-teal-600 hover:text-teal-700 font-medium flex items-center gap-2"
+            to="/products" 
+            className="text-teal-600 hover:text-teal-700 flex items-center gap-2 font-medium"
           >
-            <span>&larr;</span>
-            Tiếp tục mua hàng
+            ← Tiếp tục mua hàng
           </Link>
         </div>
       </div>
