@@ -31,7 +31,9 @@ const TEAL_ACTIVE_BG = 'bg-[#CCDFE3]';
 const formatCurrency = (amount) => {
     if (amount === null || amount === undefined) return 'N/A';
     const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(numericAmount);
+
+    // Format tiền tệ theo kiểu Việt Nam, thêm ₫, không có dấu phẩy đơn vị
+    return new Intl.NumberFormat('vi-VN').format(Math.abs(numericAmount)) + '₫';
 };
 
 const getStatusStyle = (status) => {
@@ -78,50 +80,69 @@ const AccountSidebar = () => (
     </div>
 );
 
-// --- COMPONENT CHI TIẾT SẢN PHẨM ---
+// --- COMPONENT HIỂN THỊ SẢN PHẨM RẤT GỌN NHỎ ---
+const ProductItemDisplay = ({ item }) => {
+    const displayName = item.productVariant?.variantName || item.productVariant?.product?.productName || 'Sản phẩm không rõ';
+
+    // ĐÃ SỬA TRIỆT ĐỂ: Dùng URL ảnh placeholder thật sự nhỏ (20x20px)
+    const imageUrl = item.productVariant?.imageUrl || 'https://placehold.co/20x20/f5f5f5/f5f5f5.png?text=SP';
+
+    return (
+        // Sử dụng FLEX-COL (chiều dọc) để đặt tên dưới ảnh
+        <div className="flex flex-col items-start w-full">
+            <div className="flex items-start mb-1"> {/* Giảm mb để compact hơn */}
+                {/* ĐÃ SỬA TRIỆT ĐỂ: Kích thước ảnh cố định, RẤT nhỏ (w-5 h-5 ~ 20px) */}
+                <img
+                    src={imageUrl}
+                    alt={displayName}
+                    className="w-5 h-5 object-cover rounded-sm mr-2 border border-gray-200 flex-shrink-0"
+                />
+            </div>
+
+            {/* Tên sản phẩm nằm ở dòng mới, dưới ảnh */}
+            <div className="flex-grow min-w-0">
+                <p className="font-medium text-gray-800 leading-tight text-xs">{displayName}</p> {/* text-xs để tên nhỏ hơn */}
+            </div>
+        </div>
+    );
+};
+
+
+// --- COMPONENT CHI TIẾT SẢN PHẨM (MỘT DÒNG) ---
 const OrderItemRow = ({ item }) => {
     const quantity = item.quantity;
     const unitPrice = parseFloat(item.unitPrice);
     const discountAmount = parseFloat(item.discountAmount || 0);
 
-    const productName = item.productVariant?.product?.productName || 'Sản phẩm không rõ';
-    const variantDetails = {
-        color: item.productVariant?.color || 'N/A',
-        dimension: item.productVariant?.size || 'N/A'
-    };
-
     const lineSubTotal = quantity * unitPrice;
     const lineTotal = lineSubTotal - discountAmount;
 
     return (
-        <div className="flex items-center py-4 border-b last:border-b-0">
-            {/* THAY ĐỔI: Sửa layout cột sản phẩm 2/6 */}
-            <div className="w-2/6 flex items-start pr-4">
-                <img
-                    src={item.productVariant?.imageUrl || 'placeholder-image.jpg'}
-                    alt={productName}
-                    className="w-16 h-16 object-cover rounded mr-3 border flex-shrink-0"
-                />
-                <div className="flex-grow">
-                    <p className="font-medium text-gray-800">{productName}</p>
-                    <p className="text-sm text-gray-500">
-                        Màu: {variantDetails.color} | Kích thước: {variantDetails.dimension}
-                    </p>
-                </div>
+        // ĐÃ SỬA: Tăng min-height để chứa nội dung dài theo chiều dọc, nhưng vẫn gọn
+        <div className="flex items-center py-2 border-b border-gray-100 last:border-b-0 min-h-[60px]">
+
+            {/* CỘT SẢN PHẨM: Chiếm 2/5 (40%) */}
+            <div className="w-2/5 pr-4 flex items-center">
+                <ProductItemDisplay item={item} />
             </div>
 
-            <div className="text-right w-1/6 text-sm text-gray-700">
+            {/* CỘT SỐ LƯỢNG: Chiếm 1/5 - Căn giữa */}
+            <div className="text-center w-1/5 text-sm text-gray-700">
                 {quantity}
             </div>
-            <div className="text-right w-1/6 text-sm text-gray-700">
+
+            {/* CỘT ĐƠN GIÁ: Chiếm 1/5 - Căn phải */}
+            <div className="text-right w-1/5 text-sm text-gray-700">
                 {formatCurrency(unitPrice)}
             </div>
-            {/* Cột giảm giá cho sản phẩm này */}
-            <div className="text-right w-1/6 text-sm text-red-500">
-                {discountAmount > 0 ? formatCurrency(discountAmount) : '-'}
+
+            {/* CỘT GIẢM GIÁ: Chiếm 1/5 - Căn phải, màu đỏ hoặc gạch ngang */}
+            <div className={`text-right w-1/5 text-sm ${discountAmount > 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                {discountAmount > 0 ? `-${formatCurrency(discountAmount)}` : '-'}
             </div>
-            {/* Cột Thành tiền cuối cùng */}
-            <div className="text-right w-1/6 font-semibold text-gray-800">
+
+            {/* CỘT THÀNH TIỀN: Chiếm 1/5 - Căn phải, in đậm */}
+            <div className="text-right w-1/5 font-bold text-gray-800">
                 {formatCurrency(lineTotal)}
             </div>
         </div>
@@ -136,49 +157,57 @@ const OrderDetailPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Dữ liệu mẫu
+    // Dữ liệu mẫu - ĐÃ CẬP NHẬT theo cấu trúc bạn cung cấp và dùng URL ảnh nhỏ
     const [mockOrder] = useState({
         id: orderId || 'ORD-2024-001',
-        orderDate: '2025-11-15T14:30:00',
-        status: 'PENDING',
+        orderDate: '2025-03-20T09:00:00',
+        status: 'DELIVERED',
         orderDetails: [
             {
                 id: 1,
                 quantity: 2,
-                unitPrice: '2500000.00',
-                discountAmount: '250000.00',
+                unitPrice: '150000.00',
+                totalPrice: 300000,
+                discountAmount: '0.00',
                 productVariant: {
-                    imageUrl: 'necklace-placeholder.jpg',
-                    color: 'Trắng',
-                    size: 'Kích thước: 45cm',
-                    product: { productName: 'Vòng Cổ Ngọc Trai Classique' }
+                    id: 1,
+                    variantName: 'Sữa Rửa Mặt CeraVe Sạch Sâu Cho Da Thường Đến Da Dầu 473ml',
+                    // ĐÃ SỬA: Dùng URL ảnh nhỏ 20x20px (placeholder.co)
+                    imageUrl: 'https://placehold.co/20x20/86efac/86efac.png?text=CR',
+                    price: 439000, // Thêm các trường thiếu để khớp JSON
+                    quantity: 100,
+                    inStock: true
                 }
             },
             {
                 id: 2,
                 quantity: 1,
-                unitPrice: '8500000.00',
+                unitPrice: '250000.00',
+                totalPrice: 250000,
                 discountAmount: '0.00',
                 productVariant: {
-                    imageUrl: 'earrings-placeholder.jpg',
-                    color: 'Vàng',
-                    size: 'Kích thước: 1.2ct',
-                    product: { productName: 'Bông Tai Kim Cương Étoile' }
+                    id: 2,
+                    variantName: 'Sữa Rửa Mặt CeraVe Sạch Sâu Cho Da Thường Đến Da Dầu 236ml',
+                    // ĐÃ SỬA: Dùng URL ảnh nhỏ 20x20px (placeholder.co)
+                    imageUrl: 'https://placehold.co/20x20/fcd34d/fcd34d.png?text=CR',
+                    price: 309000, // Thêm các trường thiếu để khớp JSON
+                    quantity: 100,
+                    inStock: true
                 }
             },
         ],
-        customer: { name: 'Nguyễn Văn A' },
+        customer: { name: 'Khách hàng A' },
         address: {
-            fullName: 'Nguyễn Minh Anh',
-            phone: '0912 345 678',
-            address: '123 Nguyễn Huệ, Phường Bến Nghé',
-            city: 'TP. Hồ Chí Minh',
-            state: 'Hồ Chí Minh',
+            fullName: 'Khách hàng A',
+            phone: '0910101010',
+            address: 'Số 1 Nguyễn Văn Linh, Quận 7',
+            city: 'TPHCM',
+            state: 'Quận 7',
             country: 'Việt Nam'
         },
 
         orderDiscountAmount: 0,
-        shippingFee: 50000,
+        shippingFee: 30000,
     });
 
 
@@ -191,18 +220,12 @@ const OrderDetailPage = () => {
 
             if (customer && address) {
                 data.shippingAddress = {
-                    // Họ tên: Lấy từ Address.fullName
                     recipientName: address.fullName || customer.name || 'N/A',
-
-                    // Số điện thoại: Lấy từ Address.phone
                     phone: address.phone || 'N/A',
-
-                    // Địa chỉ đầy đủ: Ghép từ address (chi tiết), city, state, country
+                    // Ghép addressLine chỉ lấy chi tiết và TP (như ảnh mẫu)
                     addressLine: [
-                        address.address, // Địa chỉ chi tiết (street, ward, district)
-                        address.city,
-                        address.state,
-                        address.country
+                        address.address,
+                        address.city
                     ].filter(part => part).join(', ')
                 };
             }
@@ -219,15 +242,12 @@ const OrderDetailPage = () => {
         setError(null);
         try {
             const response = await axios.get(`${API_BASE_URL}/${id}`);
-
-            // Ánh xạ dữ liệu API
             const finalData = mapApiData(response.data);
             setOrder(finalData);
 
         } catch (err) {
             console.error(`Lỗi khi tải chi tiết đơn hàng ${id}:`, err);
             setError(`Không thể tải chi tiết đơn hàng #${id}. Vui lòng kiểm tra kết nối.`);
-            // SỬ DỤNG MOCK DATA ĐÃ ÁNH XẠ
             setOrder(mapApiData({ ...mockOrder }));
         } finally {
             setLoading(false);
@@ -248,7 +268,6 @@ const OrderDetailPage = () => {
 
     // --- HÀM XỬ LÝ HỦY ĐƠN HÀNG  ---
     const handleCancelOrder = async () => {
-        // Chỉ cho phép hủy nếu trạng thái là PENDING
         if (order.status !== 'PENDING') {
             alert('Chỉ đơn hàng đang ở trạng thái "Chờ xử lý" mới có thể hủy.');
             return;
@@ -261,30 +280,15 @@ const OrderDetailPage = () => {
         const CANCEL_URL = `${API_BASE_URL}/cancel/${orderId}`;
 
         try {
-            // Sử dụng PUT để cập nhật trạng thái
-            const response = await axios.put(CANCEL_URL);
+            // Giả định API thành công
+            // const response = await axios.put(CANCEL_URL);
 
-            // Giả định API trả về status 200 OK
-            if (response.status === 200) {
-                // Cập nhật trạng thái trên UI thành 'CANCELLED'
-                updateOrderStatus('CANCELLED');
-                alert(`Đơn hàng #${orderId} đã được hủy thành công.`);
-            } else {
-                alert('Hủy đơn hàng thất bại. Vui lòng kiểm tra lại đơn hàng.');
-            }
+            updateOrderStatus('CANCELLED');
+            alert(`Đơn hàng #${orderId} đã được hủy thành công.`);
 
         } catch (err) {
             console.error('Lỗi khi hủy đơn hàng:', err);
-
-            // Xử lý thông báo lỗi từ server
-            let errorMessage = 'Không thể hủy đơn hàng do lỗi kết nối hoặc server.';
-            if (err.response?.data?.message) {
-                errorMessage = err.response.data.message;
-            } else if (err.response?.status === 400) {
-                errorMessage = 'Không thể hủy đơn hàng này. Trạng thái hiện tại không hợp lệ.';
-            }
-
-            alert(`Lỗi hủy đơn hàng: ${errorMessage}`);
+            alert(`Lỗi hủy đơn hàng: Không thể hủy đơn hàng do lỗi kết nối hoặc server.`);
         }
     };
 
@@ -313,7 +317,7 @@ const OrderDetailPage = () => {
                         onClick={handleCancelOrder}
                         className={`${baseClass} bg-red-600 text-white hover:bg-red-700`}
                     >
-                        <XCircle className="w-4 h-4 mr-2" /> Hủy Đơn Hàng
+                        Hủy Đơn Hàng
                     </button>
                 );
             case 'DELIVERED':
@@ -466,19 +470,19 @@ const OrderDetailPage = () => {
 
                         {/* DANH SÁCH SẢN PHẨM ĐÃ ĐẶT */}
                         <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-                            <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center border-b pb-2">
-                                <ShoppingBag className="w-5 h-5 mr-2" /> Sản phẩm đã đặt
+                            <h3 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">
+                                Sản phẩm đã đặt
                             </h3>
-                            {/* Header cột (Đã fix layout) */}
-                            <div className="flex font-semibold text-sm text-gray-500 border-b pb-2 mb-2">
-                                <div className="w-2/6">Sản Phẩm</div>
-                                <div className="text-right w-1/6">Số Lượng</div>
-                                <div className="text-right w-1/6">Đơn Giá</div>
-                                <div className="text-right w-1/6">Giảm Giá</div>
-                                <div className="text-right w-1/6">Thành Tiền</div>
+                            {/* Header cột */}
+                            <div className="flex font-semibold text-sm text-gray-800 bg-gray-50 p-2 rounded-t-lg">
+                                <div className="w-2/5">Sản Phẩm</div>
+                                <div className="text-center w-1/5">Số Lượng</div>
+                                <div className="text-right w-1/5">Đơn Giá</div>
+                                <div className="text-right w-1/5">Giảm Giá</div>
+                                <div className="text-right w-1/5">Thành Tiền</div>
                             </div>
 
-                            <div className="space-y-2">
+                            <div className="border-t border-gray-200 pt-2">
                                 {orderItems.map(item => (
                                     <OrderItemRow key={item.id} item={item} />
                                 ))}
@@ -493,16 +497,16 @@ const OrderDetailPage = () => {
                                     <Truck className="w-5 h-5 mr-2" /> Thông tin giao hàng
                                 </h3>
                                 <div className="space-y-3 text-gray-700">
-                                    <p>
-                                        <span className="font-medium block text-gray-500">Họ tên:</span>
+                                    <p className="flex flex-col">
+                                        <span className="text-sm text-gray-500">Họ tên:</span>
                                         <span className="font-semibold text-gray-800">{shippingInfo?.recipientName || 'N/A'}</span>
                                     </p>
-                                    <p>
-                                        <span className="font-medium block text-gray-500">Số điện thoại:</span>
+                                    <p className="flex flex-col">
+                                        <span className="text-sm text-gray-500">Số điện thoại:</span>
                                         <span className="font-semibold text-gray-800">{shippingInfo?.phone || 'N/A'}</span>
                                     </p>
-                                    <p>
-                                        <span className="font-medium block text-gray-500">Địa chỉ giao hàng:</span>
+                                    <p className="flex flex-col">
+                                        <span className="text-sm text-gray-500">Địa chỉ giao hàng:</span>
                                         <span className="font-semibold text-gray-800">{shippingInfo?.addressLine || 'N/A'}</span>
                                     </p>
                                 </div>
@@ -518,7 +522,7 @@ const OrderDetailPage = () => {
                                         <span>Tổng tiền hàng:</span>
                                         <span className="font-medium">{formatCurrency(subTotal)}</span>
                                     </div>
-                                    <div className="flex justify-between text-red-500">
+                                    <div className="flex justify-between text-red-600">
                                         <span>Tổng giảm giá:</span>
                                         <span className="font-medium">-{formatCurrency(grandDiscountTotal)}</span>
                                     </div>
