@@ -7,6 +7,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import CheckoutPage from './pages/CheckoutPage';
 import OrderPage from './pages/OrderPage';
+import ProductReviewPage from './pages/ProductReviewPage';
 // ADMIN
 import AdminLayout from './components/admin/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
@@ -25,6 +26,7 @@ export default function App() {
                 <Route path="/products/:id" element={<ProductDetailPage />} />
                 <Route path="/cart" element={<CartPage />} />
                 <Route path="/order" element={<OrderPage />} />
+                <Route path="/review-product" element={<ProductReviewPage />} />
                 {/* ADMIN – DÙNG LAYOUT RIÊNG */}
                 <Route path="/admin" element={<AdminLayout />}>
                     <Route index element={<Dashboard />} />
