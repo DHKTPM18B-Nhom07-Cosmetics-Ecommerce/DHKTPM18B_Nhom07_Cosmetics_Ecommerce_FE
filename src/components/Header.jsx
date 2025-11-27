@@ -38,6 +38,11 @@ export default function Header() {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
+    // quan ly don hang
+    const handleGoToOrders = () => {
+        setIsUserMenuOpen(false);
+        navigate('/order');
+    };
 
     return (
         <>
@@ -112,7 +117,9 @@ export default function Header() {
                                         <User className="w-4 h-4" />
                                         <span>Tài khoản của bạn</span>
                                     </button>
-                                    <button className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition flex items-center gap-3">
+                                    <button
+                                        onClick={handleGoToOrders}
+                                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 transition flex items-center gap-3">
                                         <ShoppingCart className="w-4 h-4" />
                                         <span>Quản lý đơn hàng</span>
                                     </button>
