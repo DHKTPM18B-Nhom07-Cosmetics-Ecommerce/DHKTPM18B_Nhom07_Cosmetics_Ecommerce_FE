@@ -147,7 +147,7 @@ const SignupPage = () => {
                                 className={styles.checkbox}
                             />
                             <label htmlFor="agreed" className={styles.termsLabel}>
-                                Tôi đồng ý với <a href="#" className={styles.termsLink}>Điều khoản sử dụng</a> và <a href="#" className={styles.termsLink}>Chính sách bảo mật</a> của OceanSkin
+                                Tôi đồng ý với <a href="#" className={styles.termsLink}>Điều khoản sử dụng</a> và <a href="#" className={styles.termsLink}>Chính sách bảo mật</a> của Embrosia
                             </label>
                         </div>
 
