@@ -13,33 +13,36 @@ import OrderPage from './pages/OrderPage';
 import AdminLayout from './components/admin/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import UserManagement from './pages/admin/UserManagement';
+import { AuthProvider } from './context/AuthContext';
 
 export default function App() {
     return (
-        <Router>
-            {/* Header luôn xuất hiện */}
-            <Header />
+        <AuthProvider>
+            <Router>
+                {/* Header luôn xuất hiện */}
+                <Header />
 
-            <Routes>
-                {/* Trang khách */}
-                <Route path="/signup" element={<SignupPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/" element={<HomePage />} />
-                <Route path="/products" element={<ProductsPage />} />
-                <Route path="/products/:id" element={<ProductDetailPage />} />
-                <Route path="/cart" element={<CartPage />} />
-                <Route path="/order" element={<OrderPage />} />
-                {/* ADMIN – DÙNG LAYOUT RIÊNG */}
-                <Route path="/admin" element={<AdminLayout />}>
-                    <Route index element={<Dashboard />} />
-                    <Route path="users" element={<UserManagement />} />
-                    {/* Sau này thêm */}
-                    {/* <Route path="products" element={<ProductManagement />} /> */}
-                </Route>
-            </Routes>
+                <Routes>
+                    {/* Trang khách */}
+                    <Route path="/signup" element={<SignupPage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/products" element={<ProductsPage />} />
+                    <Route path="/products/:id" element={<ProductDetailPage />} />
+                    <Route path="/cart" element={<CartPage />} />
+                    <Route path="/order" element={<OrderPage />} />
+                    {/* ADMIN – DÙNG LAYOUT RIÊNG */}
+                    <Route path="/admin" element={<AdminLayout />}>
+                        <Route index element={<Dashboard />} />
+                        <Route path="users" element={<UserManagement />} />
+                        {/* Sau này thêm */}
+                        {/* <Route path="products" element={<ProductManagement />} /> */}
+                    </Route>
+                </Routes>
 
-            {/* Footer luôn xuất hiện */}
-            <Footer />
-        </Router>
+                {/* Footer luôn xuất hiện */}
+                <Footer />
+            </Router>
+        </AuthProvider>
     );
 }

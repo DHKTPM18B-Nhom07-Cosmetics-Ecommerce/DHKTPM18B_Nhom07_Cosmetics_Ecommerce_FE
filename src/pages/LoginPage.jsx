@@ -1,76 +1,108 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import styles from '../../styles/Login.module.css';
-import { FaEye, FaEyeSlash } from 'react-icons/fa'; // Cần cài đặt react-icons
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
+// 1. Import Custom Hook để truy cập Auth Context
+import { useAuth } from '../context/AuthContext';
+
+const API_BASE_URL = 'http://localhost:8080/api/auth';
 
 const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
+    const [error, setError] = useState('');
+    const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    // 2. Lấy hàm login từ Context
+    const { login } = useAuth();
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log('Đăng nhập với:', { email, password, rememberMe });
-    };
+        setError(''); // Xóa lỗi cũ
 
-    const togglePasswordVisibility = () => {
-        setShowPassword(!showPassword);
+        try {
+            // 1. Gửi yêu cầu POST đến Backend API
+            const response = await axios.post(`${API_BASE_URL}/login`, {
+                username: email,
+                password: password,
+            });
+
+            // 2. Lấy Token và Tên đầy đủ từ phản hồi của Backend
+            const token = response.data.token;
+            const fullName = response.data.fullName;
+
+            // 3. SỬ DỤNG HÀM LOGIN CỦA CONTEXT
+            // Hàm này sẽ tự động: 
+            // a) Lưu token & name vào localStorage
+            // b) Cập nhật trạng thái User (setUser), kích hoạt Header re-render ngay lập tức
+            login(token, fullName);
+
+            // 4. Điều hướng người dùng đến trang chính
+            navigate('/'); // Thay thế bằng đường dẫn trang chủ của bạn
+
+        } catch (err) {
+            // Xử lý lỗi từ Backend (ví dụ: Tên đăng nhập hoặc mật khẩu không đúng)
+            if (err.response && err.response.data && err.response.data.message) {
+                setError(err.response.data.message);
+            } else {
+                setError('Lỗi đăng nhập không xác định. Vui lòng thử lại.');
+            }
+        }
     };
 
     return (
-        // Dùng class 'appBackground' cho nền màu be nhạt
-        <div className={styles.appBackground}>
-            <div className={styles.loginPage}>
+        <div className={styles.loginPage}>
+
+            <div className={styles.loginCard}>
                 <h2 className={styles.title}>Đăng nhập tài khoản</h2>
                 <p className={styles.subtitle}>Trải nghiệm làm đẹp cùng Embrosia</p>
-
-                {/* Khung chứa Form với màu xanh nhạt */}
                 <div className={styles.loginContainer}>
+                    {error && <p className={styles.errorMessage}>{error}</p>}
 
                     <form onSubmit={handleSubmit} className={styles.loginForm}>
 
-                        {/* Trường Tên đăng nhập hoặc Email */}
+                        {/* Nhập Email */}
                         <div className={styles.inputGroup}>
-                            {/* Lưu ý: Label Tên đăng nhập hoặc Email nằm trong khung, không phải ngoài */}
-                            <label htmlFor="email" className={styles.label}>Email</label>
+                            <label htmlFor="email" className={styles.label}>Email / Tên đăng nhập</label>
                             <input
-                                id="email"
                                 type="text"
-                                placeholder="Nhập email của bạn"
+                                id="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                required
+                                placeholder="Nhập email hoặc tên đăng nhập"
                                 className={styles.input}
+                                required
                             />
                         </div>
 
-                        {/* Trường Mật khẩu */}
+                        {/* Nhập Mật khẩu */}
                         <div className={styles.inputGroup}>
                             <label htmlFor="password" className={styles.label}>Mật khẩu</label>
-                            <div className={styles.passwordInputContainer}>
+                            <div className={styles.passwordContainer}>
                                 <input
+                                    type={showPassword ? 'text' : 'password'}
                                     id="password"
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="Nhập mật khẩu"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    required
+                                    placeholder="Nhập mật khẩu"
                                     className={styles.input}
+                                    required
                                 />
                                 <span
-                                    className={styles.togglePassword}
-                                    onClick={togglePasswordVisibility}
+                                    className={styles.passwordToggle}
+                                    onClick={() => setShowPassword(!showPassword)}
                                 >
-                                    {/* Icon mắt */}
                                     {showPassword ? <FaEyeSlash /> : <FaEye />}
                                 </span>
                             </div>
                         </div>
 
-                        {/* Ghi nhớ đăng nhập và Quên mật khẩu */}
-                        <div className={styles.optionsRow}>
-                            <div className={styles.checkboxContainer}>
+                        {/* Tùy chọn Ghi nhớ và Quên mật khẩu */}
+                        <div className={styles.optionsGroup}>
+                            <div className={styles.rememberMe}>
                                 <input
                                     type="checkbox"
                                     id="rememberMe"

@@ -10,7 +10,9 @@ import {
     ChevronDown,
     MapPin,
     LogOut,
+    LogIn,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { LiaShippingFastSolid } from 'react-icons/lia';
 import { FaLeaf, FaHeart } from 'react-icons/fa';
 import { FaUserDoctor, FaStore } from 'react-icons/fa6';
@@ -18,9 +20,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Header() {
+    const { user, logout, isLoggedIn } = useAuth();
     const navigate = useNavigate();
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const dropdownRef = useRef(null);
+    const displayUserName = user ? user.name : 'Guest';
 
     // Đóng dropdown khi click bên ngoài
     useEffect(() => {
@@ -38,6 +42,14 @@ export default function Header() {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, []);
+
+    // Hàm đăng xuất (Sử dụng Context logout)
+    const handleLogout = () => {
+        logout(); // Gọi hàm logout từ Context (tự xóa localStorage và reset user state)
+        setIsUserMenuOpen(false);
+        navigate('/');
+    };
+
     // quan ly don hang
     const handleGoToOrders = () => {
         setIsUserMenuOpen(false);
@@ -102,11 +114,10 @@ export default function Header() {
                                     setIsUserMenuOpen(!isUserMenuOpen)
                                 }>
                                 <User className="w-6 h-6" />
-                                <span className="text-sm">Hello, Guest</span>
+                                <span className="text-sm">Hello, {displayUserName}</span>
                                 <ChevronDown
-                                    className={`w-4 h-4 transition-transform ${
-                                        isUserMenuOpen ? 'rotate-180' : ''
-                                    }`}
+                                    className={`w-4 h-4 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''
+                                        }`}
                                 />
                             </div>
 
@@ -136,10 +147,25 @@ export default function Header() {
                                         <span>Địa chỉ giao hàng</span>
                                     </button>
                                     <hr className="my-2 border-gray-200" />
-                                    <button className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition flex items-center gap-3">
-                                        <LogOut className="w-4 h-4" />
-                                        <span>Thoát</span>
-                                    </button>
+                                    {isLoggedIn ? (
+                                        <>
+                                            <button
+                                                onClick={handleLogout} // Đăng xuất
+                                                className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition flex items-center gap-3">
+                                                <LogOut className="w-4 h-4" />
+                                                <span>Thoát</span>
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button
+                                                onClick={() => navigate('/login')} // chuyển đến trang đăng nhập
+                                                className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition flex items-center gap-3">
+                                                <LogIn className="w-4 h-4" />
+                                                <span>Đăng nhập</span>
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             )}
                         </div>
