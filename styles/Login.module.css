@@ -1,0 +1,182 @@
+
+:root {
+    --app-bg-color: #fcf8f2;
+    /* Màu nền ngoài cùng (Be nhạt) */
+    --container-bg-color: rgba(201, 228, 228, 0.5);
+    /* Màu nền container (Xanh nhạt mờ) */
+    --input-bg-color: #ffffff;
+    --primary-color: #316f84;
+    /* Màu xanh đậm cho nút Đăng nhập */
+    --link-color: #316f84;
+    /* Màu link */
+    --text-color-dark: #333;
+    --text-color-light: #555;
+    --text-color-faded: #7a7a7a;
+    /* Màu chữ hơi nhạt */
+}
+
+/* Nền toàn màn hình */
+.appBackground {
+    min-height: 100vh;
+    background-color: var(--app-bg-color);
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+    /* Thêm padding trên dưới */
+    font-family: Arial, sans-serif;
+}
+
+/* Khung chứa toàn bộ nội dung (bao gồm cả header và social login) */
+.loginPage {
+    width: 100%;
+    max-width: 440px;
+    /* Độ rộng tối đa của khung chính */
+    text-align: center;
+}
+
+.title {
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--text-color-dark);
+    margin-bottom: 5px;
+}
+
+.subtitle {
+    font-size: 16px;
+    color: var(--text-color-faded);
+    margin-bottom: 35px;
+}
+
+/* Khung form xanh nhạt */
+.loginContainer {
+    padding: 30px 30px;
+    /* Padding bên trong khung xanh */
+    border-radius: 12px;
+    background-color: var(--container-bg-color);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.inputGroup {
+    text-align: left;
+    margin-bottom: 20px;
+    /* Khoảng cách giữa các group input */
+}
+
+.label {
+    display: block;
+    font-size: 14px;
+    color: var(--text-color-dark);
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 16px;
+    background-color: var(--input-bg-color);
+    box-sizing: border-box;
+}
+
+.passwordInputContainer {
+    position: relative;
+}
+
+.togglePassword {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #a0a0a0;
+    font-size: 18px;
+}
+
+/* --- Options Row (Ghi nhớ + Quên MK) --- */
+.optionsRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 5px;
+    margin-bottom: 30px;
+    font-size: 14px;
+}
+
+.checkboxContainer {
+    display: flex;
+    align-items: center;
+}
+
+.rememberLabel {
+    color: var(--text-color-dark);
+}
+
+.forgotPassword {
+    color: var(--link-color);
+    /* Màu link đậm hơn */
+    text-decoration: none;
+    font-weight: 500;
+}
+
+/* --- Login Button --- */
+.loginButton {
+    width: 100%;
+    padding: 14px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 20px;
+}
+
+/* --- Register Prompt --- */
+.registerPrompt {
+    font-size: 15px;
+    color: var(--text-color-dark);
+    margin-bottom: 10px;
+    /* Không cần khoảng cách lớn ở cuối form */
+    padding-bottom: 15px;
+}
+
+.registerLink {
+    color: var(--link-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+/* --- Social Login (Nằm ngoài khung xanh) --- */
+.socialLoginText {
+    color: var(--text-color-dark);
+    margin: 30px 0 15px 0;
+    /* Khoảng cách lớn hơn */
+    font-size: 15px;
+}
+
+.socialIcons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.socialIcon {
+    /* Để mô phỏng hình tròn trong ảnh */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 45px;
+    height: 45px;
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    font-size: 20px;
+    font-weight: bold;
+    color: #666;
+    text-decoration: none;
+    background-color: var(--input-bg-color);
+    /* Nền trắng */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}

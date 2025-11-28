@@ -1,0 +1,213 @@
+/* Màu sắc gợi ý */
+:root {
+    --app-bg-color: #fcf8f2;
+    /* Màu nền ngoài cùng (Be nhạt) */
+    --container-bg-color: rgba(201, 228, 228, 0.5);
+    /* Màu nền container (Xanh nhạt mờ) */
+    --input-bg-color: #ffffff;
+    --primary-color: #316f84;
+    /* Màu xanh đậm cho nút Đăng ký */
+    --link-color: #316f84;
+    /* Màu link */
+    --text-color-dark: #333;
+    --text-color-faded: #7a7a7a;
+    /* Màu chữ hơi nhạt */
+}
+
+/* Nền toàn màn hình */
+.appBackground {
+    min-height: 100vh;
+    background-color: var(--app-bg-color);
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+    font-family: Arial, sans-serif;
+}
+
+/* Khung chứa toàn bộ nội dung */
+.signupPage {
+    width: 100%;
+    max-width: 500px;
+    /* Chiều rộng rộng hơn so với trang Login để chứa 2 cột */
+    text-align: center;
+}
+
+.title {
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--text-color-dark);
+    margin-bottom: 5px;
+}
+
+.subtitle {
+    font-size: 16px;
+    color: var(--text-color-faded);
+    margin-bottom: 35px;
+}
+
+/* Khung form xanh nhạt */
+.signupContainer {
+    padding: 30px 30px;
+    border-radius: 12px;
+    background-color: var(--container-bg-color);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Bố cục 2 cột */
+.row {
+    display: flex;
+    gap: 20px;
+}
+
+.row .inputGroup {
+    flex: 1;
+    /* Chia đều 2 cột */
+}
+
+.inputGroup {
+    text-align: left;
+    margin-bottom: 30px;
+}
+
+.label {
+    display: block;
+    font-size: 14px;
+    color: var(--text-color-dark);
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 16px;
+    background-color: var(--input-bg-color);
+    box-sizing: border-box;
+}
+
+.passwordInputContainer {
+    position: relative;
+}
+
+.togglePassword {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #a0a0a0;
+    font-size: 18px;
+}
+
+/* --- Điều khoản sử dụng --- */
+.termsContainer {
+    text-align: left;
+    margin-top: 10px;
+    margin-bottom: 30px;
+    display: flex;
+    align-items: flex-start;
+    /* Căn trên cùng nếu text dài */
+}
+
+.checkbox {
+    margin-right: 10px;
+    margin-top: 2px;
+    /* Căn chỉnh vị trí checkbox */
+}
+
+.termsLabel {
+    font-size: 14px;
+    color: var(--text-color-dark);
+    line-height: 1.4;
+}
+
+.termsLink {
+    color: var(--link-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.termsLink:hover {
+    text-decoration: underline;
+}
+
+/* --- Signup Button --- */
+.signupButton {
+    width: 100%;
+    padding: 14px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 25px;
+    transition: background-color 0.3s;
+}
+
+.signupButton:hover {
+    background-color: #2a5f70;
+}
+
+/* --- Login Prompt --- */
+.loginPrompt {
+    font-size: 15px;
+    color: var(--text-color-dark);
+    margin-bottom: 10px;
+    padding-bottom: 15px;
+}
+
+.loginLink {
+    color: var(--link-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.loginLink:hover {
+    text-decoration: underline;
+}
+
+/* --- Social Signup (Nằm ngoài khung xanh) --- */
+.socialSignupText {
+    color: var(--text-color-dark);
+    margin: 30px 0 15px 0;
+    font-size: 15px;
+}
+
+.socialIcons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.socialIcon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 45px;
+    height: 45px;
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    font-size: 20px;
+    font-weight: bold;
+    color: #666;
+    text-decoration: none;
+    background-color: var(--input-bg-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: border-color 0.3s;
+}
+
+.socialIcon:hover {
+    border-color: var(--primary-color);
+}
+
+/* Media Query cho màn hình nhỏ hơn 500px để chuyển sang bố cục 1 cột */
+@media (max-width: 500px) {
+    .row {
+        flex-direction: column;
+        gap: 0;
+    }
+}
