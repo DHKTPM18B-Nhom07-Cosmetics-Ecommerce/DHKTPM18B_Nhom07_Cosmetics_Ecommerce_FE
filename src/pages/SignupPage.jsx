@@ -1,33 +1,61 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios'; // Cần import axios
 import styles from '../../styles/Signup.module.css';
-import { FaEye, FaEyeSlash } from 'react-icons/fa'; // Cần cài đặt react-icons
+import { FaEye, FaEyeSlash } from 'react-icons/fa'; 
+
+const API_BASE_URL = 'http://localhost:8080/api/auth'; 
 
 const SignupPage = () => {
-    // State cho các trường thông tin
     const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('');
     const [email, setEmail] = useState('');
-    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [agreed, setAgreed] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [error, setError] = useState(''); // Thêm state cho lỗi
+    const [success, setSuccess] = useState(''); // Thêm state cho thành công
+    const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Logic xử lý đăng ký tại đây
-        console.log('Thông tin đăng ký:', { fullName, phone, email, username, password, agreed });
+        setError('');
+        setSuccess('');
+
         if (password !== confirmPassword) {
-            alert('Mật khẩu và Xác nhận mật khẩu không khớp!');
+            setError('Mật khẩu và Xác nhận mật khẩu không khớp!');
             return;
         }
         if (!agreed) {
-            alert('Vui lòng đồng ý với Điều khoản và Chính sách bảo mật.');
+            setError('Vui lòng đồng ý với Điều khoản và Chính sách bảo mật.');
             return;
         }
-        // Gửi dữ liệu đi...
+        
+        try {
+            const response = await axios.post(`${API_BASE_URL}/register`, {
+                fullName: fullName,
+                phone: phone,
+                email: email,
+                password: password,
+            });
+            
+            // Đăng ký thành công (201 Created)
+            setSuccess(`Đăng ký thành công cho tài khoản ${response.data.username}! Chuyển hướng sau 3 giây...`);
+            setTimeout(() => {
+                navigate('/login'); // Chuyển sang trang đăng nhập
+            }, 3000);
+
+        } catch (err) {
+            // Xử lý lỗi từ Backend (400 Bad Request)
+            if (err.response && err.response.data && err.response.data.message) {
+                setError(err.response.data.message); // Hiển thị lỗi từ Service (ví dụ: Email đã tồn tại)
+            } else {
+                setError('Đăng ký thất bại do lỗi không xác định.');
+            }
+            console.error('Signup error:', err);
+        }
     };
 
     const togglePasswordVisibility = (field) => {
@@ -46,6 +74,9 @@ const SignupPage = () => {
 
                 {/* Khung chứa Form với màu xanh nhạt */}
                 <div className={styles.signupContainer}>
+
+                    {error && <p className={styles.errorMessage} style={{color: 'red', textAlign: 'center'}}>{error}</p>}
+                    {success && <p className={styles.successMessage} style={{color: 'green', textAlign: 'center'}}>{success}</p>}
 
                     <form onSubmit={handleSubmit}>
 
