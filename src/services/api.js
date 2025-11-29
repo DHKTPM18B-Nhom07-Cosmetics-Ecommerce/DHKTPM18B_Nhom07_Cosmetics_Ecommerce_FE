@@ -8,7 +8,7 @@ const api = axios.create({
   },
 });
 
-// Nếu  có JWT thì mở comment dòng dưới
+// Nếu có JWT thì mở comment dòng dưới
 // api.interceptors.request.use(config => {
 //   const token = localStorage.getItem('token');
 //   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -20,6 +20,13 @@ export const getUsers = (page = 0, size = 10, role, status, search) => {
   return api.get('/api/accounts/management', {
     params: { page, size, role, status, search }
   });
+};
+
+
+// LẤY CHI TIẾT USER THEO ID
+export const getUserById = (id) => {
+  return api.get(`/api/accounts/${id}`); 
+
 };
 
 // TẠO USER MỚI (Employee)
