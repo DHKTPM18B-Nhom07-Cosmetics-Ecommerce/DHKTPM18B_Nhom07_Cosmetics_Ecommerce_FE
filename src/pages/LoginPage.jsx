@@ -112,7 +112,7 @@ const LoginPage = () => {
                                 />
                                 <label htmlFor="rememberMe" className={styles.rememberLabel}>Ghi nhớ đăng nhập</label>
                             </div>
-                            <a href="#" className={styles.forgotPassword}>Quên mật khẩu?</a>
+                            <Link to="/forgot-password" className={styles.forgotPassword}>Quên mật khẩu?</Link>
                         </div>
 
                         {/* Nút Đăng nhập */}
