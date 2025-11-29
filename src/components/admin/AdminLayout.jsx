@@ -6,8 +6,7 @@ import { NavLink, useLocation } from "react-router-dom";
 const navItems = [
   { name: "Dashboard", path: "/admin" },
   { name: "User Management", path: "/admin/users" },
-  // thêm
-  { name: "Vouchers", path: "/admin/vouchers" },
+  { name: "Khuyến mãi", path: "/admin/vouchers" },
   { name: "Settings", path: "/admin/settings" },
   { name: "Reports", path: "/admin/reports" },
 ];
@@ -18,9 +17,10 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Navbar ngang - màu xanh đậm */}
+      {/* NAVBAR */}
       <header className="bg-[#0e4f66] text-white fixed top-0 left-0 right-0 z-50 shadow-lg">
         <div className="flex items-center justify-between px-6 py-4">
+          {/* LEFT SIDE – LOGO + NAV */}
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
@@ -28,26 +28,53 @@ export default function AdminLayout() {
               </div>
               <h1 className="text-xl font-bold">AdminPanel</h1>
             </div>
+
+            {/* NAV MENU WITH ANIMATION */}
             <nav className="flex gap-6">
               {navItems.map((item) => (
                 <NavLink
                   key={item.name}
                   to={item.path}
-                  className={({ isActive }) =>
-                    `hover:opacity-80 transition ${
-                      isActive ? "opacity-100 font-bold" : "opacity-70"
-                    }`
-                  }
+                  end
+                  className="relative group px-1 pb-1"
                 >
-                  {item.name}
+                  {({ isActive }) => (
+                    <>
+                      <span
+                        className={
+                          isActive
+                            ? "font-bold text-white"
+                            : "font-medium text-white/70 group-hover:text-white transition"
+                        }
+                      >
+                        {item.name}
+                      </span>
+
+                      {/* Underline animation */}
+                      <span
+                        className={`
+                          absolute left-0 -bottom-1 h-[3px] rounded-sm bg-white
+                          origin-left transition-transform duration-300
+                          ${
+                            isActive
+                              ? "scale-x-100"
+                              : "scale-x-0 group-hover:scale-x-100"
+                          }
+                        `}
+                      />
+                    </>
+                  )}
                 </NavLink>
               ))}
             </nav>
           </div>
+
+          {/* RIGHT SIDE */}
           <div className="flex items-center gap-4">
             <button className="p-2 hover:bg-white/10 rounded-lg">
               <Bell className="w-5 h-5" />
             </button>
+
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-teal-500 rounded-full flex items-center justify-center text-white font-bold">
                 A
@@ -59,7 +86,7 @@ export default function AdminLayout() {
         </div>
       </header>
 
-      {/* Breadcrumb */}
+      {/* BREADCRUMB */}
       <div className="bg-white border-b px-6 py-4 mt-16">
         <div className="text-sm text-gray-600">
           {pathnames.map((name, index) => (
@@ -79,7 +106,7 @@ export default function AdminLayout() {
         </div>
       </div>
 
-      {/* Nội dung */}
+      {/* PAGE CONTENT */}
       <main className="pt-6 pb-12 px-6 mt-16">
         <Outlet />
       </main>
