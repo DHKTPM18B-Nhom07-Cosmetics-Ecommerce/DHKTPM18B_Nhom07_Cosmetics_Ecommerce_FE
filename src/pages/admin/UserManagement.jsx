@@ -1,33 +1,43 @@
 // src/pages/admin/UserManagement.jsx
 import { useState, useEffect } from 'react';
 import { getUsers, disableAccount } from '../../services/api';
-import FilterModal from '../../components/admin/FilterModal';
+import { Plus, Search, Filter, RefreshCw } from 'lucide-react'; // Đã thêm icon Search, Filter
+import DisableAccountModal from '../../components/admin/DisableReason_Modal';
 import UserTable from '../../components/admin/UserTable';
-import { Filter } from 'lucide-react';
-import UserDetailModal from '../../components/admin/UserDetailModal';
-import AddNewAccountModal from '../../components/admin/AddNewAccount';
+import { useNavigate } from 'react-router-dom';
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [filters, setFilters] = useState({});
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [addAccountOpen, setAddAccountOpen] = useState(false);
+  
+  // State chính thức để gọi API
+  const [filters, setFilters] = useState({
+    search: '',
+    status: '',
+    role: ''
+  });
+
+  // State tạm thời cho các ô input (chưa gọi API ngay khi gõ)
+  const [tempSearch, setTempSearch] = useState('');
+  const [tempStatus, setTempStatus] = useState('');
+  const [tempRole, setTempRole] = useState('');
+
+  const [disableModalOpen, setDisableModalOpen] = useState(false);
+  const [userToDisable, setUserToDisable] = useState(null);
+  const navigate = useNavigate();
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await getUsers(page, 10, filters.role, filters.status, filters.search?.trim() || null);
-      const userList = res.data.content || [];
-      setUsers(userList);
+      // Sử dụng state filters để gọi API
+      const res = await getUsers(page, 10, filters.role, filters.status, filters.search);
+      setUsers(res.data.content || []);
       setTotalPages(res.data.totalPages || 0);
     } catch (err) {
-      console.error('Lỗi khi lấy danh sách user:', err);
+      console.error(err);
       setUsers([]);
-      alert('Không thể kết nối tới backend! Kiểm tra console.');
     } finally {
       setLoading(false);
     }
@@ -35,159 +45,202 @@ export default function UserManagement() {
 
   useEffect(() => {
     fetchUsers();
-  }, [page, filters]);
+  }, [page, filters]); 
 
-  const handleDisable = async (id) => {
-    if (!window.confirm('Bạn có chắc chắn muốn vô hiệu hóa tài khoản này?')) return;
+  // Hàm xử lý khi nhấn nút Apply Filters
+  const handleApplyFilters = () => {
+    setFilters({
+      search: tempSearch,
+      status: tempStatus === 'All Status' ? '' : tempStatus,
+      role: tempRole === 'All role' ? '' : tempRole
+    });
+    setPage(0); 
+  };
+
+  const handleDisableClick = (user) => {
+    setUserToDisable(user);
+    setDisableModalOpen(true);
+  };
+
+  const confirmDisable = async (id, reason) => {
     try {
-      await disableAccount(id);
-      alert('Vô hiệu hóa thành công!');
+      await disableAccount(id, reason);
+      alert('Tài khoản đã bị vô hiệu hóa');
       fetchUsers();
     } catch (err) {
-      alert('Lỗi khi vô hiệu hóa!');
+      alert('Lỗi khi vô hiệu hóa');
     }
   };
 
-  // TÍNH 4 THỐNG KÊ THẬT TỪ DỮ LIỆU API
+  // Thống kê
   const totalUsers = users.length;
-  const activeAccounts = users.filter(u => 
-    (u.account?.status || u.status)?.toUpperCase() === 'ACTIVE'
-  ).length;
-  const premiumMembers = users.filter(u => 
-    u.account?.type?.toUpperCase() === 'PREMIUM' || u.type?.toUpperCase() === 'PREMIUM'
-  ).length;
-  const pendingApprovals = users.filter(u => 
-    (u.account?.status || u.status)?.toUpperCase() === 'PENDING'
-  ).length;
+  const customers = users.filter(u => (u.account?.role || u.role) === 'CUSTOMER').length;
+  const employees = users.filter(u => ['ADMIN', 'EMPLOYEE'].includes(u.account?.role || u.role)).length;
+  const locked = users.filter(u => (u.account?.status || u.status) === 'DISABLED').length;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">User Account Management</h1>
-      <p className="text-gray-600 mb-8">Manage user accounts, roles, and permissions</p>
+    <>
+      <div className="p-8 bg-gray-50 min-h-screen">
+        {/* Tiêu đề */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Quản lý tài khoản</h1>
+          <p className="text-gray-600 mt-1">Quản lý tài khoản người dùng, vai trò và quyền hạn</p>
+        </div>
 
-      {/* 4 THỐNG KÊ ĐÃ ĐỘNG 100% */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* Total Users */}
-        <div className="bg-[#D5E2E6] rounded-2xl p-6 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className=" text-sm">Total Users</p>
-              <p className="text-4xl font-bold mt-2">{totalUsers.toLocaleString()}</p>
+        {/* 4 ô thống kê */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="rounded-2xl p-6 shadow-sm border border-gray-100" style={{ background: '#D5E2E6' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-700">Tổng số người dùng</p>
+                <p className="text-3xl font-bold mt-2 text-gray-900">{totalUsers.toLocaleString()}</p>
+              </div>
+              <div className="w-12 h-12 bg-white/30 rounded-xl flex items-center justify-center text-2xl">👥</div>
             </div>
-            <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
+          </div>
+
+          <div className="rounded-2xl p-6 shadow-sm border border-gray-100" style={{ background: '#D5E2E6' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-700">Khách hàng</p>
+                <p className="text-3xl font-bold mt-2 text-gray-900">{customers.toLocaleString()}</p>
+              </div>
+              <div className="w-12 h-12 bg-white/30 rounded-xl flex items-center justify-center text-2xl">👤</div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl p-6 shadow-sm border border-gray-100" style={{ background: '#D5E2E6' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-700">Nhân viên</p>
+                <p className="text-3xl font-bold mt-2 text-gray-900">{employees.toLocaleString()}</p>
+              </div>
+              <div className="w-12 h-12 bg-white/30 rounded-xl flex items-center justify-center text-2xl">💼</div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl p-6 shadow-sm border border-gray-100" style={{ background: '#D5E2E6' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-700">Tài khoản bị khóa</p>
+                <p className="text-3xl font-bold mt-2 text-gray-900">{locked.toLocaleString()}</p>
+              </div>
+              <div className="w-12 h-12 bg-white/30 rounded-xl flex items-center justify-center text-2xl">🚫</div>
             </div>
           </div>
         </div>
 
-        {/* Active Accounts */}
-        <div className="bg-[#D5E2E6] rounded-2xl p-6 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className=" text-sm">Active Accounts</p>
-              <p className="text-4xl font-bold mt-2">{activeAccounts.toLocaleString()}</p>
+    {/* --- KHU VỰC BỘ LỌC (FILTER BAR)*/}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mb-8">
+     
+          <div className="flex items-end gap-4 w-full">
+   
+            <div className="flex-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Search Name/Email</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Enter User fullname or email"
+                  value={tempSearch}
+                  onChange={(e) => setTempSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B6377] focus:border-transparent"
+                />
+              
+              </div>
             </div>
-            <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+
+           
+            <div className="w-48 shrink-0">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+              <select
+                value={tempStatus}
+                onChange={(e) => setTempStatus(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B6377] bg-white cursor-pointer"
+              >
+                <option value="">All Status</option>
+                <option value="ACTIVE">Active</option>
+                <option value="DISABLED">Disabled</option>
+              </select>
             </div>
+
+       
+            <div className="w-48 shrink-0">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Role</label>
+              <select
+                value={tempRole}
+                onChange={(e) => setTempRole(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B6377] bg-white cursor-pointer"
+              >
+                <option value="">All role</option>
+                <option value="CUSTOMER">Customer</option>
+                <option value="EMPLOYEE">Employee</option>
+                <option value="ADMIN">Admin</option>
+              </select>
+            </div>
+
+          
+            <div className="shrink-0 ml-auto">
+              <button
+                onClick={handleApplyFilters}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors hover:bg-opacity-90"
+                style={{ backgroundColor: '#D5E2E6', color: '#2B6377' }}
+              >
+                <Filter className="w-5 h-5" />
+                Apply Filters
+              </button>
+            </div>
+
           </div>
         </div>
 
-        {/* Premium Members */}
-        <div className="bg-[#D5E2E6]  rounded-2xl p-6 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className=" text-sm">Premium Members</p>
-              <p className="text-4xl font-bold mt-2">{premiumMembers.toLocaleString()}</p>
-            </div>
-            <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-              </svg>
+        {/* Bảng danh sách */}
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800">Danh sách tài khoản</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Hiển thị {(page * 10) + 1}-{Math.min((page + 1) * 10, users.length)} trong tổng {users.length} tài khoản
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={fetchUsers} 
+                  className="p-3 border border-gray-300 rounded-xl hover:bg-gray-50 text-gray-600 hover:text-[#2B6377] transition-colors shadow-sm"
+                  title="Làm mới dữ liệu"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => navigate('/admin/users/add')}
+                  className="flex items-center gap-2 px-6 py-3 text-white rounded-xl font-medium shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"
+                  style={{ background: '#2B6377' }}
+                >
+                  <Plus className="w-5 h-5" />
+                  Thêm tài khoản
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Pending Approvals */}
-        <div className=" bg-[#D5E2E6] rounded-2xl p-6 shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm">Pending Approvals</p>
-              <p className="text-4xl font-bold mt-2">{pendingApprovals.toLocaleString()}</p>
-            </div>
-            <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
+          <UserTable
+            users={users}
+            loading={loading}
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            onDisable={handleDisableClick}
+          />
         </div>
       </div>
 
-      {/* Phần bảng user giữ nguyên */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h2 className="text-lg font-semibold">User Accounts</h2>
-            <p className="text-sm text-gray-600">Manage all user accounts and their permissions</p>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setFilterOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-[#0e4f66] text-white rounded-lg hover:bg-[#0c3f52] transition"
-            >
-              <Filter className="w-4 h-4" />
-              Add Filter
-            </button>
-
-            <input
-              type="text"
-              placeholder="Search users..."
-              className="px-4 py-2 border rounded-lg"
-              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-            />
-
-            <button
-              onClick={() => setAddAccountOpen(true)}
-              className="px-6 py-2 bg-[#0e4f66] text-white rounded-lg hover:bg-[#0c3f52] transition"
-            >
-              + Add New Account
-            </button>
-          </div>
-        </div>
-
-        <UserTable
-          users={users}
-          loading={loading}
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          onDisable={handleDisable}
-          onView={setSelectedUser}
-        />
-      </div>
-
-      {/* Các Modal */}
-      <FilterModal isOpen={filterOpen} onClose={() => setFilterOpen(false)} onApply={setFilters} />
-
-      <UserDetailModal
-        isOpen={!!selectedUser}
-        onClose={() => setSelectedUser(null)}
-        user={selectedUser}
-        onUserUpdated={fetchUsers} // reload khi disable từ modal
+      {/* Modal vô hiệu hóa */}
+      <DisableAccountModal
+        isOpen={disableModalOpen}
+        onClose={() => setDisableModalOpen(false)}
+        user={userToDisable}
+        onConfirm={confirmDisable}
       />
-
-      <AddNewAccountModal
-        isOpen={addAccountOpen}
-        onClose={() => {
-          setAddAccountOpen(false);
-          fetchUsers();
-        }}
-      />
-    </div>
+    </>
   );
 }
