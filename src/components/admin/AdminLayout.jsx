@@ -1,18 +1,20 @@
 // src/components/admin/AdminLayout.jsx
-import { Outlet } from 'react-router-dom'
-import { Bell, ChevronDown } from 'lucide-react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { Outlet } from "react-router-dom";
+import { Bell, ChevronDown } from "lucide-react";
+import { NavLink, useLocation } from "react-router-dom";
 
 const navItems = [
-  { name: 'Dashboard', path: '/admin' },
-  { name: 'User Management', path: '/admin/users' },
-  { name: 'Settings', path: '/admin/settings' },
-  { name: 'Reports', path: '/admin/reports' },
-]
+  { name: "Dashboard", path: "/admin" },
+  { name: "User Management", path: "/admin/users" },
+  // thêm
+  { name: "Vouchers", path: "/admin/vouchers" },
+  { name: "Settings", path: "/admin/settings" },
+  { name: "Reports", path: "/admin/reports" },
+];
 
 export default function AdminLayout() {
-  const location = useLocation()
-  const pathnames = location.pathname.split('/').filter(x => x)
+  const location = useLocation();
+  const pathnames = location.pathname.split("/").filter((x) => x);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -27,12 +29,14 @@ export default function AdminLayout() {
               <h1 className="text-xl font-bold">AdminPanel</h1>
             </div>
             <nav className="flex gap-6">
-              {navItems.map(item => (
+              {navItems.map((item) => (
                 <NavLink
                   key={item.name}
                   to={item.path}
                   className={({ isActive }) =>
-                    `hover:opacity-80 transition ${isActive ? 'opacity-100 font-bold' : 'opacity-70'}`
+                    `hover:opacity-80 transition ${
+                      isActive ? "opacity-100 font-bold" : "opacity-70"
+                    }`
                   }
                 >
                   {item.name}
@@ -60,8 +64,14 @@ export default function AdminLayout() {
         <div className="text-sm text-gray-600">
           {pathnames.map((name, index) => (
             <span key={index}>
-              {index > 0 && ' > '}
-              <span className={index === pathnames.length - 1 ? 'text-gray-900 font-medium' : ''}>
+              {index > 0 && " > "}
+              <span
+                className={
+                  index === pathnames.length - 1
+                    ? "text-gray-900 font-medium"
+                    : ""
+                }
+              >
                 {name.charAt(0).toUpperCase() + name.slice(1)}
               </span>
             </span>
@@ -74,5 +84,5 @@ export default function AdminLayout() {
         <Outlet />
       </main>
     </div>
-  )
+  );
 }

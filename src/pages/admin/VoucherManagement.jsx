@@ -228,7 +228,7 @@ export default function VoucherManagement() {
       {/* TITLE */}
       <div>
         <h1 className="text-2xl font-bold text-[#2b6377]">
-          Voucher Management
+          Quản lý khuyến mãi
         </h1>
         <p className="text-[#467b8c] mt-1">
           Quản lý mã giảm giá, điều kiện và trạng thái
@@ -265,7 +265,7 @@ export default function VoucherManagement() {
           onClick={() => setBulkOpen(true)}
           className="btn-light flex items-center gap-2"
         >
-          <Upload className="w-4 h-4" /> Import Excel
+          <Upload className="w-4 h-4" /> Nhập từ file Excel
         </button>
 
         <button
@@ -384,7 +384,7 @@ export default function VoucherManagement() {
           {/* RESET BUTTON */}
           <div className="col-span-4 md:col-span-1 flex items-end">
             <button onClick={resetFilter} className="btn-reset w-full">
-              Reset
+              Làm mới
             </button>
           </div>
         </div>
