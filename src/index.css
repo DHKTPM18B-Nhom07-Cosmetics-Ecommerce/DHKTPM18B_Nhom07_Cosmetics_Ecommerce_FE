@@ -527,3 +527,10 @@ html {
 [class*="bg-[#0e4f66]"] ~ * > *:first-child:not(nav):not(header) {
   padding-top: 76px !important;
 }
+
+/* MUI DATE PICKER POPPER Z-INDEX FIX */
+.MuiPopover-root,
+.MuiPopper-root,
+.MuiPickersPopper-root {
+  z-index: 999999999 !important;
+}

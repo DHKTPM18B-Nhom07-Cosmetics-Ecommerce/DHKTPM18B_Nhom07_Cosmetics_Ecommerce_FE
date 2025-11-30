@@ -8,7 +8,6 @@ const api = axios.create({
 });
 
 export default api;
-
 // Nếu  có JWT thì mở comment dòng dưới
 // api.interceptors.request.use(config => {
 //   const token = localStorage.getItem('token');
@@ -32,3 +31,4 @@ export const createUser = (data) => {
 export const disableAccount = (id, reason = 'Disabled by admin') => {
   return api.delete(`/api/accounts/${id}`, { params: { reason } });
 };
+

@@ -18,7 +18,8 @@ import AdminLayout from './components/admin/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import UserManagement from './pages/admin/UserManagement';
 import { AuthProvider } from './context/AuthContext';
-
+import VoucherManagement from "./pages/admin/VoucherManagement";
+import "react-datepicker/dist/react-datepicker.css";
 export default function App() {
     return (
         <AuthProvider>
@@ -45,6 +46,7 @@ export default function App() {
                     <Route path="users" element={<UserManagement />} />
                     {/* Sau này thêm */}
                     {/* <Route path="products" element={<ProductManagement />} /> */}
+                    <Route path="vouchers" element={<VoucherManagement />} />
                 </Route>
             </Routes>
 
@@ -53,4 +55,5 @@ export default function App() {
             </Router>
         </AuthProvider>
     );
+
 }
