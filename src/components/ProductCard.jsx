@@ -21,21 +21,31 @@ export default function ProductCard({ product }) {
     return (
         <div
             onClick={() => navigate(`/products/${product.id}`)}
-            className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md hover:border-teal-600 hover:border-2 transition cursor-pointer group"
+            className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md border-2 border-transparent hover:border-teal-600 transition cursor-pointer group"
         >
             <div className="relative">
                 <img
                     src={(product.images && product.images.length > 0) ? product.images[0] : "/placeholder.svg"}
                     alt={product.name}
-                    className="w-full h-48 object-cover group-hover:scale-105 transition duration-300"
+                    className={`w-full h-48 object-cover transition-all duration-500 ${product.images && product.images.length > 1
+                        ? "group-hover:opacity-0"
+                        : "group-hover:scale-105"
+                        }`}
                 />
+                {product.images && product.images.length > 1 && (
+                    <img
+                        src={product.images[1]}
+                        alt={product.name}
+                        className="absolute inset-0 w-full h-48 object-cover opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                    />
+                )}
                 {/* Discount logic would go here if available in API */}
                 <button className="absolute top-2 left-2 bg-blue-100 p-2 rounded-full hover:bg-blue-200 transition">
                     <Heart className="w-4 h-4 text-red-500" />
                 </button>
             </div>
 
-            <div className="p-4">
+            <div className="p-4 gap-8">
                 <p className="text-xs font-bold text-teal-700 uppercase mb-1">
                     {getBrand()}
                 </p>
@@ -51,8 +61,19 @@ export default function ProductCard({ product }) {
                 </div>
 
                 <div className="flex items-center gap-2 mb-4">
-                    <span className="text-lg font-bold text-red-700">
-                        {product.price ? formatPrice(product.price) : 'Liên hệ'}
+                    <span className="text-sm font-bold text-red-700">
+                        {(() => {
+                            if (product.variants && product.variants.length > 0) {
+                                const prices = product.variants.map(v => v.price);
+                                const minPrice = Math.min(...prices);
+                                const maxPrice = Math.max(...prices);
+                                if (minPrice !== maxPrice) {
+                                    return `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
+                                }
+                                return formatPrice(minPrice);
+                            }
+                            return product.price ? formatPrice(product.price) : 'Liên hệ';
+                        })()}
                     </span>
                 </div>
 
