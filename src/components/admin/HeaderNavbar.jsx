@@ -7,7 +7,7 @@ const navItems = [
   { name: 'Danh mục', path: '/admin/categories' },
   { name: 'Sản phẩm', path: '/admin/products' },
   { name: 'Đơn hàng', path: '/admin/orders' },
-  { name: 'Mã giảm giá', path: '/admin/coupons' }, // Thêm mới, bạn cần tạo page nếu chưa
+  { name: 'Mã giảm giá', path: '/admin/vouchers' }, // Thêm mới, bạn cần tạo page nếu chưa
   { name: 'Tài khoản', path: '/admin/users' },
 ]
 

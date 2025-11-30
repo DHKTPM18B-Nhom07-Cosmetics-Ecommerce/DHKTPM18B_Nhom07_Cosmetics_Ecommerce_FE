@@ -19,6 +19,9 @@ import Dashboard from './pages/admin/Dashboard';
 import UserManagement from './pages/admin/UserManagement';
 import { AuthProvider } from './context/AuthContext';
 import VoucherManagement from "./pages/admin/VoucherManagement";
+import CategoryManagement from "./pages/admin/CategoryManagement";
+import ProductManagement from "./pages/admin/ProductManagement";
+import OrderManagement from "./pages/admin/OrderManagement";
 import AddEmployee from './pages/admin/AddEmployee'
 import UserDetail from './pages/admin/UserDetail' 
 import "react-datepicker/dist/react-datepicker.css";
@@ -49,6 +52,9 @@ export default function App() {
                     <Route path="users" element={<UserManagement />} />
                     <Route path="users/add" element={<AddEmployee />} />
                     <Route path="users/:id" element={<UserDetail />} />
+                    <Route path="categories" element={<CategoryManagement />} />
+                    <Route path="products" element={<ProductManagement />} />
+                    <Route path="orders" element={<OrderManagement />} />
                     {/* Sau này thêm */}
                     {/* <Route path="products" element={<ProductManagement />} /> */}
                     <Route path="vouchers" element={<VoucherManagement />} />
