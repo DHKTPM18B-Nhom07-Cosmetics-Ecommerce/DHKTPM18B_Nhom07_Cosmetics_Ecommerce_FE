@@ -7,7 +7,7 @@ const formatDate = (dateStr) => {
   return `${d.getDate().toString().padStart(2,'0')}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getFullYear()}`;
 };
 
-export default function UserRow({ user, index, onDisable }) {
+export default function UserRow({ user, index, onDisable, orderCounts = 0 }) {
   const navigate = useNavigate();
 
   const account = user.account || user;
@@ -25,7 +25,7 @@ export default function UserRow({ user, index, onDisable }) {
         </div>
       </td>
       <td className="py-4 px-6 text-gray-700">{formatDate(account.createdAt)}</td>
-      <td className="py-4 px-6 text-gray-700">0</td>
+      <td className="py-4 px-6 text-gray-700">{orderCounts} đơn</td>
       <td className="py-4 px-6">
         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
           account.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
