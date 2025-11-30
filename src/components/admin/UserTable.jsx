@@ -1,34 +1,64 @@
 // src/components/admin/UserTable.jsx
-import UserRow from './UserRow'
-import Pagination from '../ui/Pagination'
+import UserRow from './UserRow';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-export default function UserTable({ users, loading, page, totalPages, onPageChange, onDisable, onView }) {
-  if (loading) return <div className="text-center py-12 text-gray-500">Loading...</div>
+export default function UserTable({ users, loading, page, totalPages, onPageChange, onDisable }) {
+  if (loading) return <div className="p-8 text-center">Đang tải...</div>;
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <table className="w-full">
-        <thead className="bg-gray-50 border-b">
-          <tr>
-            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">User Full Name</th>
-            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-            <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200">
-          {users.map(user => (
-            <UserRow key={user.id} user={user} onDisable={onDisable} onView={onView} />
-          ))}
-        </tbody>
-      </table>
-      <div className="px-6 py-4 bg-gray-50 flex justify-between items-center">
-        <p className="text-sm text-gray-600">
-          Showing {page * 10 + 1} to {Math.min((page + 1) * 10, 1247)} of 1,247 results
-        </p>
-        <Pagination currentPage={page} totalPages={totalPages} onPageChange={onPageChange} />
+    <>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-gray-200 text-left text-sm font-medium text-gray-600">
+              <th className="pb-4 px-6">Thứ tự</th>
+              <th className="pb-4 px-6">Tên khách hàng</th>
+              <th className="pb-4 px-6">Ngày tham gia</th>
+              <th className="pb-4 px-6">Tổng đơn hàng</th>
+              <th className="pb-4 px-6">Vai trò</th>
+              <th className="pb-4 px-6">Trạng thái</th>
+              <th className="pb-4 px-6">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.length === 0 ? (
+              <tr><td colSpan={7} className="text-center py-12 text-gray-500">Không có dữ liệu</td></tr>
+            ) : (
+              users.map((user, idx) => (
+                <UserRow
+                  key={user.id || user.account?.id}
+                  user={user}
+                  index={page * 10 + idx}
+                  onDisable={onDisable}
+                />
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
-    </div>
-  )
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200">
+          <button
+            onClick={() => onPageChange(Math.max(0, page - 1))}
+            disabled={page === 0}
+            className="flex items-center gap-2 px-4 py-2 border rounded-lg disabled:opacity-50"
+          >
+            <ChevronLeft className="w-4 h-4" /> Trước
+          </button>
+          <span className="text-sm text-gray-600">
+            Trang {page + 1} / {totalPages}
+          </span>
+          <button
+            onClick={() => onPageChange(Math.min(totalPages - 1, page + 1))}
+            disabled={page >= totalPages - 1}
+            className="flex items-center gap-2 px-4 py-2 border rounded-lg disabled:opacity-50"
+          >
+            Sau <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+    </>
+  );
 }

@@ -22,6 +22,13 @@ export const getUsers = (page = 0, size = 10, role, status, search) => {
   });
 };
 
+
+// LẤY CHI TIẾT USER THEO ID
+export const getUserById = (id) => {
+  return api.get(`/api/accounts/${id}`); 
+
+};
+
 // TẠO USER MỚI (Employee)
 export const createUser = (data) => {
   return api.post('/api/employees', data);
