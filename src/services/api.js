@@ -8,7 +8,6 @@ const api = axios.create({
 });
 
 export default api;
-
 // Nếu  có JWT thì mở comment dòng dưới
 // api.interceptors.request.use(config => {
 //   const token = localStorage.getItem('token');
@@ -16,11 +15,19 @@ export default api;
 //   return config;
 // });
 
-// LẤY DANH SÁCH USER CHO ADMIN
+// --- QUẢN LÝ TÀI KHOẢN (ACCOUNT) ---
+
+// LẤY DANH SÁCH USER CHO ADMIN (Phân trang, lọc)
 export const getUsers = (page = 0, size = 10, role, status, search) => {
   return api.get('/api/accounts/management', {
     params: { page, size, role, status, search }
   });
+};
+export const getAllAccountsForStats = () => api.get('/api/accounts');
+
+// LẤY CHI TIẾT USER THEO ID
+export const getUserById = (id) => {
+  return api.get(`/api/accounts/${id}`); 
 };
 
 // TẠO USER MỚI (Employee)
@@ -31,4 +38,30 @@ export const createUser = (data) => {
 // VÔ HIỆU HÓA TÀI KHOẢN
 export const disableAccount = (id, reason = 'Disabled by admin') => {
   return api.delete(`/api/accounts/${id}`, { params: { reason } });
+};
+
+
+// --- QUẢN LÝ ĐƠN HÀNG (ORDER) ---
+// (Mới thêm để phục vụ trang UserDetail)
+
+// Lấy lịch sử mua hàng của Khách hàng
+export const getOrdersByCustomerId = (customerId) => {
+  return api.get(`/api/orders/search/customer/${customerId}`);
+};
+
+
+// Lấy lịch sử xử lý đơn hàng của Nhân viên
+export const getOrdersByEmployeeId = (employeeId) => {
+  return api.get(`/api/orders/search/employee/${employeeId}`);
+};
+
+
+export const getAllCustomers = () => 
+  api.get('/api/customers', { 
+    params: { _t: Date.now() }  
+  });
+export const getAllEmployees = () => api.get('/api/employees');
+
+export const getAllOrders = () => {
+  return api.get('/api/orders');
 };

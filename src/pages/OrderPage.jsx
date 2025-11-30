@@ -163,11 +163,7 @@ const OrderPage = () => {
                     className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
                     <MapPin className="w-4 h-4 mr-2" /> Địa chỉ giao hàng
                 </a>
-                <Link
-                    to="/logout"
-                    className="flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition mt-4 border-t pt-2">
-                    <LogOut className="w-4 h-4 mr-2" /> Thoát
-                </Link>
+                
             </nav>
         </div>
     );
@@ -218,7 +214,6 @@ const OrderPage = () => {
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
-            <Header />
 
             <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="text-sm text-gray-500 mb-6">
@@ -365,7 +360,6 @@ const OrderPage = () => {
                 </div>
             </div>
 
-            <Footer />
         </div>
     );
 };

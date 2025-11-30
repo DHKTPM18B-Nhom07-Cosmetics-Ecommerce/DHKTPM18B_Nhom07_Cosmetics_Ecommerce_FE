@@ -1,0 +1,519 @@
+/* =========================================
+   GLOBAL PASTEL THEME
+========================================= */
+:root {
+  --primary: #2b6377;
+  --primary-light: #ccdfe3;
+
+  --blue-soft: #dbeafe;
+  --purple-soft: #f3e8ff;
+  --green-soft: #dcfce7;
+
+  --text-main: #34535c;
+  --text-light: #6f8d96;
+
+  --border-color: #d9e6ea;
+  --bg-card: #f7fbfc;
+  --bg-soft: #f5fafb;
+}
+
+/* =========================================
+   GENERAL SECTION WRAPPER
+========================================= */
+.pastel-section {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 10px rgba(135, 166, 173, 0.15);
+  transition: 0.2s;
+}
+
+.pastel-section:hover {
+  box-shadow: 0 6px 14px rgba(135, 166, 173, 0.25);
+}
+
+/* =========================================
+   CARD (STATS + TABLE WRAPPER)
+========================================= */
+.pastel-card {
+  background: white;
+  border: 1px solid var(--border-color);
+  padding: 0;
+}
+
+/* =========================================
+   TABLE HEADER
+========================================= */
+.table-head {
+  background: var(--primary-light);
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.table-th {
+  padding: 12px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.table-th:hover {
+  background: #eaf4f6;
+}
+
+/* =========================================
+   TABLE CELLS
+========================================= */
+.td-cell {
+  padding: 14px 16px;
+  color: var(--text-main);
+}
+
+/* Hover row */
+tbody tr:hover {
+  background: var(--bg-soft);
+}
+
+/* =========================================
+   ICON BUTTONS
+========================================= */
+.icon-btn {
+  padding: 4px;
+  border-radius: 8px;
+  transition: 0.2s;
+}
+
+.icon-btn:hover {
+  background: var(--primary-light);
+}
+
+/* =========================================
+   PAGINATION BAR
+========================================= */
+.pagination-bar {
+  background: var(--bg-soft);
+  border-top: 1px solid var(--border-color);
+  padding: 12px 20px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.page-btn {
+  padding: 8px;
+  border-radius: 8px;
+  transition: 0.2s;
+  color: var(--text-main);
+}
+
+.page-btn:hover {
+  background: var(--primary-light);
+}
+
+.page-number {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  color: var(--text-main);
+  background: transparent;
+  transition: 0.2s;
+}
+
+.page-number:hover {
+  background: var(--primary-light);
+}
+
+.page-active {
+  background: var(--primary);
+  color: white !important;
+}
+
+/* =========================================
+   BADGES
+========================================= */
+.badge {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.badge-blue { background: var(--blue-soft); color: #1d4ed8; }
+.badge-purple { background: var(--purple-soft); color: #7e22ce; }
+.badge-green { background: var(--green-soft); color: #15803d; }
+
+/* =========================================
+   MODAL ANIMATIONS
+========================================= */
+@keyframes modalFadeIn {
+  0% { opacity: 0; transform: translateY(-12px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal-container {
+  animation: modalFadeIn 0.25s ease-out forwards;
+}
+
+/* Semi-transparent background overlay */
+.modal-overlay {
+  background: rgba(43, 99, 119, 0.15) !important;
+  backdrop-filter: blur(2px);
+}
+
+/* =========================================
+   MODAL CONTENT BLOCK
+========================================= */
+.modal-body {
+  padding: 24px;
+  border-radius: 16px;
+  background: white;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 20px rgba(135, 166, 173, 0.25);
+}
+
+/* =========================================
+   FORM INPUT & SELECT
+========================================= */
+input.input,
+select.input {
+  border: 1px solid var(--border-color);
+  background: #f9fcfd;
+  color: var(--text-main);
+  border-radius: 10px;
+  height: 40px;
+  padding: 0 12px;
+  transition: 0.2s;
+}
+
+input.input:focus,
+select.input:focus {
+  border-color: var(--primary);
+  background: white;
+  box-shadow: 0 0 0 3px rgba(43, 99, 119, 0.1);
+}
+
+/* =========================================
+   PRIMARY BUTTON
+========================================= */
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border-radius: 10px;
+  padding: 10px 18px;
+  transition: 0.2s;
+}
+
+.btn-primary:hover {
+  background: #234f5e;
+}
+
+/* Light button */
+.btn-light {
+  background: var(--primary-light);
+  color: var(--text-main);
+  padding: 10px 18px;
+  border-radius: 10px;
+}
+
+.btn-light:hover {
+  background: #bdd3d8;
+}
+
+/* =========================================
+   SCROLLBAR (PASTEL)
+========================================= */
+::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-light);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* ============================
+   BADGE TYPE (Loại)
+   dạng pill + pastel
+============================ */
+
+.badge-type {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 600;
+
+  border-radius: 999px; /* pill */
+  white-space: nowrap;
+}
+
+/* Giảm % */
+.badge-percent {
+  background: #dbeafe;   /* pastel blue */
+  color: #1e3a8a;
+}
+
+/* Giảm tiền */
+.badge-amount {
+  background: #f3e8ff;   /* pastel purple */
+  color: #6b21a8;
+}
+
+/* Miễn ship */
+.badge-ship {
+  background: #dcfce7;   /* pastel green */
+  color: #166534;
+}
+
+/* ============================
+   BADGE STATUS (Trạng thái)
+============================ */
+
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 600;
+
+  border-radius: 999px; /* pill */
+  white-space: nowrap;
+}
+
+/* Hoạt động */
+.status-active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+/* Sắp hiệu lực */
+.status-upcoming {
+  background: #fef9c3; /* pastel vàng */
+  color: #854d0e;
+}
+
+/* Hết hạn */
+.status-expired {
+  background: #fee2e2; /* pastel đỏ */
+  color: #b91c1c;
+}
+
+/* Vô hiệu hóa */
+.status-disabled {
+  background: #e5e7eb; /* pastel xám */
+  color: #6b7280;
+}
+
+/* ============================
+   FILTER INPUT BOX
+============================ */
+
+.voucher-filter-box {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+
+  background: white;
+  border: 1px solid var(--border-color);
+  height: 42px;
+  border-radius: 10px;
+
+  transition: 0.2s;
+}
+
+.voucher-filter-box:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(43, 99, 119, 0.15);
+}
+
+.voucher-filter-box input {
+  flex: 1;
+  outline: none;
+  border: none;
+  background: transparent;
+  padding-left: 8px;
+  font-size: 14px;
+  color: var(--text-main);
+}
+
+/* SELECT */
+.voucher-select-box {
+  width: 100%;
+  height: 42px;
+
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+
+  font-size: 14px;
+  color: var(--text-main);
+  padding: 0 12px;
+
+  transition: 0.2s;
+}
+
+.voucher-select-box:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(43, 99, 119, 0.15);
+}
+
+/* RESET BUTTON */
+.btn-reset {
+  width: 100%;
+  height: 42px;
+  border-radius: 10px;
+  background: #e2ecef;
+  color: var(--text-main);
+  font-weight: 500;
+  transition: 0.2s;
+}
+
+.btn-reset:hover {
+  background: #cbdde1;
+}
+.voucher-filter-box {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+
+  background: white;
+  border: 1px solid var(--border-color);
+  height: 42px;
+  border-radius: 10px;
+
+  transition: 0.2s;
+}
+
+.voucher-filter-box:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(43, 99, 119, 0.15);
+}
+
+.voucher-filter-box input {
+  flex: 1;
+  outline: none;
+  border: none;
+  background: transparent;
+  padding-left: 8px;
+  font-size: 14px;
+  color: var(--text-main);
+}
+
+/* SELECT BOX */
+.voucher-select-box {
+  width: 100%;
+  height: 42px;
+
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+
+  font-size: 14px;
+  color: var(--text-main);
+  padding: 0 12px;
+
+  transition: 0.2s;
+}
+
+.voucher-select-box:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(43, 99, 119, 0.15);
+}
+
+/* search */
+.suggest-dropdown {
+  position: absolute;
+  top: 46px;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #d6e4e8;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+  z-index: 20;
+  overflow: hidden;
+  animation: fadeIn 0.15s ease;
+}
+
+.suggest-item {
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: 0.15s;
+  font-size: 14px;
+}
+
+.suggest-item:hover {
+  background: #f1f7f9;
+}
+
+.suggest-type {
+  color: #4f7c8a;
+  font-size: 12px;
+}
+
+@keyframes fadeIn {
+  from {opacity: 0; transform: translateY(4px);}
+  to {opacity: 1; transform: translateY(0);}
+}
+
+/* MODAL CREATE */
+@keyframes modalPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.modal-animate {
+  animation: modalPop 0.28s cubic-bezier(0.2, 0.75, 0.25, 1) forwards;
+}
+
+/* Badge đỏ pastel cho dấu * trong label */
+.label-required {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.label-required::after {
+  content: "*";
+  background: #ffe5e8;   /* hồng pastel */
+  color: #d72339;         /* đỏ đậm */
+  font-weight: 700;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+/* Force 24h format — Safari & Chrome */
+input[type="datetime-local"].time-24h {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+input[type="datetime-local"].time-24h::-webkit-datetime-edit-hour-field,
+input[type="datetime-local"].time-24h::-webkit-datetime-edit-minute-field,
+input[type="datetime-local"].time-24h::-webkit-datetime-edit-second-field {
+  padding: 0 2px;
+}
+
+input[type="datetime-local"].time-24h::-webkit-datetime-edit-ampm-field {
+  display: none;
+}
