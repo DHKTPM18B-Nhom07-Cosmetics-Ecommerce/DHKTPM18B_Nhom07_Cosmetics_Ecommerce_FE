@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, Check } from "lucide-react";
 import { getAllProducts, getProductVariants } from "../services/productService";
 import { getAllCategories } from "../services/categoryService";
 import Breadcrumb from "../components/Breadcrumb";
 import ProductCard from "../components/ProductCard";
+import Pagination from "../components/ui/Pagination";
 
 export default function ProductsPage() {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export default function ProductsPage() {
   const [activeSort, setActiveSort] = useState("Mới nhất");
   const [displayLimit, setDisplayLimit] = useState(12);
   const [isLimitDropdownOpen, setIsLimitDropdownOpen] = useState(false);
+  const limitDropdownRef = useRef(null);
 
   // Brand data
   const brands = [
@@ -40,9 +42,24 @@ export default function ProductsPage() {
           getAllCategories(),
         ]);
 
+        // Xử lý trường hợp API trả về object với property content hoặc data
+        let productsArray = productsData;
+        if (productsData && !Array.isArray(productsData)) {
+          if (productsData.content) {
+            productsArray = productsData.content;
+          } else if (productsData.data) {
+            productsArray = productsData.data;
+          } else if (Array.isArray(productsData.items)) {
+            productsArray = productsData.items;
+          } else {
+            console.warn("Không thể parse productsData, giả sử là array rỗng");
+            productsArray = [];
+          }
+        }
+
         // Lấy variants cho mỗi sản phẩm để lấy giá
         const productsWithPrice = await Promise.all(
-          productsData.map(async (product) => {
+          productsArray.map(async (product) => {
             try {
               const variants = await getProductVariants(product.id);
               const price = variants.length > 0 ? variants[0].price : null;
@@ -57,11 +74,12 @@ export default function ProductsPage() {
           })
         );
 
-        console.log("Dữ liệu sản phẩm từ API:", productsWithPrice);
         setProducts(productsWithPrice);
-        setCategories(categoriesData);
+        setCategories(categoriesData || []);
       } catch (error) {
         console.error("Lỗi khi lấy dữ liệu:", error);
+        setProducts([]);
+        setCategories([]);
       } finally {
         setLoading(false);
       }
@@ -70,28 +88,78 @@ export default function ProductsPage() {
     fetchData();
   }, []);
 
-  // Lọc sản phẩm
-  // Tạm thời bỏ qua bộ lọc để hiển thị tất cả sản phẩm theo yêu cầu
-  const filteredProducts = products;
-  /*
-  const filteredProducts = products.filter(product => {
-    // Lưu ý: Backend Product entity ignore category, nên có thể không có thông tin category trong object product.
-    // Nếu product.category là null, chúng ta không thể lọc theo category đúng cách trừ khi fetch chi tiết category hoặc backend được sửa.
-    // Giả sử product.category có thể thiếu hoặc rỗng dựa trên code backend.
-    // Chúng ta sẽ kiểm tra xem product.category có tồn tại và có tên không.
-    const matchCategory = selectedCategory
-      ? (product.category && product.category.name === selectedCategory)
-      : true
+  // Sắp xếp sản phẩm (bỏ qua lọc, chỉ sắp xếp)
+  const sortedProducts = useMemo(() => {
+    if (!products || !Array.isArray(products) || products.length === 0) {
+      return [];
+    }
 
-    // Lọc theo giá
-    // Nếu không có giá (price là null), tạm thời vẫn hiển thị hoặc có thể ẩn đi tùy logic.
-    const matchPrice = product.price
-      ? (product.price >= priceRange[0] && product.price <= priceRange[1])
-      : true 
+    let result = [...products];
 
-    return matchCategory && matchPrice
-  })
-  */
+    // Sắp xếp sản phẩm
+    switch (activeSort) {
+      case "Giá thấp đến cao":
+        result.sort((a, b) => (a.price || 0) - (b.price || 0));
+        break;
+      case "Giá cao đến thấp":
+        result.sort((a, b) => (b.price || 0) - (a.price || 0));
+        break;
+      case "Bán chạy":
+        // TODO: Cần thêm field salesCount từ backend
+        // Giữ nguyên thứ tự
+        break;
+      case "Mới nhất":
+      default:
+        // Sắp xếp theo id (mới nhất = id lớn nhất)
+        result.sort((a, b) => (b.id || 0) - (a.id || 0));
+        break;
+    }
+
+    return result;
+  }, [products, activeSort]);
+
+  // Reset về trang 1 khi thay đổi sort hoặc displayLimit
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeSort, displayLimit]);
+
+  // Đóng dropdown khi click bên ngoài
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        limitDropdownRef.current &&
+        !limitDropdownRef.current.contains(event.target)
+      ) {
+        setIsLimitDropdownOpen(false);
+      }
+    }
+
+    if (isLimitDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  }, [isLimitDropdownOpen]);
+
+  // Đảm bảo currentPage không vượt quá totalPages
+  useEffect(() => {
+    const totalPages = Math.ceil(sortedProducts.length / displayLimit);
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [sortedProducts.length, displayLimit, currentPage]);
+
+  // Tính toán phân trang
+  const totalPages = Math.ceil(sortedProducts.length / displayLimit);
+  const startIndex = (currentPage - 1) * displayLimit;
+  const endIndex = startIndex + displayLimit;
+  const paginatedProducts = sortedProducts.slice(startIndex, endIndex);
+
+  // Xử lý thay đổi trang
+  const handlePageChange = (page) => {
+    setCurrentPage(page + 1); // Pagination component dùng 0-based, nhưng state dùng 1-based
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -173,10 +241,10 @@ export default function ProductsPage() {
               <div className="mt-6 mb-6">
                 <div className="mb-4">
                   <h2 className="text-2xl font-bold text-gray-800">
-                    {selectedCategory ? selectedCategory : "Tất cả sản phẩm"}
+                    Tất cả sản phẩm
                     <span className="text-gray-500 font-normal ml-2 text-lg">
                       {" "}
-                      ({filteredProducts.length})
+                      ({sortedProducts.length})
                     </span>
                   </h2>
                 </div>
@@ -213,32 +281,44 @@ export default function ProductsPage() {
                     </div>
 
                     {/* Display limit */}
-                    <div className="relative">
+                    <div className="relative" ref={limitDropdownRef}>
                       <button
                         type="button"
                         onClick={() =>
                           setIsLimitDropdownOpen(!isLimitDropdownOpen)
                         }
-                        className="flex items-center gap-1.5 px-3 py-2 h-[28px] text-sm bg-white"
+                        className="flex items-center gap-1.5 px-3 py-2 h-[28px] text-sm bg-white border border-gray-200 rounded hover:bg-gray-50 transition-colors"
                       >
-                        Hiển thị {displayLimit}
-                        <svg width="16" height="16" viewBox="0 0 16 16">
+                        <span>Hiển thị {displayLimit}</span>
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          className={`transition-transform ${
+                            isLimitDropdownOpen ? "rotate-180" : ""
+                          }`}
+                        >
                           <path
                             d="M12 6l-4 4-4-4"
                             stroke="currentColor"
                             strokeWidth="1.5"
                             strokeLinecap="round"
                             strokeLinejoin="round"
+                            fill="none"
                           ></path>
                         </svg>
                       </button>
 
                       {isLimitDropdownOpen && (
-                        <div className="absolute top-full right-0 mt-2 w-40 bg-white border border-gray-100 rounded-lg shadow-lg z-10 py-1">
+                        <div className="absolute top-full right-0 mt-2 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
                           {[12, 24, 36, 48].map((limit) => (
                             <div
                               key={limit}
-                              className="px-4 py-2 hover:bg-gray-50 cursor-pointer flex items-center justify-between"
+                              className={`px-4 py-2 cursor-pointer flex items-center justify-between transition-colors ${
+                                displayLimit === limit
+                                  ? "bg-[#2B6377]/5 text-[#2B6377]"
+                                  : "hover:bg-gray-50 text-gray-700"
+                              }`}
                               onClick={() => {
                                 setDisplayLimit(limit);
                                 setIsLimitDropdownOpen(false);
@@ -254,7 +334,7 @@ export default function ProductsPage() {
                                 Hiển thị {limit}
                               </span>
                               {displayLimit === limit && (
-                                <Check className="w-4 h-4 text-green-600" />
+                                <Check className="w-4 h-4 text-[#2B6377]" />
                               )}
                             </div>
                           ))}
@@ -265,30 +345,28 @@ export default function ProductsPage() {
                 </div>
               </div>
 
-              {filteredProducts.length === 0 ? (
+              {sortedProducts.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   Không tìm thấy sản phẩm nào.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                  {filteredProducts.map((product) => (
-                    <ProductCard key={product.id} product={product} />
-                  ))}
-                </div>
-              )}
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    {paginatedProducts.map((product) => (
+                      <ProductCard key={product.id} product={product} />
+                    ))}
+                  </div>
 
-              {/* Pagination (Static for now as API doesn't support pagination yet in this implementation) */}
-              <div className="flex justify-center items-center gap-2">
-                <button className="px-3 py-2 border rounded hover:bg-gray-100 transition">
-                  ←
-                </button>
-                <button className="px-3 py-2 bg-teal-700 text-white rounded transition">
-                  1
-                </button>
-                <button className="px-3 py-2 border rounded hover:bg-gray-100 transition">
-                  →
-                </button>
-              </div>
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <Pagination
+                      currentPage={currentPage - 1}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                    />
+                  )}
+                </>
+              )}
             </>
           )}
         </main>
