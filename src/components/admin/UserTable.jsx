@@ -2,7 +2,7 @@
 import UserRow from './UserRow';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-export default function UserTable({ users, loading, page, totalPages, onPageChange, onDisable }) {
+export default function UserTable({ users, loading, page, totalPages, onPageChange, onDisable, orderCounts = {} }) {
   if (loading) return <div className="p-8 text-center">Đang tải...</div>;
 
   return (
@@ -30,6 +30,7 @@ export default function UserTable({ users, loading, page, totalPages, onPageChan
                   user={user}
                   index={page * 10 + idx}
                   onDisable={onDisable}
+                  orderCounts={orderCounts[user.id] ?? orderCounts[user.account?.id] ?? 0}
                 />
               ))
             )}
