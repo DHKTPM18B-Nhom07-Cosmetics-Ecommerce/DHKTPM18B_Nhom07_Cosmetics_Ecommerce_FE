@@ -1,25 +1,33 @@
 // src/pages/admin/UserManagement.jsx
 import { useState, useEffect } from 'react';
-import { getUsers, disableAccount } from '../../services/api';
-import { Plus, Search, Filter, RefreshCw } from 'lucide-react'; // Đã thêm icon Search, Filter
+import { getUsers, getAllAccountsForStats, disableAccount } from '../../services/api';
+import {
+  getAllCustomers,
+  getAllEmployees,
+  getOrdersByCustomerId,
+  getOrdersByEmployeeId
+} from '../../services/api';
+
+import { Plus, Search, Filter, RefreshCw } from 'lucide-react';
 import DisableAccountModal from '../../components/admin/DisableReason_Modal';
 import UserTable from '../../components/admin/UserTable';
 import { useNavigate } from 'react-router-dom';
 
 export default function UserManagement() {
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState([]); // Danh sách trang hiện tại
+  const [allUsers, setAllUsers] = useState([]); // ← THÊM: Toàn bộ users cho stats
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  
-  // State chính thức để gọi API
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [userOrderCounts, setUserOrderCounts] = useState({});
+const [orderCounts, setOrderCounts] = useState({});
   const [filters, setFilters] = useState({
     search: '',
     status: '',
     role: ''
   });
 
-  // State tạm thời cho các ô input (chưa gọi API ngay khi gõ)
   const [tempSearch, setTempSearch] = useState('');
   const [tempStatus, setTempStatus] = useState('');
   const [tempRole, setTempRole] = useState('');
@@ -28,10 +36,30 @@ export default function UserManagement() {
   const [userToDisable, setUserToDisable] = useState(null);
   const navigate = useNavigate();
 
-  const fetchUsers = async () => {
+
+  const fetchAllUsersForStats = async () => {
+    try {
+      const res = await getAllAccountsForStats();
+      const allData = res.data || []; 
+      setAllUsers(allData);
+   
+      // Tính stats từ allData 
+      const customers = allData.filter(u => u.role === 'CUSTOMER').length;
+      const employees = allData.filter(u => ['ADMIN', 'EMPLOYEE'].includes(u.role)).length;
+      const locked = allData.filter(u => u.status === 'DISABLED').length;
+      setTotalUsers(allData.length);
+      
+      // Log để debug (xóa sau)
+      console.log('All users count:', allData.length, { customers, employees, locked });
+    } catch (err) {
+      console.error('Lỗi lấy stats:', err);
+      setAllUsers([]);
+    }
+  };
+
+  const fetchUsers = async () => { // Chỉ lấy trang hiện tại cho table
     setLoading(true);
     try {
-      // Sử dụng state filters để gọi API
       const res = await getUsers(page, 10, filters.role, filters.status, filters.search);
       setUsers(res.data.content || []);
       setTotalPages(res.data.totalPages || 0);
@@ -45,16 +73,20 @@ export default function UserManagement() {
 
   useEffect(() => {
     fetchUsers();
-  }, [page, filters]); 
+  }, [page, filters]);
 
-  // Hàm xử lý khi nhấn nút Apply Filters
+
+  useEffect(() => {
+    fetchAllUsersForStats();
+  }, []); // Không depend filters, vì stats là tổng không filter
+
   const handleApplyFilters = () => {
     setFilters({
       search: tempSearch,
       status: tempStatus === 'All Status' ? '' : tempStatus,
       role: tempRole === 'All role' ? '' : tempRole
     });
-    setPage(0); 
+    setPage(0);
   };
 
   const handleDisableClick = (user) => {
@@ -67,16 +99,107 @@ export default function UserManagement() {
       await disableAccount(id, reason);
       alert('Tài khoản đã bị vô hiệu hóa');
       fetchUsers();
+      fetchAllUsersForStats(); // ← Refresh stats sau disable
     } catch (err) {
       alert('Lỗi khi vô hiệu hóa');
     }
   };
+useEffect(() => {
+  if (users.length === 0) return;
 
-  // Thống kê
-  const totalUsers = users.length;
-  const customers = users.filter(u => (u.account?.role || u.role) === 'CUSTOMER').length;
-  const employees = users.filter(u => ['ADMIN', 'EMPLOYEE'].includes(u.account?.role || u.role)).length;
-  const locked = users.filter(u => (u.account?.status || u.status) === 'DISABLED').length;
+  const loadOrderCountsForUsers = async () => {
+    const newCounts = { ...orderCounts };
+
+    for (const user of users) {
+      const accountId = user.id || user.account?.id;
+      if (!accountId || newCounts[accountId] !== undefined) continue;
+
+      let targetId = null;
+      let count = 0;
+
+      try {
+        // === COPY 100% TỪ USERDETAIL ===
+        if (user.role === 'CUSTOMER') {
+          if (user.customer?.id) {
+            targetId = user.customer.id;
+          } else {
+            // Fallback giống UserDetail
+           const resAll = await getAllCustomers();
+const listData = Array.isArray(resAll.data) ? resAll.data : (resAll.data?.content || []);
+
+            const found = listData.find(c => c.account?.id == accountId);
+            if (found) targetId = found.id;
+          }
+
+          if (targetId) {
+            const resOrders = await getOrdersByCustomerId(targetId);
+            let rawData = [];
+            try {
+              const jsonStr = JSON.stringify(resOrders.data);
+              const parsed = JSON.parse(jsonStr);
+              rawData = Array.isArray(parsed) ? parsed : (parsed?.content || []);
+            } catch {
+              rawData = Array.isArray(resOrders.data) ? resOrders.data : (resOrders.data?.content || []);
+            }
+            count = rawData.length;
+          }
+        }
+        // === NHÂN VIÊN / ADMIN ===
+       else if (user.role === 'EMPLOYEE' || user.role === 'ADMIN') {
+  if (user.employee && user.employee.id) {
+    targetId = user.employee.id;
+  } else {
+    try {
+      const resAll = await getAllEmployees();
+      const listData = Array.isArray(resAll.data)
+        ? resAll.data
+        : (resAll.data?.content || []);
+
+      const found = listData.find(e => {
+        return e.account && e.account.id == accountId;
+      });
+
+      if (found) targetId = found.id;
+    } catch (err) {
+      console.warn("Lỗi tìm Employee map:", err);
+    }
+  }
+
+  if (targetId) {
+    const resOrders = await getOrdersByEmployeeId(targetId);
+    let rawData = [];
+
+    try {
+      const jsonStr = JSON.stringify(resOrders.data);
+      const parsed = JSON.parse(jsonStr);
+      rawData = Array.isArray(parsed) ? parsed : (parsed.content || []);
+    } catch {
+      rawData = Array.isArray(resOrders.data)
+        ? resOrders.data
+        : (resOrders.data?.content || []);
+    }
+
+    count = rawData.length;
+  }
+}
+
+      } catch (err) {
+        console.warn("Lỗi load đơn hàng cho user", accountId, err);
+        count = 0;
+      }
+
+      newCounts[accountId] = count;
+    }
+
+    setOrderCounts(newCounts);
+  };
+
+  loadOrderCountsForUsers();
+}, [users]); 
+
+  const customers = allUsers.filter(u => u.role === 'CUSTOMER').length;
+  const employees = allUsers.filter(u => ['ADMIN', 'EMPLOYEE'].includes(u.role)).length;
+  const locked = allUsers.filter(u => u.status === 'DISABLED').length;
 
   return (
     <>
@@ -87,7 +210,7 @@ export default function UserManagement() {
           <p className="text-gray-600 mt-1">Quản lý tài khoản người dùng, vai trò và quyền hạn</p>
         </div>
 
-        {/* 4 ô thống kê */}
+        {/* 4 ô thống kê - BÂY GIỜ ĐÚNG 100%! */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="rounded-2xl p-6 shadow-sm border border-gray-100" style={{ background: '#D5E2E6' }}>
             <div className="flex items-center justify-between">
@@ -130,11 +253,9 @@ export default function UserManagement() {
           </div>
         </div>
 
-    {/* --- KHU VỰC BỘ LỌC (FILTER BAR)*/}
+        {/* Bộ lọc */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mb-8">
-     
           <div className="flex items-end gap-4 w-full">
-   
             <div className="flex-1">
               <label className="block text-sm font-semibold text-gray-700 mb-2">Search Name/Email</label>
               <div className="relative">
@@ -145,11 +266,9 @@ export default function UserManagement() {
                   onChange={(e) => setTempSearch(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B6377] focus:border-transparent"
                 />
-              
               </div>
             </div>
 
-           
             <div className="w-48 shrink-0">
               <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
               <select
@@ -163,7 +282,6 @@ export default function UserManagement() {
               </select>
             </div>
 
-       
             <div className="w-48 shrink-0">
               <label className="block text-sm font-semibold text-gray-700 mb-2">Role</label>
               <select
@@ -178,7 +296,6 @@ export default function UserManagement() {
               </select>
             </div>
 
-          
             <div className="shrink-0 ml-auto">
               <button
                 onClick={handleApplyFilters}
@@ -189,7 +306,6 @@ export default function UserManagement() {
                 Apply Filters
               </button>
             </div>
-
           </div>
         </div>
 
@@ -200,12 +316,12 @@ export default function UserManagement() {
               <div>
                 <h2 className="text-xl font-bold text-gray-800">Danh sách tài khoản</h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  Hiển thị {(page * 10) + 1}-{Math.min((page + 1) * 10, users.length)} trong tổng {users.length} tài khoản
+                  Hiển thị {(page * 10) + 1}-{Math.min((page + 1) * 10, users.length)} trong tổng {totalUsers} tài khoản
                 </p>
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={fetchUsers} 
+                  onClick={() => { fetchUsers(); fetchAllUsersForStats(); }} 
                   className="p-3 border border-gray-300 rounded-xl hover:bg-gray-50 text-gray-600 hover:text-[#2B6377] transition-colors shadow-sm"
                   title="Làm mới dữ liệu"
                 >
@@ -230,11 +346,11 @@ export default function UserManagement() {
             totalPages={totalPages}
             onPageChange={setPage}
             onDisable={handleDisableClick}
+            orderCounts={orderCounts}
           />
         </div>
       </div>
 
-      {/* Modal vô hiệu hóa */}
       <DisableAccountModal
         isOpen={disableModalOpen}
         onClose={() => setDisableModalOpen(false)}
