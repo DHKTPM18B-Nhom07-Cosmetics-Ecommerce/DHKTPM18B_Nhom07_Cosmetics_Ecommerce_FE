@@ -65,7 +65,18 @@ const LoginPage = () => {
                 <h2 className={styles.title}>Đăng nhập tài khoản</h2>
                 <p className={styles.subtitle}>Trải nghiệm làm đẹp cùng Embrosia</p>
                 <div className={styles.loginContainer}>
-                    {error && <p className={styles.errorMessage}>{error}</p>}
+                    {error && (
+                        <>
+                        <p className={styles.errorMessage} style={{ 
+                            color:'red', 
+                            textAlign: 'center', 
+                            marginBottom: '20px'
+                        }}>
+                            {error}
+                        </p>
+                        
+                    </>
+                    )}
 
                     <form onSubmit={handleSubmit} className={styles.loginForm}>
 
