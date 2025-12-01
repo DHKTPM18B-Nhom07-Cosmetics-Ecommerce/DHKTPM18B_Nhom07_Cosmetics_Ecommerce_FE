@@ -1,0 +1,197 @@
+:root {
+    --app-bg-color: #fcf8f2;
+    /* Màu nền ngoài cùng (Be nhạt) */
+    --container-bg-color: rgba(201, 228, 228, 0.5);
+    /* Màu nền container (Xanh nhạt mờ) */
+    --input-bg-color: #ffffff;
+    --primary-color: #316f84;
+    /* Màu xanh đậm cho nút Đăng nhập */
+    --link-color: #316f84;
+    /* Màu link */
+    --text-color-dark: #333;
+    --text-color-light: #555;
+    --text-color-faded: #7a7a7a;
+    /* Màu chữ hơi nhạt */
+}
+
+/* Khung chứa toàn bộ nội dung (bao gồm cả card và social login) */
+.loginPage {
+    width: 100%;
+    /* Trừ đi chiều cao Header và Footer */
+    min-height: calc(100vh - 120px); 
+    
+    /* Cấu hình Flexbox để căn giữa khung đăng nhập */
+    display: flex;
+    justify-content: center; /* Căn giữa theo chiều ngang */
+    align-items: flex-start; /* Đặt form ở phía trên */
+    
+    background-color: var(--app-bg-color); 
+    padding: 40px 20px;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+/* Khung chứa Card (Form + Title/Subtitle + Social) */
+.loginCard {
+    width: 100%;
+    max-width: 440px; /* Rộng hơn 500px của Signup một chút cho cân đối */
+    text-align: center;
+}
+
+.title {
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--text-color-dark);
+    margin-bottom: 5px;
+}
+
+.subtitle {
+    font-size: 16px;
+    color: var(--text-color-light);
+    margin-bottom: 35px; 
+}
+
+
+/* Khung form xanh nhạt */
+.loginContainer {
+    padding: 30px 30px;
+    /* Padding bên trong khung xanh */
+    border-radius: 12px;
+    background-color: var(--container-bg-color);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.inputGroup {
+    text-align: left;
+    margin-bottom: 20px;
+}
+
+.label {
+    display: block;
+    font-size: 14px;
+    color: var(--text-color-dark);
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 16px;
+    background-color: var(--input-bg-color);
+    box-sizing: border-box;
+}
+
+/* --- Đổi tên để khớp với LoginPage.jsx và dùng lại logic từ Signup --- */
+.passwordContainer { 
+    position: relative;
+}
+
+.passwordToggle {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #a0a0a0;
+    font-size: 18px;
+}
+/* --- End Password Toggle --- */
+
+
+/* --- Options Row (Ghi nhớ + Quên MK) --- */
+.optionsGroup {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 5px;
+    margin-bottom: 30px;
+    font-size: 14px;
+}
+
+.rememberMe {
+    display: flex;
+    align-items: center;
+}
+
+.rememberLabel {
+    color: var(--text-color-dark);
+    margin-left: 5px; 
+}
+
+.forgotPassword {
+    color: var(--link-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+/* --- Login Button --- */
+.loginButton {
+    width: 100%;
+    padding: 14px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 20px;
+    transition: background-color 0.3s;
+}
+
+.loginButton:hover {
+    background-color: #2a5f70; /* Hover effect đồng bộ với Signup */
+}
+
+
+/* --- Register Prompt --- */
+.registerPrompt {
+    font-size: 15px;
+    color: var(--text-color-dark);
+    margin-bottom: 10px;
+    padding-bottom: 15px;
+}
+
+.registerLink {
+    color: var(--link-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+/* --- Social Login (Nằm ngoài khung xanh) --- */
+.socialLoginText {
+    color: var(--text-color-dark);
+    margin: 30px 0 15px 0;
+    font-size: 15px;
+}
+
+.socialIcons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 40px; /* Thêm khoảng cách với Footer */
+}
+
+.socialIcon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 45px;
+    height: 45px;
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    font-size: 20px;
+    font-weight: bold;
+    color: #666;
+    text-decoration: none;
+    background-color: var(--input-bg-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: border-color 0.3s; /* Thêm transition */
+}
+
+.socialIcon:hover {
+    border-color: var(--primary-color); /* Hover effect đồng bộ với Signup */
+}

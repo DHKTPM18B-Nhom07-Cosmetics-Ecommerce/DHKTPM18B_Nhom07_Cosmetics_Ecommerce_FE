@@ -3,6 +3,7 @@ import { Leaf, Heart } from 'lucide-react';
 import { MdWaterDrop, MdSunny } from 'react-icons/md';
 import { GiLipstick } from 'react-icons/gi';
 import { FaGift } from 'react-icons/fa6';
+import { getAllCategories } from '../services/categoryService';
 
 // Mapping tên category với icon
 const categoryIcons = {
@@ -20,15 +21,9 @@ export default function CategoryShop() {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        // Fetch categories từ API
-        fetch('http://localhost:8080/api/categories')
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error('Failed to fetch categories');
-                }
-                return response.json();
-            })
-            .then((data) => {
+        const fetchCategories = async () => {
+            try {
+                const data = await getAllCategories();
                 // Map data từ API với icon
                 const categoriesWithIcons = data.map((cat) => ({
                     id: cat.id,
@@ -37,11 +32,13 @@ export default function CategoryShop() {
                 }));
                 setCategories(categoriesWithIcons);
                 setLoading(false);
-            })
-            .catch((err) => {
+            } catch (err) {
                 setError(err.message);
                 setLoading(false);
-            });
+            }
+        };
+
+        fetchCategories();
     }, []);
 
     if (loading) {
