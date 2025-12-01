@@ -3,10 +3,6 @@ import {
     Heart,
     ShoppingCart,
     User,
-    Package,
-    Leaf,
-    Heart as HeartIcon,
-    Shield,
     ChevronDown,
     MapPin,
     LogOut,
@@ -18,6 +14,7 @@ import { FaLeaf, FaHeart } from 'react-icons/fa';
 import { FaUserDoctor, FaStore } from 'react-icons/fa6';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getCartData } from '../services/cartService'; // <--- NHỚ IMPORT CÁI NÀY
 
 export default function Header() {
     const { user, logout, isLoggedIn } = useAuth();
@@ -25,6 +22,47 @@ export default function Header() {
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const dropdownRef = useRef(null);
     const displayUserName = user ? user.name : 'Guest';
+    
+    // --- THÊM STATE CART COUNT ---
+    const [cartCount, setCartCount] = useState(0);
+
+    // --- HÀM CẬP NHẬT SỐ LƯỢNG ---
+    const updateCartCount = async () => {
+        // Nếu chưa đăng nhập thì không gọi API
+        const userStored = localStorage.getItem('user');
+        if (!userStored) {
+            setCartCount(0);
+            return;
+        }
+
+        try {
+            const cart = await getCartData();
+            if (cart && cart.items) {
+                // Tính tổng số lượng sản phẩm (quantity)
+                const count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+                setCartCount(count);
+            } else {
+                setCartCount(0);
+            }
+        } catch (error) {
+            console.error("Lỗi lấy số lượng giỏ hàng", error);
+            setCartCount(0);
+        }
+    };
+
+    // --- USE EFFECT LẮNG NGHE SỰ KIỆN ---
+    useEffect(() => {
+        // 1. Gọi ngay khi load trang
+        updateCartCount();
+
+        // 2. Đăng ký lắng nghe sự kiện 'cart-updated' từ cartService
+        window.addEventListener('cart-updated', updateCartCount);
+
+        // 3. Cleanup khi component bị hủy
+        return () => {
+            window.removeEventListener('cart-updated', updateCartCount);
+        };
+    }, [user]); // Chạy lại khi user thay đổi (đăng nhập/đăng xuất)
 
     // Đóng dropdown khi click bên ngoài
     useEffect(() => {
@@ -43,14 +81,12 @@ export default function Header() {
         };
     }, []);
 
-    // Hàm đăng xuất (Sử dụng Context logout)
     const handleLogout = () => {
-        logout(); // Gọi hàm logout từ Context (tự xóa localStorage và reset user state)
+        logout();
         setIsUserMenuOpen(false);
         navigate('/');
     };
 
-    // quan ly don hang
     const handleGoToOrders = () => {
         setIsUserMenuOpen(false);
         navigate('/order');
@@ -97,15 +133,21 @@ export default function Header() {
                             <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
                         </div>
                         <Heart className="w-6 h-6 cursor-pointer hover:text-teal-100 transition" />
+                        
+                        {/* --- CART ICON --- */}
                         <div className="relative">
                             <ShoppingCart
                                 onClick={() => navigate('/cart')}
                                 className="w-6 h-6 cursor-pointer hover:text-teal-100 transition"
                             />
-                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                                0
-                            </span>
+                            {/* Chỉ hiện badge khi số lượng > 0 */}
+                            {cartCount > 0 && (
+                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                    {cartCount}
+                                </span>
+                            )}
                         </div>
+
                         {/* User Dropdown */}
                         <div className="relative" ref={dropdownRef}>
                             <div
@@ -173,7 +215,7 @@ export default function Header() {
                 </div>
             </header>
 
-            {/* Secondary Header - Features */}
+            {/* Secondary Header */}
             <div className="bg-[#CCDFE3] text-[#2B6377] px-8 py-3 flex justify-around text-sm font-medium">
                 <div className="flex items-center gap-2">
                     <LiaShippingFastSolid className="w-5 h-5" />
