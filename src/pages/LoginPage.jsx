@@ -30,6 +30,9 @@ const LoginPage = () => {
                 password: password,
             });
 
+            // để trang ProductCard có thể lấy được ID người dùng.
+            localStorage.setItem('user', JSON.stringify(response.data));
+
             // 2. Lấy Token và Tên đầy đủ từ phản hồi của Backend
             const token = response.data.token;
             const fullName = response.data.fullName;
