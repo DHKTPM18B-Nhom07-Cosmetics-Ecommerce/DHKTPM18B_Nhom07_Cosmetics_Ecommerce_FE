@@ -30,18 +30,23 @@ const LoginPage = () => {
                 password: password,
             });
 
-            // 2. Lấy Token và Tên đầy đủ từ phản hồi của Backend
-            const token = response.data.token;
-            const fullName = response.data.fullName;
+            // 2. Lấy data đầy đủ từ phản hồi của Backend
+            const { token, fullName, role } = response.data;
 
             // 3. SỬ DỤNG HÀM LOGIN CỦA CONTEXT
             // Hàm này sẽ tự động: 
             // a) Lưu token & name vào localStorage
             // b) Cập nhật trạng thái User (setUser), kích hoạt Header re-render ngay lập tức
-            login(token, fullName);
+            login(token, fullName, role);
 
-            // 4. Điều hướng người dùng đến trang chính
-            navigate('/'); // Thay thế bằng đường dẫn trang chủ của bạn
+            // 4. Điều hướng người dùng dựa trên Vai trò (ROLE)
+            let redirectTo = '/';
+            // Vai trò 'ADMIN' sẽ được chuyển đến trang /admin
+            if (role === 'ADMIN') {
+                redirectTo = '/admin'; 
+            }
+
+            navigate(redirectTo);
 
         } catch (err) {
             // Xử lý lỗi từ Backend (ví dụ: Tên đăng nhập hoặc mật khẩu không đúng)
