@@ -1,4 +1,3 @@
-// src/pages/ProductsPage.jsx
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Search, Check } from "lucide-react";
 import Breadcrumb from "../components/Breadcrumb";
@@ -37,7 +36,7 @@ export default function ProductsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  // ---------------- LOAD CATEGORY + BRAND + ALL PRODUCTS (GỢI Ý) ----------------
+  // ---------------- LOAD CATEGORY + BRAND + ALL PRODUCTS ----------------
   useEffect(() => {
     (async () => {
       try {
@@ -76,7 +75,7 @@ export default function ProductsPage() {
 
         const items = res.content || [];
 
-        // LẤY GIÁ Y NHƯ BẢN CŨ (fetch variants)
+        // LẤY GIÁ TỪ VARIANTS
         const itemsWithPrice = await Promise.all(
           items.map(async (product) => {
             try {
@@ -100,7 +99,6 @@ export default function ProductsPage() {
     })();
   }, [search, selectedCategory, selectedBrand, price, rating, page, sort]);
 
-  // KHÔNG RESET PAGE KHI CHỌN RATING
   // Chỉ reset khi đổi category / brand / price / search
   useEffect(() => {
     setPage(0);
