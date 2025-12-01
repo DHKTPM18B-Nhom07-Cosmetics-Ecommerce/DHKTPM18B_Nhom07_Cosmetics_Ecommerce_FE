@@ -222,9 +222,11 @@ export default function VoucherManagement() {
     setShowSuggest(true);
   }, [search, vouchers]);
 
-  // ============ UI ============
+  // ============RETURN UI ============
   return (
-    <div className="voucher-wrapper p-6 max-w-7xl mx-auto space-y-6">
+    // <div className="voucher-wrapper p-6 max-w-7xl mx-auto space-y-6">
+
+    <div className="voucher-page voucher-wrapper p-6 max-w-7xl mx-auto space-y-6">
       {/* TITLE */}
       <div>
         <h1 className="text-2xl font-bold text-[#2b6377]">

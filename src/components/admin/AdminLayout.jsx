@@ -1,19 +1,15 @@
-// src/components/admin/AdminLayout.jsx
-
 import { Outlet } from "react-router-dom";
-import { Bell, ChevronDown } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
-import HeaderNavbar from './HeaderNavbar'
-
-
+import { useLocation } from "react-router-dom";
+import HeaderNavbar from "./HeaderNavbar";
 
 export default function AdminLayout() {
   const location = useLocation();
   const pathnames = location.pathname.split("/").filter((x) => x);
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <HeaderNavbar/>
+    <div className="admin-layout min-h-screen bg-gray-100">
+      <HeaderNavbar />
+
       {/* BREADCRUMB */}
       <div className="bg-white border-b px-6 py-4 mt-16">
         <div className="text-sm text-gray-600">
