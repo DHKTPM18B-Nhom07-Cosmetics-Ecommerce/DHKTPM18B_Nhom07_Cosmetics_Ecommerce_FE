@@ -133,7 +133,7 @@ const OrderPage = () => {
         <div className="w-64 flex-shrink-0 bg-white p-4 rounded-lg shadow-sm font-sans">
             <h3 className="font-semibold text-lg text-gray-800 mb-4 border-b pb-2">Tài khoản</h3>
             <nav className="space-y-2">
-                <Link to="/orders" className={`flex items-center p-2 ${TEAL_TEXT} ${TEAL_ACTIVE_BG} rounded-md font-medium transition`}>
+                <Link to="/order" className={`flex items-center p-2 ${TEAL_TEXT} ${TEAL_ACTIVE_BG} rounded-md font-medium transition`}>
                     <Package className="w-4 h-4 mr-2" /> Quản lý đơn hàng
                 </Link>
                 <a className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>

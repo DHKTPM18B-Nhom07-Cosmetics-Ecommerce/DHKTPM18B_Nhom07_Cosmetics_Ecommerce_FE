@@ -64,7 +64,7 @@ const AccountSidebar = () => (
     <div className="w-64 flex-shrink-0 bg-white p-4 rounded-lg shadow-sm font-sans sticky top-20 h-fit">
         <h3 className="font-semibold text-lg text-gray-800 mb-4 border-b pb-2">Tài khoản</h3>
         <nav className="space-y-2">
-            <Link to="/orders" className={`flex items-center p-2 ${TEAL_TEXT} ${TEAL_ACTIVE_BG} rounded-md font-medium transition`}>
+            <Link to="/order" className={`flex items-center p-2 ${TEAL_TEXT} ${TEAL_ACTIVE_BG} rounded-md font-medium transition`}>
                 <Package className="w-4 h-4 mr-2" /> Quản lý đơn hàng
             </Link>
             <Link to="/profile" className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
@@ -79,19 +79,15 @@ const AccountSidebar = () => (
         </nav>
     </div>
 );
-
-// --- COMPONENT HIỂN THỊ SẢN PHẨM RẤT GỌN NHỎ ---
+//sp
 const ProductItemDisplay = ({ item }) => {
     const displayName = item.productVariant?.variantName || item.productVariant?.product?.productName || 'Sản phẩm không rõ';
 
-    // ĐÃ SỬA TRIỆT ĐỂ: Dùng URL ảnh placeholder thật sự nhỏ (20x20px)
-    const imageUrl = item.productVariant?.imageUrl || 'https://placehold.co/20x20/f5f5f5/f5f5f5.png?text=SP';
+    const imageUrl = item.productVariant?.imageUrl || 'https://placehold.co/10x10/f5f5f5/f5f5f5.png?text=SP';
 
     return (
-        // Sử dụng FLEX-COL (chiều dọc) để đặt tên dưới ảnh
         <div className="flex flex-col items-start w-full">
-            <div className="flex items-start mb-1"> {/* Giảm mb để compact hơn */}
-                {/* ĐÃ SỬA TRIỆT ĐỂ: Kích thước ảnh cố định, RẤT nhỏ (w-5 h-5 ~ 20px) */}
+            <div className="flex items-start mb-1">
                 <img
                     src={imageUrl}
                     alt={displayName}
@@ -101,7 +97,7 @@ const ProductItemDisplay = ({ item }) => {
 
             {/* Tên sản phẩm nằm ở dòng mới, dưới ảnh */}
             <div className="flex-grow min-w-0">
-                <p className="font-medium text-gray-800 leading-tight text-xs">{displayName}</p> {/* text-xs để tên nhỏ hơn */}
+                <p className="font-medium text-gray-800 leading-tight text-xs">{displayName}</p>
             </div>
         </div>
     );
