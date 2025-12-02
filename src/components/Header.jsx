@@ -19,11 +19,53 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 import { getAllProducts } from "../services/productService";
-
+import { getCartData } from '../services/cartService';
 export default function Header() {
   const { user, logout, isLoggedIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const displayUserName = user ? user.name : 'Guest';
+  
+  // --- THÊM STATE CART COUNT ---
+  const [cartCount, setCartCount] = useState(0);
+
+  // --- HÀM CẬP NHẬT SỐ LƯỢNG ---
+  const updateCartCount = async () => {
+      // Nếu chưa đăng nhập thì không gọi API
+      const userStored = localStorage.getItem('user');
+      if (!userStored) {
+          setCartCount(0);
+          return;
+      }
+
+      try {
+          const cart = await getCartData();
+          if (cart && cart.items) {
+              // Tính tổng số lượng sản phẩm (quantity)
+              const count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+              setCartCount(count);
+          } else {
+              setCartCount(0);
+          }
+      } catch (error) {
+          console.error("Lỗi lấy số lượng giỏ hàng", error);
+          setCartCount(0);
+      }
+  };
+
+  // --- USE EFFECT LẮNG NGHE SỰ KIỆN ---
+  useEffect(() => {
+      // 1. Gọi ngay khi load trang
+      updateCartCount();
+
+      // 2. Đăng ký lắng nghe sự kiện 'cart-updated' từ cartService
+      window.addEventListener('cart-updated', updateCartCount);
+
+      // 3. Cleanup khi component bị hủy
+      return () => {
+          window.removeEventListener('cart-updated', updateCartCount);
+      };
+  }, [user]); // Chạy lại khi user thay đổi (đăng nhập/đăng xuất)
 
   const dropdownRef = useRef(null);
   const searchBoxRef = useRef(null);
@@ -81,7 +123,10 @@ export default function Header() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
-
+  const handleGoToOrders = () => {
+          setIsUserMenuOpen(false);
+          navigate('/order');
+      };
   // ==============================
   // HIGHLIGHT MATCHES
   // ==============================
@@ -157,6 +202,7 @@ export default function Header() {
   // ==============================
   const handleLogout = () => {
     logout();
+    setIsUserMenuOpen(false);
     navigate("/");
   };
 
@@ -311,12 +357,15 @@ export default function Header() {
             {/* CART ICON */}
             <div className="relative">
               <ShoppingCart
-                onClick={() => navigate("/cart")}
-                className="w-6 h-6 cursor-pointer hover:text-teal-100 transition"
-              />
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                0
-              </span>
+                    onClick={() => navigate('/cart')}
+                    className="w-6 h-6 cursor-pointer hover:text-teal-100 transition"
+                />
+                {/* Chỉ hiện badge khi số lượng > 0 */}
+                {cartCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        {cartCount}
+                    </span>
+                )}
             </div>
 
             {/* USER MENU */}

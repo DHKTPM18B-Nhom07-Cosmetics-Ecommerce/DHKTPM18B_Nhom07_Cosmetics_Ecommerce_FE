@@ -32,6 +32,8 @@ const LoginPage = () => {
 
             // 2. Lấy data đầy đủ từ phản hồi của Backend
             const { token, fullName, role } = response.data;
+            // để trang ProductCard có thể lấy được ID người dùng.
+            localStorage.setItem('user', JSON.stringify(response.data));
 
             // 3. SỬ DỤNG HÀM LOGIN CỦA CONTEXT
             // Hàm này sẽ tự động: 

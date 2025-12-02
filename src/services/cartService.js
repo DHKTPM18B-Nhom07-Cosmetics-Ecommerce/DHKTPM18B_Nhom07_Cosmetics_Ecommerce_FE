@@ -1,96 +1,113 @@
-// Mock cart data - sẽ được thay thế bằng API calls từ Spring Boot backend
-const mockCartData = {
-  id: 'cart-123',
-  items: [
-    {
-      id: 'cart-item-1',
-      productId: 'prod-001',
-      productName: 'Radiance Glow Serum',
-      productImage: '/radiance-glow-serum-bottle.jpg',
-      size: '30ml Rose Gold Edition',
-      quantity: 1,
-      originalPrice: 88.00,
-      salePrice: 89.00,
-    },
-    {
-      id: 'cart-item-2',
-      productId: 'prod-001',
-      productName: 'Radiance Glow Serum',
-      productImage: '/radiance-glow-serum-bottle.jpg',
-      size: '30ml Rose Gold Edition',
-      quantity: 1,
-      originalPrice: 88.00,
-      salePrice: 89.00,
-    },
-    {
-      id: 'cart-item-3',
-      productId: 'prod-001',
-      productName: 'Radiance Glow Serum',
-      productImage: '/radiance-glow-serum-bottle.jpg',
-      size: '30ml Rose Gold Edition',
-      quantity: 1,
-      originalPrice: 88.00,
-      salePrice: 89.00,
-    },
-  ],
-  subtotal: 261.00,
-  shippingFee: 12.00,
-  total: 293.88,
+import api from './api';
+
+// --- HÀM HELPER: BẮN TÍN HIỆU CẬP NHẬT HEADER ---
+const triggerCartUpdate = () => {
+    window.dispatchEvent(new Event('cart-updated'));
 };
 
-/**
- * Fetch cart data from backend
- * Replace this with actual API call: GET /api/carts/{cartId}
- */
-export async function getCartData() {
-  // TODO: Replace with real API call
-  // return fetch(`${API_BASE_URL}/carts/${cartId}`).then(res => res.json());
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(mockCartData), 300);
-  });
-}
+// Hàm helper: Chuyển đổi dữ liệu từ Backend -> Frontend
+const transformCartData = (backendCart) => {
+  if (!backendCart) return null;
 
-/**
- * Update cart item quantity
- * Replace this with actual API call: PUT /api/carts/{cartId}/items/{itemId}
- */
-export async function updateCartItemQuantity(cartItemId, newQuantity) {
-  // TODO: Replace with real API call
-  // return fetch(`${API_BASE_URL}/carts/{cartId}/items/${cartItemId}`, {
-  //   method: 'PUT',
-  //   body: JSON.stringify({ quantity: newQuantity })
-  // }).then(res => res.json());
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const item = mockCartData.items.find(i => i.id === cartItemId);
-      if (item) {
-        item.quantity = newQuantity;
-        mockCartData.subtotal = mockCartData.items.reduce((sum, i) => sum + (i.salePrice * i.quantity), 0);
-        mockCartData.total = mockCartData.subtotal + mockCartData.shippingFee;
-      }
-      resolve(mockCartData);
-    }, 200);
-  });
-}
+  return {
+    id: backendCart.id,
+    
+    items: (backendCart.items || []).map(item => {
+        
+        // --- LOGIC LẤY ẢNH CHUẨN (LIST STRING) ---
+        
+        // 1. Lấy mảng ảnh từ Variant (Tên field bên Java là imageUrls)
+        const variantImages = item.productVariant.imageUrls || [];
+        
+        // 2. Lấy mảng ảnh từ Product (Tên field bên Java là images)
+        const productImages = item.productVariant.product?.images || [];
+        
+        // 3. Chọn ảnh: Ưu tiên ảnh variant, nếu không có thì lấy ảnh product
+        let finalImage = "https://placehold.co/400"; // Ảnh mặc định
 
-/**
- * Remove item from cart
- * Replace this with actual API call: DELETE /api/carts/{cartId}/items/{itemId}
- */
-export async function removeCartItem(cartItemId) {
-  // TODO: Replace with real API call
-  // return fetch(`${API_BASE_URL}/carts/{cartId}/items/${cartItemId}`, {
-  //   method: 'DELETE'
-  // }).then(res => res.json());
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const index = mockCartData.items.findIndex(i => i.id === cartItemId);
-      if (index > -1) {
-        mockCartData.items.splice(index, 1);
-        mockCartData.subtotal = mockCartData.items.reduce((sum, i) => sum + (i.salePrice * i.quantity), 0);
-        mockCartData.total = mockCartData.subtotal + mockCartData.shippingFee;
-      }
-      resolve(mockCartData);
-    }, 200);
-  });
-}
+        if (variantImages.length > 0) {
+            finalImage = variantImages[0]; // Lấy thẳng chuỗi, KHÔNG .imageUrl
+        } else if (productImages.length > 0) {
+            finalImage = productImages[0]; // Lấy thẳng chuỗi
+        }
+
+        return {
+            id: item.id,
+            variantId: item.productVariant.id,
+            productId: item.productVariant.product?.id,
+            productName: item.productVariant.product?.name || 'Sản phẩm',
+            size: item.productVariant.variantName,
+            
+            productImage: finalImage, // <--- Ảnh chuẩn đây
+            
+            quantity: item.quantity,
+            originalPrice: item.productVariant.price,
+            salePrice: item.productVariant.price,
+        };
+    }),
+    
+    subtotal: backendCart.totalPrice || 0,
+    shippingFee: 0,
+    total: backendCart.totalPrice || 0,
+  };
+};
+
+export const getCartData = async () => {
+    try {
+        const userStored = localStorage.getItem('user');
+        if (!userStored) return null; 
+
+        const user = JSON.parse(userStored);
+        const response = await api.get(`/api/carts/user/${user.id}`);
+        
+        return transformCartData(response.data);
+    } catch (error) {
+        // console.error('Error fetching cart data:', error);
+        return null;
+    }
+};
+
+export const addToCart = async (accountId, variantId, quantity) => {
+    try {
+        const response = await api.post('/api/carts/add', {
+            accountId,
+            variantId,
+            quantity
+        });
+        
+        triggerCartUpdate(); // Bắn tín hiệu
+        
+        return response.data;
+    } catch (error) {
+        console.error('Error adding item to cart:', error);
+        throw error;
+    }
+};
+
+export const updateCartItemQuantity = async (cartItemId, quantity) => {
+    try {
+        const response = await api.put(`/api/cart-items/${cartItemId}`, {
+            quantity: quantity
+        });
+        
+        triggerCartUpdate(); // Bắn tín hiệu
+        
+        return response.data;
+    } catch (error) {
+        console.error(`Error updating quantity for item ${cartItemId}:`, error);
+        throw error;
+    }
+};
+
+export const removeCartItem = async (cartItemId) => {
+    try {
+        const response = await api.delete(`/api/cart-items/${cartItemId}`);
+        
+        triggerCartUpdate(); // Bắn tín hiệu
+        
+        return response.data;
+    } catch (error) {
+        console.error(`Error removing cart item ${cartItemId}:`, error);
+        throw error;
+    }
+};
