@@ -17,24 +17,27 @@ export const AuthProvider = ({ children }) => {
     // Tải trạng thái ban đầu từ localStorage khi khởi động
     const storedToken = localStorage.getItem('jwtToken');
     const storedName = localStorage.getItem('userName');
+    const storedRole = localStorage.getItem('userRole');
     
-    if (storedToken && storedName) {
-      setUser({ name: storedName, token: storedToken });
+    if (storedToken && storedName && storedRole) {
+      setUser({ name: storedName, token: storedToken, role: storedRole });
     }
     setIsLoading(false);
   }, []);
 
   // Hàm Đăng nhập (được gọi từ Login.jsx sau khi API thành công)
-  const login = (token, fullName) => {
+  const login = (token, fullName, role) => {
     localStorage.setItem('jwtToken', token);
     localStorage.setItem('userName', fullName);
-    setUser({ name: fullName, token: token });
+    localStorage.setItem('userRole', role);
+    setUser({ name: fullName, token: token, role: role });
   };
 
   // Hàm Đăng xuất
   const logout = () => {
     localStorage.removeItem('jwtToken');
     localStorage.removeItem('userName');
+    localStorage.removeItem('userRole');
     setUser(null);
   };
   
@@ -45,6 +48,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     isLoggedIn: !!user,
+    isAdmin: user && user.role === 'ADMIN',
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
