@@ -1,104 +1,86 @@
-import { useNavigate } from "react-router-dom";
-import { Heart } from "lucide-react";
-import ProductRating from "./ProductRating";
+import { useNavigate } from 'react-router-dom'
+import { Heart } from 'lucide-react'
+import ProductRating from './ProductRating'
+import Button from './ui/Button'
 
 export default function ProductCard({ product }) {
-  const navigate = useNavigate();
+    const navigate = useNavigate()
 
-  const formatPrice = (price) =>
-    new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(price);
+    const formatPrice = (price) => {
+        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+    }
 
-  const image =
-    product.images?.[0] ||
-    product.variants?.[0]?.imageUrls?.[0] ||
-    "/placeholder.png";
+    // Heuristic to get brand if not available in API
+    const getBrand = () => {
+        if (product.brand) return product.brand;
+        if (product.category && product.category.name) return product.category.name;
+        // Fallback: Try to guess from name (first word after common prefixes?) - risky, so just return a placeholder or empty
+        return 'Thương hiệu';
+    }
 
-  const inStock = product.inStock;
-  const lowStock = product.lowStock;
-
-  const min = product.minPrice || 0;
-  const max = product.maxPrice || 0;
-
-  const priceLabel =
-    min === max
-      ? formatPrice(min)
-      : `${formatPrice(min)} - ${formatPrice(max)}`;
-
-  return (
-    <div
-      onClick={() => navigate(`/products/${product.id}`)}
-      className="bg-white rounded-xl shadow-sm border border-transparent 
-                 hover:border-teal-600 transition-all cursor-pointer flex flex-col"
-    >
-      {/* IMAGE */}
-      <div className="relative w-full h-48 overflow-hidden">
-        <img
-          src={image}
-          alt={product.name}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
-
-        {/* Badge */}
-        <span
-          className={`absolute top-2 right-2 text-xs px-2 py-1 rounded-md font-semibold ${
-            inStock ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-          }`}
+    return (
+        <div
+            onClick={() => navigate(`/products/${product.id}`)}
+            className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md border-2 border-transparent hover:border-teal-600 transition cursor-pointer group"
         >
-          {inStock ? "Còn hàng" : "Hết hàng"}
-        </span>
+            <div className="relative">
+                <img
+                    src={(product.images && product.images.length > 0) ? product.images[0] : "/placeholder.svg"}
+                    alt={product.name}
+                    className={`w-full h-48 object-cover transition-all duration-500 ${product.images && product.images.length > 1
+                        ? "group-hover:opacity-0"
+                        : "group-hover:scale-105"
+                        }`}
+                />
+                {product.images && product.images.length > 1 && (
+                    <img
+                        src={product.images[1]}
+                        alt={product.name}
+                        className="absolute inset-0 w-full h-48 object-cover opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                    />
+                )}
+                {/* Discount logic would go here if available in API */}
+                <button className="absolute top-2 left-2 bg-blue-100 p-2 rounded-full hover:bg-blue-200 transition">
+                    <Heart className="w-4 h-4 text-red-500" />
+                </button>
+            </div>
 
-        {/* Badge Low stock */}
-        {lowStock && inStock && (
-          <span className="absolute top-10 right-2 text-xs px-2 py-1 rounded-md font-semibold bg-yellow-100 text-yellow-700">
-            Sắp hết hàng
-          </span>
-        )}
+            <div className="p-4 gap-8">
+                <p className="text-xs font-bold text-teal-700 uppercase mb-1">
+                    {getBrand()}
+                </p>
+                <h3 className="font-semibold text-sm text-gray-800 mb-2 line-clamp-2 h-10">
+                    {product.name}
+                </h3>
 
-        {/* Heart */}
-        <button
-          onClick={(e) => e.stopPropagation()}
-          className="absolute top-2 left-2 bg-white/80 backdrop-blur p-2 rounded-full hover:bg-white transition"
-        >
-          <Heart className="w-4 h-4 text-red-500" />
-        </button>
-      </div>
+                <div className="mb-3">
+                    <ProductRating
+                        rating={product.averageRating}
+                        reviewCount={product.reviews ? product.reviews.length : 0}
+                    />
+                </div>
 
-      {/* CONTENT */}
-      <div className="flex flex-col flex-grow p-4">
-        <p className="text-xs font-bold text-teal-700 uppercase mb-1">
-          {product.brandName}
-        </p>
+                <div className="flex items-center gap-2 mb-4">
+                    <span className="text-sm font-bold text-red-700">
+                        {(() => {
+                            if (product.variants && product.variants.length > 0) {
+                                const prices = product.variants.map(v => v.price);
+                                const minPrice = Math.min(...prices);
+                                const maxPrice = Math.max(...prices);
+                                if (minPrice !== maxPrice) {
+                                    return `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
+                                }
+                                return formatPrice(minPrice);
+                            }
+                            return product.price ? formatPrice(product.price) : 'Liên hệ';
+                        })()}
+                    </span>
+                </div>
 
-        <h3 className="font-semibold text-sm text-gray-800 line-clamp-2 h-[40px]">
-          {product.name}
-        </h3>
-
-        <ProductRating
-          rating={product.averageRating}
-          reviewCount={product.reviews?.length || 0}
-        />
-
-        <div className="mt-2 mb-3 text-lg font-bold text-red-700 whitespace-nowrap overflow-hidden text-ellipsis">
-          {priceLabel}
+                <button className="w-full bg-teal-700 text-white py-2 rounded-md font-medium text-sm hover:bg-teal-800 transition">
+                    Thêm vào giỏ
+                </button>
+            </div>
         </div>
-
-        <button
-          disabled={!inStock}
-          onClick={(e) => e.stopPropagation()}
-          className={`w-full mt-auto py-2 rounded-md font-semibold text-sm transition
-            ${
-              inStock
-                ? "bg-teal-700 hover:bg-teal-800 text-white"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-            }
-          `}
-        >
-          {inStock ? "Thêm vào giỏ" : "Hết hàng"}
-        </button>
-      </div>
-    </div>
-  );
+    )
 }
