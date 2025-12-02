@@ -65,3 +65,8 @@ export const getAllEmployees = () => api.get('/api/employees');
 export const getAllOrders = () => {
   return api.get('/api/orders');
 };
+
+// Cập nhật thông tin Account (bao gồm role)
+export const updateAccount = (id, data) => {
+  return api.put(`/api/accounts/${id}`, data);
+};
