@@ -2,12 +2,12 @@ import api from "./api";
 
 /**
  * API FILTER SẢN PHẨM
- * KHÔNG ảnh hưởng file productService.js
  */
 export const filterProducts = async ({
   search = "",
-  category = null,
-  brand = null,
+  categories = "",   // chuỗi "1,2,3"
+  brands = "",       // chuỗi "5,7"
+  stocks = "",       // chuỗi "in,low,out"
   minPrice = null,
   maxPrice = null,
   rating = null,
@@ -19,8 +19,9 @@ export const filterProducts = async ({
     const response = await api.get("/api/products/filter", {
       params: {
         search,
-        category,
-        brand,
+        categories,
+        brands,
+        stocks,
         minPrice,
         maxPrice,
         rating,

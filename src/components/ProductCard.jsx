@@ -11,52 +11,92 @@ export default function ProductCard({ product }) {
       currency: "VND",
     }).format(price);
 
-  // Lấy ảnh ưu tiên: product.images → variant.imageUrls → fallback
   const image =
     product.images?.[0] ||
     product.variants?.[0]?.imageUrls?.[0] ||
     "/placeholder.png";
 
-  const brand =
-    product?.brand?.name || product?.category?.name || "Thương hiệu";
+  const inStock = product.inStock;
+  const lowStock = product.lowStock;
+
+  const min = product.minPrice || 0;
+  const max = product.maxPrice || 0;
+
+  const priceLabel =
+    min === max
+      ? formatPrice(min)
+      : `${formatPrice(min)} - ${formatPrice(max)}`;
 
   return (
     <div
       onClick={() => navigate(`/products/${product.id}`)}
-      className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md hover:border-teal-600 hover:border-2 transition cursor-pointer group"
+      className="bg-white rounded-xl shadow-sm border border-transparent 
+                 hover:border-teal-600 transition-all cursor-pointer flex flex-col"
     >
-      <div className="relative">
+      {/* IMAGE */}
+      <div className="relative w-full h-48 overflow-hidden">
         <img
           src={image}
           alt={product.name}
-          className="w-full h-48 object-cover group-hover:scale-105 transition duration-300"
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
 
-        <button className="absolute top-2 left-2 bg-blue-100 p-2 rounded-full hover:bg-blue-200 transition">
+        {/* Badge */}
+        <span
+          className={`absolute top-2 right-2 text-xs px-2 py-1 rounded-md font-semibold ${
+            inStock ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+          }`}
+        >
+          {inStock ? "Còn hàng" : "Hết hàng"}
+        </span>
+
+        {/* Badge Low stock */}
+        {lowStock && inStock && (
+          <span className="absolute top-10 right-2 text-xs px-2 py-1 rounded-md font-semibold bg-yellow-100 text-yellow-700">
+            Sắp hết hàng
+          </span>
+        )}
+
+        {/* Heart */}
+        <button
+          onClick={(e) => e.stopPropagation()}
+          className="absolute top-2 left-2 bg-white/80 backdrop-blur p-2 rounded-full hover:bg-white transition"
+        >
           <Heart className="w-4 h-4 text-red-500" />
         </button>
       </div>
 
-      <div className="p-4">
+      {/* CONTENT */}
+      <div className="flex flex-col flex-grow p-4">
         <p className="text-xs font-bold text-teal-700 uppercase mb-1">
-          {brand}
+          {product.brandName}
         </p>
 
-        <h3 className="font-semibold text-sm text-gray-800 mb-2 line-clamp-2 h-10">
+        <h3 className="font-semibold text-sm text-gray-800 line-clamp-2 h-[40px]">
           {product.name}
         </h3>
 
         <ProductRating
           rating={product.averageRating}
-          reviewCount={product.reviews ? product.reviews.length : 0}
+          reviewCount={product.reviews?.length || 0}
         />
 
-        <div className="mt-3 text-lg font-bold text-red-700">
-          {product.price ? formatPrice(product.price) : "Liên hệ"}
+        <div className="mt-2 mb-3 text-lg font-bold text-red-700 whitespace-nowrap overflow-hidden text-ellipsis">
+          {priceLabel}
         </div>
 
-        <button className="w-full bg-teal-700 text-white py-2 rounded-md font-medium text-sm hover:bg-teal-800 transition mt-3">
-          Thêm vào giỏ
+        <button
+          disabled={!inStock}
+          onClick={(e) => e.stopPropagation()}
+          className={`w-full mt-auto py-2 rounded-md font-semibold text-sm transition
+            ${
+              inStock
+                ? "bg-teal-700 hover:bg-teal-800 text-white"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }
+          `}
+        >
+          {inStock ? "Thêm vào giỏ" : "Hết hàng"}
         </button>
       </div>
     </div>
