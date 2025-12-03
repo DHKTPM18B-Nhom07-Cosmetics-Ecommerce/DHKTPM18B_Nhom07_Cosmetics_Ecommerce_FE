@@ -24,9 +24,9 @@ const ForgotPasswordPage = () => {
             });
 
             // Backend luôn trả về 200 OK với thông báo chung (SuccessResponse)
-            setStatus({ 
-                message: response.data.message || 'No Messege from server', 
-                type: 'success' 
+            setStatus({
+                message: response.data.message || 'No Messege from server',
+                type: 'success'
             });
 
         } catch (err) {
@@ -48,28 +48,24 @@ const ForgotPasswordPage = () => {
                 <p className={styles.subtitle}>Nhập email của bạn để nhận mã đặt lại.</p>
 
                 <div className={styles.loginContainer}>
-                    
+
                     {status.message && (
                         <>
-                        <span className={styles.errorMessage} style={{ 
-                            color: status.type === 'error' ? 'red' : 'green', 
-                            textAlign: 'center', 
-                            marginBottom: '20px'
-                        }}>
-                            {status.message}
-                        </span>
-                        {status.type === 'error' ? 
-                        (
-                            <p>Hãy thử kiểm tra lại hộp thư</p>
-                        ):(
-                            <Link to="/reset-password" className={styles.forgotPassword}>Xác nhận</Link>
-                        )}
-                        
-                    </>
+                            <span className={styles.errorMessage} style={{
+                                color: status.type === 'error' ? 'red' : 'green',
+                                textAlign: 'center',
+                                marginBottom: '20px'
+                            }}>
+                                {status.message}
+                            </span>
+                            {status.type !== 'error' && (
+                                <p><Link to="/reset-password" className={styles.registerLink}>Xác nhận</Link></p>                             
+                            )}
+                        </>
                     )}
 
                     <form onSubmit={handleSubmit} className={styles.loginForm}>
-                        
+
                         {/* Nhập Email */}
                         <div className={styles.inputGroup}>
                             <label htmlFor="email" className={styles.label}>Email</label>

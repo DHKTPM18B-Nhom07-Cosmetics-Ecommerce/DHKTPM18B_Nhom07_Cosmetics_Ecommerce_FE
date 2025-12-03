@@ -8,7 +8,7 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 const API_BASE_URL = 'http://localhost:8080/api/auth';
 
 const ResetPasswordPage = () => {
-    const [token, setToken] = useState(''); // Token (hoặc OTP) nhận được qua email
+    const [token, setToken] = useState(''); // Token nhận được qua email
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);

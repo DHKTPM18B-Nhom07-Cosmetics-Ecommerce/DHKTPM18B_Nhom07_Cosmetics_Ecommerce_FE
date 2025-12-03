@@ -12,10 +12,11 @@ import {
     getOrdersByCustomerId, 
     getOrdersByEmployeeId,
     getAllCustomers, 
-    getAllEmployees
+    getAllEmployees,
+    updateAccount
 } from '../../services/api'; 
 import DisableAccountModal from '../../components/admin/DisableReason_Modal';
-
+import EditRoleModal from '../../components/admin/EditRoleModal';
 export default function UserDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ export default function UserDetail() {
   const [orders, setOrders] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [isDisableModalOpen, setIsDisableModalOpen] = useState(false);
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
 
   const [stats, setStats] = useState({
     totalSpent: 0, completedOrders: 0, processedOrders: 0, totalRevenueManaged: 0
@@ -247,7 +249,19 @@ export default function UserDetail() {
     fetchData();
   }, [id]);
 
- 
+ const handleUpdateRole = async (id, newRole) => {
+      try {
+          // Backend yêu cầu gửi cả object account khi update
+          // Ta copy user hiện tại, chỉ sửa role
+          const payload = { ...user, role: newRole };
+          
+          await updateAccount(id, payload);
+          alert('Cập nhật vai trò thành công!');
+          window.location.reload(); // Reload trang để thấy thay đổi
+      } catch (err) {
+          alert('Lỗi: ' + (err.response?.data?.message || err.message));
+      }
+  };
   if (loading) return <div className="p-10 text-center text-gray-500">Đang tải thông tin...</div>;
   if (!user) return <div className="p-10 text-center text-red-500">Không tìm thấy người dùng</div>;
 
@@ -293,10 +307,15 @@ export default function UserDetail() {
                 {user.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN') : '—'}
               </span>
             </div>
-            <div>
-              <span className="block text-gray-400 text-xs">Vai trò</span>
-              <span className="font-semibold text-gray-800 capitalize">{user.role}</span>
-            </div>
+       <div className="flex items-end gap-3">
+  <div>
+    <span className="block text-gray-400 text-xs">Vai trò</span>
+    <span className="font-semibold text-gray-800 capitalize">{user.role}</span>
+  </div>
+
+ 
+</div>
+
           </div>
         </div>
         <div className="mt-4 md:mt-0">
@@ -317,11 +336,7 @@ export default function UserDetail() {
                 <FileText className="w-5 h-5 text-blue-700" />
                 {isCustomer ? 'Thông tin khách hàng' : 'Thông tin nhân viên'}
               </h2>
-              {!isCustomer && (
-                  <button className="flex items-center gap-1 px-4 py-1.5 bg-[#2B6377] text-white text-sm rounded-lg hover:opacity-90 transition">
-                    <Edit className="w-3.5 h-3.5" /> Edit
-                  </button>
-              )}
+             
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
               <div><p className="text-sm text-gray-500 mb-1">Full name</p><div className="flex items-center gap-2 font-semibold text-gray-800"><div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center text-xs">👤</div>{user.fullName}</div></div>
@@ -486,6 +501,14 @@ export default function UserDetail() {
               <AlertCircle className="w-5 h-5" />
               Vô hiệu hóa tài khoản
             </button>
+             {!isCustomer && (
+                <button
+                  onClick={() => setIsRoleModalOpen(true)}
+                  className="flex mt-4 w-full py-3 items-center gap-1 px-3 py-1 bg-[#2B6377] text-white rounded-lg font-medium hover:bg-red-50 transition flex items-center justify-center gap-2"
+                >
+                  <Edit className="w-3.5 h-3.5" /> Chuyển đổi Role
+                </button>
+  )}
           </div>
         </div>
       </div>
@@ -501,6 +524,13 @@ export default function UserDetail() {
             } catch(e) { alert('Lỗi: ' + e.message); }
         }}
         user={user} 
+      />
+      {/* MODAL SỬA ROLE MỚI */}
+      <EditRoleModal 
+        isOpen={isRoleModalOpen}
+        onClose={() => setIsRoleModalOpen(false)}
+        currentUser={user}
+        onConfirm={handleUpdateRole}
       />
     </div>
   );
