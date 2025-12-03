@@ -12,7 +12,6 @@ import {
 
 export default function VoucherDetailModal({ isOpen, onClose, voucher }) {
   if (!isOpen || !voucher) return null;
-
   const fmt = (d) => (d ? d.replace("T", " ").slice(0, 16) : "--");
 
   const typeMap = {
