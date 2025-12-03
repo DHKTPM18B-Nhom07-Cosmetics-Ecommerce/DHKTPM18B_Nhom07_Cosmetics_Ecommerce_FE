@@ -115,6 +115,20 @@ export default function Header() {
   // CLICK OUTSIDE
   // ===============
   useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsUserMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
     const handler = (e) => {
       if (searchBoxRef.current && !searchBoxRef.current.contains(e.target)) {
         setShowSuggestBox(false);
@@ -283,7 +297,7 @@ export default function Header() {
               {/* ============================== */}
               {showSuggestBox &&
                 (history.length > 0 || suggestions.length > 0) && (
-                  <div className="absolute w-full bg-white text-gray-800 shadow-lg rounded-lg top-11 z-50 max-h-96 overflow-auto">
+                  <div className="absolute w-full bg-white text-gray-800 shadow-lg rounded-lg top-11 z-50 max-h-96 ">
                     {/* HISTORY */}
                     {history.length > 0 && headerSearch.trim() === "" && (
                       <div className="border-b p-2">
@@ -384,7 +398,7 @@ export default function Header() {
               </div>
 
               {isUserMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg py-2 z-50">
+                <div className="absolute right-0 top-full mt-2 w-56 bg-white text-[#316f84] rounded-lg shadow-lg py-2 z-50">
                   <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
                     <User className="w-4 h-4" /> Tài khoản của bạn
                   </button>
