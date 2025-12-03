@@ -19,8 +19,8 @@ export default function ProductCard({ product }) {
     }
 
     // Hàm xử lý thêm vào giỏ
-const handleAddToCart = async (e) => {
-        e.stopPropagation(); 
+    const handleAddToCart = async (e) => {
+        e.stopPropagation();
         e.preventDefault();
 
         // 1. KIỂM TRA ĐĂNG NHẬP (QUAN TRỌNG)
@@ -53,7 +53,7 @@ const handleAddToCart = async (e) => {
             setAdding(true);
             await addToCart(accountId, defaultVariantId, 1);
             alert("Đã thêm vào giỏ hàng thành công!");
-            
+
             // (Tùy chọn) Bắn sự kiện để Header cập nhật số lượng badge
             // window.dispatchEvent(new Event('cart-updated'));
         } catch (error) {
@@ -70,13 +70,13 @@ const handleAddToCart = async (e) => {
     return (
         <div
             onClick={() => navigate(`/products/${product.id}`)}
-            className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md hover:border-teal-600 hover:border-2 transition cursor-pointer group flex flex-col h-full"
+            className="bg-white rounded-lg overflow-hidden border-2 border-transparent hover:border-teal-600 hover:shadow-lg transition-all duration-300 cursor-pointer group flex flex-col h-full"
         >
-            <div className="relative aspect-square overflow-hidden bg-gray-100">
+            <div className="relative w-full overflow-hidden bg-gray-100">
                 <img
                     src={(product.images && product.images.length > 0) ? product.images[0] : "/placeholder.svg"}
                     alt={product.name}
-                    className={`w-full h-48 object-cover transition-all duration-500 ${product.images && product.images.length > 1
+                    className={`w-full aspect-square object-contain transition-all duration-500 ${product.images && product.images.length > 1
                         ? "group-hover:opacity-0"
                         : "group-hover:scale-105"
                         }`}
@@ -85,20 +85,20 @@ const handleAddToCart = async (e) => {
                     <img
                         src={product.images[1]}
                         alt={product.name}
-                        className="absolute inset-0 w-full h-48 object-cover opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                        className="absolute inset-0 w-full aspect-square object-contain opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
                     />
                 )}
                 {/* Discount logic would go here if available in API */}
-                <button className="absolute top-2 left-2 bg-blue-100 p-2 rounded-full hover:bg-blue-200 transition">
+                <button className="absolute top-2 left-2 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition">
                     <Heart className="w-4 h-4 text-red-500" />
                 </button>
             </div>
 
-            <div className="p-4 gap-8">
-                <p className="text-xs font-bold text-teal-700 uppercase mb-1">
+            <div className="p-4 flex flex-col flex-1">
+                <p className="text-xs font-bold text-teal-700 uppercase mb-2">
                     {getBrand()}
                 </p>
-                <h3 className="font-semibold text-sm text-gray-800 mb-2 line-clamp-2 min-h-[40px]">
+                <h3 className="font-semibold text-sm text-gray-800 mb-2 line-clamp-2 h-10">
                     {product.name}
                 </h3>
 
@@ -126,25 +126,25 @@ const handleAddToCart = async (e) => {
                     </span>
                 </div>
 
-                    <button
-                        onClick={handleAddToCart}
-                        disabled={adding}
-                        className={`w-full py-2 rounded-md font-medium text-sm transition flex items-center justify-center gap-2
-                            ${adding 
-                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                                : 'bg-teal-700 text-white hover:bg-teal-800'
-                            }`}
-                    >
-                        {adding ? (
-                            <span>Đang thêm...</span>
-                        ) : (
-                            <>
-                                <ShoppingCart size={16} />
-                                Thêm vào giỏ
-                            </>
-                        )}
-                    </button>
-                </div>
+                <button
+                    onClick={handleAddToCart}
+                    disabled={adding}
+                    className={`w-full py-2 rounded-md font-medium text-sm transition flex items-center justify-center gap-2
+                            ${adding
+                            ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                            : 'bg-teal-700 text-white hover:bg-teal-800'
+                        }`}
+                >
+                    {adding ? (
+                        <span>Đang thêm...</span>
+                    ) : (
+                        <>
+                            <ShoppingCart size={16} />
+                            Thêm vào giỏ
+                        </>
+                    )}
+                </button>
             </div>
+        </div>
     )
 }
