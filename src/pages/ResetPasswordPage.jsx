@@ -84,7 +84,7 @@ const ResetPasswordPage = () => {
                         
                         {/* Nhập Token/Mã xác nhận */}
                         <div className={styles.inputGroup}>
-                            <label htmlFor="token" className={styles.label}>Mã xác nhận (Token)</label>
+                            <label htmlFor="token" className={styles.label}>Mã xác nhận (nhận qua email)</label>
                             <div className={styles.passwordContainer}>
                                 <input
                                     type="text"
