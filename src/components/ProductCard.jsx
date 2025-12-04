@@ -1,150 +1,177 @@
-import { useState } from 'react'; // Thêm useState
-import { useNavigate } from 'react-router-dom';
-import { Heart, ShoppingCart } from 'lucide-react'; // Thêm icon ShoppingCart cho đẹp
-import ProductRating from './ProductRating';
-import { addToCart } from '../services/cartService'; // Import service
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Heart, ShoppingCart } from "lucide-react";
+import ProductRating from "./ProductRating";
+import { addToCart } from "../services/cartService";
 
 export default function ProductCard({ product }) {
-    const navigate = useNavigate();
-    const [adding, setAdding] = useState(false); // State để disable nút khi đang gọi API
+  const navigate = useNavigate();
+  const [adding, setAdding] = useState(false);
 
-    const formatPrice = (price) => {
-        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+  // ---- FORMAT PRICE ----
+  const formatPrice = (price) =>
+    new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(price);
+
+  // ---- GET BRAND ----
+  const getBrand = () => {
+    if (product.brandName) return product.brandName;
+    if (product.categoryName) return product.categoryName;
+    return "Thương hiệu";
+  };
+
+  // ---- TÍNH TỒN KHO: tổng quantity của tất cả variant ----
+  const totalQty = product.variants?.reduce(
+    (sum, v) => sum + (v.quantity || 0),
+    0
+  );
+
+  // ---- BADGE TEXT ----
+  const getStockStatus = () => {
+    if (totalQty <= 0) return "Tạm hết hàng";
+    if (totalQty <= 10) return "Sắp hết hàng";
+    return "Còn hàng";
+  };
+
+  // ---- BADGE COLOR ----
+  const getStockColor = () => {
+    if (totalQty <= 0) return "bg-red-500 text-white"; // đỏ
+    if (totalQty <= 10) return "bg-amber-400 text-white"; // vàng
+    return "bg-[oklch(96.2%_0.044_156.743)] text-[oklch(39.8%_0.07_227.392)]"; // xanh lá
+  };
+
+  // ---- ADD TO CART ----
+  const handleAddToCart = async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const userStored = localStorage.getItem("user");
+    if (!userStored) {
+      if (
+        window.confirm("Bạn cần đăng nhập để mua hàng. Chuyển đến trang đăng nhập?")
+      ) {
+        navigate("/login");
+      }
+      return;
     }
 
-    const getBrand = () => {
-        if (product.brand) return product.brand.name || product.brand; // Sửa lại phòng trường hợp brand là object
-        if (product.category && product.category.name) return product.category.name;
-        return 'Thương hiệu';
+    const user = JSON.parse(userStored);
+    const accountId = user.id;
+
+    if (!product.variants?.length) {
+      alert("Sản phẩm chưa có phân loại hoặc hết hàng.");
+      return;
     }
 
-    // Hàm xử lý thêm vào giỏ
-    const handleAddToCart = async (e) => {
-        e.stopPropagation();
-        e.preventDefault();
+    const variantId = product.variants[0].id;
 
-        // 1. KIỂM TRA ĐĂNG NHẬP (QUAN TRỌNG)
-        // Lấy thông tin user đã lưu trong localStorage khi đăng nhập thành công
-        const userStored = localStorage.getItem('user');
+    try {
+      setAdding(true);
+      await addToCart(accountId, variantId, 1);
+      alert("Đã thêm vào giỏ!");
+    } catch (err) {
+      alert("Không thể thêm vào giỏ. Thử lại.");
+    } finally {
+      setAdding(false);
+    }
+  };
 
-        if (!userStored) {
-            // Nếu chưa đăng nhập -> Hỏi người dùng có muốn đăng nhập không
-            if (window.confirm("Bạn cần đăng nhập để mua hàng. Chuyển đến trang đăng nhập ngay?")) {
-                navigate('/login');
-            }
-            return; // Dừng lại, không chạy tiếp
-        }
+    
 
-        // 2. LẤY ACCOUNT ID THẬT
-        const user = JSON.parse(userStored);
-        const accountId = user.id; // Lấy ID của người đang đăng nhập
+    
 
-        // 3. Kiểm tra biến thể sản phẩm
-        if (!product.variants || product.variants.length === 0) {
-            alert("Sản phẩm này tạm hết hàng hoặc chưa có phân loại!");
-            return;
-        }
+  // ---- HIỂN THỊ GIÁ ----
+  const renderPrice = () => {
+    if (!product.variants?.length) return "Liên hệ";
 
-        // 4. Lấy Variant ID đầu tiên (Mặc định)
-        const defaultVariantId = product.variants[0].id;
+    const prices = product.variants.map((v) => v.price);
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
 
-        // 5. GỌI API THÊM VÀO GIỎ
-        try {
-            setAdding(true);
-            await addToCart(accountId, defaultVariantId, 1);
-            alert("Đã thêm vào giỏ hàng thành công!");
+    if (min !== max) return `${formatPrice(min)} - ${formatPrice(max)}`;
+    return formatPrice(min);
+  };
 
-            // (Tùy chọn) Bắn sự kiện để Header cập nhật số lượng badge
-            // window.dispatchEvent(new Event('cart-updated'));
-        } catch (error) {
-            console.error(error);
-            alert("Lỗi: Không thể thêm vào giỏ hàng. Vui lòng thử lại.");
-        } finally {
-            setAdding(false);
-        }
-    };
+  return (
+    <div
+      onClick={() => navigate(`/products/${product.id}`)}
+      className="bg-white rounded-lg overflow-hidden shadow-sm 
+      hover:shadow-md hover:border-teal-600 hover:border-2 transition cursor-pointer group flex flex-col h-full"
+    >
+      {/* IMAGE */}
+        <div className="relative w-full overflow-hidden bg-gray-100">
+          <img
+              src={(product.images && product.images.length > 0) ? product.images[0] : "/placeholder.svg"}
+              alt={product.name}
+              className={`w-full aspect-square object-contain transition-all duration-500 ${product.images && product.images.length > 1
+                  ? "group-hover:opacity-0"
+                  : "group-hover:scale-105"
+                  }`}
+          />
+          {product.images && product.images.length > 1 && (
+              <img
+                  src={product.images[1]}
+                  alt={product.name}
+                  className="absolute inset-0 w-full aspect-square object-contain opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+              />
+          )}
+          {/* Like Button */}
+          <button className="absolute top-2 left-2 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition">
+              <Heart className="w-4 h-4 text-red-500" />
+          </button>
+          {/* Stock Badge (merge từ origin/kieutrang) */}
+          <div
+              className={`absolute top-2 right-2 px-2 py-1 rounded-full text-[11px] font-semibold 
+                shadow ${getStockColor()} animate-fadeBounce`}
+            >
+              {getStockStatus()}
+          </div>
+      </div>
+  
+        
+      {/* INFO */}
+      <div className="p-4 gap-8">
+        <p className="text-xs font-bold text-teal-700 uppercase mb-1">
+          {getBrand()}
+        </p>
+          <h3 className="font-semibold text-sm text-gray-800 mb-2 line-clamp-2 h-10">
+              {product.name}
+          </h3>
 
-    // Xác định giá hiển thị
-    const displayPrice = product.price || (product.variants && product.variants.length > 0 ? product.variants[0].price : 0);
-
-    return (
-        <div
-            onClick={() => navigate(`/products/${product.id}`)}
-            className="bg-white rounded-lg overflow-hidden border-2 border-transparent hover:border-teal-600 hover:shadow-lg transition-all duration-300 cursor-pointer group flex flex-col h-full"
-        >
-            <div className="relative w-full overflow-hidden bg-gray-100">
-                <img
-                    src={(product.images && product.images.length > 0) ? product.images[0] : "/placeholder.svg"}
-                    alt={product.name}
-                    className={`w-full aspect-square object-contain transition-all duration-500 ${product.images && product.images.length > 1
-                        ? "group-hover:opacity-0"
-                        : "group-hover:scale-105"
-                        }`}
-                />
-                {product.images && product.images.length > 1 && (
-                    <img
-                        src={product.images[1]}
-                        alt={product.name}
-                        className="absolute inset-0 w-full aspect-square object-contain opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
-                    />
-                )}
-                {/* Discount logic would go here if available in API */}
-                <button className="absolute top-2 left-2 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition">
-                    <Heart className="w-4 h-4 text-red-500" />
-                </button>
-            </div>
-
-            <div className="p-4 flex flex-col flex-1">
-                <p className="text-xs font-bold text-teal-700 uppercase mb-2">
-                    {getBrand()}
-                </p>
-                <h3 className="font-semibold text-sm text-gray-800 mb-2 line-clamp-2 h-10">
-                    {product.name}
-                </h3>
-
-                <div className="mb-3">
-                    <ProductRating
-                        rating={product.averageRating}
-                        reviewCount={product.reviews ? product.reviews.length : 0}
-                    />
-                </div>
-
-                <div className="flex items-center gap-2 mb-4">
-                    <span className="text-sm font-bold text-red-700">
-                        {(() => {
-                            if (product.variants && product.variants.length > 0) {
-                                const prices = product.variants.map(v => v.price);
-                                const minPrice = Math.min(...prices);
-                                const maxPrice = Math.max(...prices);
-                                if (minPrice !== maxPrice) {
-                                    return `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
-                                }
-                                return formatPrice(minPrice);
-                            }
-                            return product.price ? formatPrice(product.price) : 'Liên hệ';
-                        })()}
-                    </span>
-                </div>
-
-                <button
-                    onClick={handleAddToCart}
-                    disabled={adding}
-                    className={`w-full py-2 rounded-md font-medium text-sm transition flex items-center justify-center gap-2
-                            ${adding
-                            ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                            : 'bg-teal-700 text-white hover:bg-teal-800'
-                        }`}
-                >
-                    {adding ? (
-                        <span>Đang thêm...</span>
-                    ) : (
-                        <>
-                            <ShoppingCart size={16} />
-                            Thêm vào giỏ
-                        </>
-                    )}
-                </button>
-            </div>
+        <div className="mb-3">
+          <ProductRating
+            rating={product.averageRating}
+            reviewCount={product.reviews?.length || 0}
+          />
         </div>
-    )
+
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-sm font-bold text-red-700">
+            {renderPrice()}
+          </span>
+        </div>
+
+        <button
+          onClick={handleAddToCart}
+          disabled={adding}
+          className={`w-full py-2 rounded-md font-medium text-sm transition flex items-center justify-center gap-2
+            ${
+              adding
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-teal-700 text-white hover:bg-teal-800"
+            }`}
+        >
+          {adding ? (
+            "Đang thêm..."
+          ) : (
+            <>
+              <ShoppingCart size={16} /> Thêm vào giỏ
+            </>
+          )}
+        </button>
+      </div>
+  </div>
+    );
 }

@@ -19,12 +19,12 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 import { getAllProducts } from "../services/productService";
-import { getCartData } from '../services/cartService';
+import { getCartData } from "../services/cartService";
 export default function Header() {
   const { user, logout, isLoggedIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const displayUserName = user ? user.name : 'Guest';
+  const displayUserName = user ? user.name : "Guest";
 
   // --- THÊM STATE CART COUNT ---
   const [cartCount, setCartCount] = useState(0);
@@ -32,7 +32,7 @@ export default function Header() {
   // --- HÀM CẬP NHẬT SỐ LƯỢNG ---
   const updateCartCount = async () => {
     // Nếu chưa đăng nhập thì không gọi API
-    const userStored = localStorage.getItem('user');
+    const userStored = localStorage.getItem("user");
     if (!userStored) {
       setCartCount(0);
       return;
@@ -59,11 +59,11 @@ export default function Header() {
     updateCartCount();
 
     // 2. Đăng ký lắng nghe sự kiện 'cart-updated' từ cartService
-    window.addEventListener('cart-updated', updateCartCount);
+    window.addEventListener("cart-updated", updateCartCount);
 
     // 3. Cleanup khi component bị hủy
     return () => {
-      window.removeEventListener('cart-updated', updateCartCount);
+      window.removeEventListener("cart-updated", updateCartCount);
     };
   }, [user]); // Chạy lại khi user thay đổi (đăng nhập/đăng xuất)
 
@@ -139,7 +139,7 @@ export default function Header() {
   }, []);
   const handleGoToOrders = () => {
     setIsUserMenuOpen(false);
-    navigate('/order');
+    navigate("/order");
   };
   // ==============================
   // HIGHLIGHT MATCHES
@@ -367,7 +367,7 @@ export default function Header() {
             {/* CART ICON */}
             <div className="relative">
               <ShoppingCart
-                onClick={() => navigate('/cart')}
+                onClick={() => navigate("/cart")}
                 className="w-6 h-6 cursor-pointer hover:text-teal-100 transition"
               />
               {/* Chỉ hiện badge khi số lượng > 0 */}

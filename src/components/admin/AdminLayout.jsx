@@ -10,7 +10,6 @@ export default function AdminLayout() {
     <div className="admin-layout min-h-screen bg-gray-100">
       <HeaderNavbar />
 
-      {/* BREADCRUMB */}
       <div className="bg-white border-b px-6 py-4">
         <div className="text-sm text-gray-600">
           {pathnames.map((name, index) => (

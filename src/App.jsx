@@ -27,6 +27,12 @@ import ScrollToTop from "./components/ScrollToTop";
 import NotFound from "./pages/NotFound";
 import "react-datepicker/dist/react-datepicker.css";
 
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+import VoucherCreatePage from "./pages/admin/VoucherCreatePage";
+import VoucherEditPage from "./pages/admin/VoucherEditPage";
+
 export default function App() {
   return (
     <AuthProvider>
@@ -61,11 +67,23 @@ export default function App() {
             <Route path="products" element={<ProductManagement />} />
             <Route path="orders" element={<OrderManagement />} />
             <Route path="vouchers" element={<VoucherManagement />} />
+            <Route path="vouchers/create" element={<VoucherCreatePage />} />
+            <Route path="vouchers/:id/edit" element={<VoucherEditPage />} />
           </Route>
 
           {/* 404 - Catch all undefined routes */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+
+        <ToastContainer
+          position="top-right"
+          autoClose={2000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          pauseOnHover
+          theme="light"
+        />
 
         {/* Footer */}
         <Footer />
