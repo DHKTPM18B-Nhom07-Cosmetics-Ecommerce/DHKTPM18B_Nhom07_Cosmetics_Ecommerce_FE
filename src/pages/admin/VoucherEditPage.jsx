@@ -29,6 +29,7 @@ export default function VoucherEditPage() {
     value: "",
     maxDiscount: "",
     minOrderAmount: "",
+    minItemCount: "",
     maxUses: "",
     perUserLimit: "",
     stackable: true,
@@ -74,6 +75,7 @@ export default function VoucherEditPage() {
       value: v.value,
       maxDiscount: v.maxDiscount || "",
       minOrderAmount: v.minOrderAmount || "",
+      minItemCount: v.minItemCount || "",
       maxUses: v.maxUses || "",
       perUserLimit: v.perUserLimit || "",
       stackable: v.stackable,
@@ -110,8 +112,11 @@ export default function VoucherEditPage() {
   const validate = () => {
     const e = {};
 
-    if (!form.code.trim()) e.code = "Mã voucher bắt buộc.";
-    if (!/^[A-Z0-9_]+$/.test(form.code.trim()))
+    const rawCode = form.code.trim();
+    const upperCode = rawCode.toUpperCase();
+
+    if (!rawCode) e.code = "Mã voucher bắt buộc.";
+    else if (!/^[A-Z0-9_]+$/.test(upperCode))
       e.code = "Mã chỉ chứa A–Z, số, không dấu.";
 
     if (!form.value) e.value = "Giá trị giảm bắt buộc.";
@@ -134,12 +139,13 @@ export default function VoucherEditPage() {
     if (!validate()) return;
 
     const payload = {
-      code: form.code.toUpperCase(),
+      code: form.code.trim().toUpperCase(),
       type: form.type,
       scope: form.scope,
       value: Number(form.value),
       maxDiscount: form.type === "PERCENT" ? Number(form.maxDiscount) : null,
       minOrderAmount: Number(form.minOrderAmount || 0),
+      minItemCount: Number(form.minItemCount || 0),
       maxUses: form.maxUses ? Number(form.maxUses) : null,
       perUserLimit: Number(form.perUserLimit || 1),
       stackable: form.stackable,
@@ -148,6 +154,7 @@ export default function VoucherEditPage() {
       categoryIds: selectedCategories,
       brandIds: selectedBrands,
       productIds: selectedProducts,
+      // BE đang có minItemCount trong entity nên mình map luôn cho đồng bộ
     };
 
     try {
@@ -171,7 +178,7 @@ export default function VoucherEditPage() {
   const Tip = ({ text }) => (
     <span className="relative group">
       <Info className="w-4 h-4 text-gray-500 cursor-pointer" />
-      <span className="absolute invisible group-hover:visible left-0 top-6 w-52 bg-black text-white text-xs p-2 rounded shadow-xl">
+      <span className="absolute invisible group-hover:visible left-0 top-6 w-52 bg-black text-white text-xs p-2 rounded shadow-xl z-50">
         {text}
       </span>
     </span>
@@ -197,8 +204,20 @@ export default function VoucherEditPage() {
   );
 
   const Preview = () => (
-    <div className="rounded-xl p-4 bg-[#eef5f7] border">
-      <p className="font-bold text-lg text-[#0e4f66]">
+    <div
+      className="
+        rounded-xl 
+        p-5 
+        border border-[#d2e5ea]
+        bg-[#eff5f7]
+        shadow-sm 
+        hover:shadow-md
+        transition-all 
+        duration-200
+        space-y-2
+      "
+    >
+      <p className="font-bold text-xl text-[#0e4f66] tracking-wide">
         {form.code || "VOUCHER"}
       </p>
 
@@ -211,8 +230,14 @@ export default function VoucherEditPage() {
       </p>
 
       {form.minOrderAmount > 0 && (
-        <p className="text-xs mt-1">
-          Tối thiểu {Number(form.minOrderAmount).toLocaleString()}đ
+        <p className="text-xs mt-1 text-[#4f6f77]">
+          Đơn tối thiểu: {Number(form.minOrderAmount).toLocaleString()}đ
+        </p>
+      )}
+
+      {form.minItemCount > 0 && (
+        <p className="text-xs text-[#4f6f77]">
+          Số lượng tối thiểu: {form.minItemCount} sản phẩm
         </p>
       )}
 
@@ -239,7 +264,7 @@ export default function VoucherEditPage() {
   const handleCancel = () => navigate("/admin/vouchers");
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
+    <div className="p-8 bg-gray-50 min-h-screen voucher-page">
       {/* PAGE TITLE */}
       <h1 className="text-3xl font-bold text-[#0e4f66] mb-6">
         Chỉnh sửa voucher
@@ -313,6 +338,7 @@ export default function VoucherEditPage() {
                     name="value"
                     value={form.value}
                     onChange={change}
+                    placeholder="VD: 10 hoặc 50000"
                     className={`w-full border rounded-lg px-3 py-2 text-sm ${
                       errors.value
                         ? "border-red-500"
@@ -328,13 +354,14 @@ export default function VoucherEditPage() {
                 {/* MAX DISCOUNT */}
                 {form.type === "PERCENT" && (
                   <div className="space-y-1">
-                    <FormLabel required>Giảm tối đa</FormLabel>
+                    <FormLabel required>Giảm tối đa (VNĐ)</FormLabel>
 
                     <input
                       type="number"
                       name="maxDiscount"
                       value={form.maxDiscount}
                       onChange={change}
+                      placeholder="VD: 100000"
                       className={`w-full border rounded-lg px-3 py-2 text-sm ${
                         errors.maxDiscount
                           ? "border-red-500"
@@ -352,15 +379,34 @@ export default function VoucherEditPage() {
 
                 {/* MIN ORDER */}
                 <div className="space-y-1">
-                  <FormLabel>Đơn hàng tối thiểu</FormLabel>
+                  <FormLabel>Đơn hàng tối thiểu (VNĐ)</FormLabel>
 
                   <input
                     type="number"
                     name="minOrderAmount"
                     value={form.minOrderAmount}
                     onChange={change}
+                    placeholder="VD: 200000 (có thể bỏ trống)"
                     className="w-full border rounded-lg px-3 py-2 text-sm border-gray-300 focus:border-[#0e4f66]"
                   />
+                </div>
+
+                {/* MIN ITEM COUNT */}
+                <div className="space-y-1">
+                  <FormLabel>Số lượng sản phẩm tối thiểu</FormLabel>
+
+                  <input
+                    type="number"
+                    name="minItemCount"
+                    value={form.minItemCount}
+                    onChange={change}
+                    placeholder="VD: 3 (combo tối thiểu)"
+                    className="w-full border rounded-lg px-3 py-2 text-sm border-gray-300 focus:border-[#0e4f66]"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Nếu để trống hoặc 0: không giới hạn số lượng sản phẩm tối
+                    thiểu.
+                  </p>
                 </div>
               </section>
             </div>
@@ -465,6 +511,7 @@ export default function VoucherEditPage() {
                 )}
               </section>
 
+              {/* PREVIEW */}
               <Preview />
             </div>
           </div>
