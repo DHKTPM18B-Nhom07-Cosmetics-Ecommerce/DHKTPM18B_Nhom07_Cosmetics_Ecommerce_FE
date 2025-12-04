@@ -387,9 +387,8 @@ export default function Header() {
                 <User className="w-6 h-6" />
                 <span className="text-sm">Hello, {user?.name || "Guest"}</span>
                 <ChevronDown
-                  className={`w-4 h-4 transition-transform ${
-                    isUserMenuOpen ? "rotate-180" : ""
-                  }`}
+                  className={`w-4 h-4 transition-transform ${isUserMenuOpen ? "rotate-180" : ""
+                    }`}
                 />
               </div>
 

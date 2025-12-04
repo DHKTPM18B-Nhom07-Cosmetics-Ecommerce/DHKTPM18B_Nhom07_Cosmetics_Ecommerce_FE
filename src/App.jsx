@@ -24,6 +24,7 @@ import OrderManagement from "./pages/admin/OrderManagement";
 import AddEmployee from "./pages/admin/AddEmployee";
 import UserDetail from "./pages/admin/UserDetail";
 import ScrollToTop from "./components/ScrollToTop";
+import NotFound from "./pages/NotFound";
 import "react-datepicker/dist/react-datepicker.css";
 
 import { ToastContainer } from "react-toastify";
@@ -69,6 +70,9 @@ export default function App() {
             <Route path="vouchers/create" element={<VoucherCreatePage />} />
             <Route path="vouchers/:id/edit" element={<VoucherEditPage />} />
           </Route>
+
+          {/* 404 - Catch all undefined routes */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
 
         <ToastContainer

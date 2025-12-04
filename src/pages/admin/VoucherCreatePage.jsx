@@ -166,7 +166,7 @@ export default function VoucherCreatePage() {
     </div>
   );
 
-  // ⭐⭐⭐ PREVIEW NEW PASTEL VERSION (APPLY)
+  // PREVIEW
   const Preview = () => (
     <div
       className="
@@ -430,7 +430,7 @@ export default function VoucherCreatePage() {
               )}
             </section>
 
-            {/* ⭐ PREVIEW */}
+            {/* PREVIEW */}
             <Preview />
           </div>
         </div>

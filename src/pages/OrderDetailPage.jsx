@@ -64,7 +64,7 @@ const AccountSidebar = () => (
     <div className="w-64 flex-shrink-0 bg-white p-4 rounded-lg shadow-sm font-sans sticky top-20 h-fit">
         <h3 className="font-semibold text-lg text-gray-800 mb-4 border-b pb-2">Tài khoản</h3>
         <nav className="space-y-2">
-            <Link to="/orders" className={`flex items-center p-2 ${TEAL_TEXT} ${TEAL_ACTIVE_BG} rounded-md font-medium transition`}>
+            <Link to="/order" className={`flex items-center p-2 ${TEAL_TEXT} ${TEAL_ACTIVE_BG} rounded-md font-medium transition`}>
                 <Package className="w-4 h-4 mr-2" /> Quản lý đơn hàng
             </Link>
             <Link to="/profile" className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
@@ -79,29 +79,25 @@ const AccountSidebar = () => (
         </nav>
     </div>
 );
-
-// --- COMPONENT HIỂN THỊ SẢN PHẨM RẤT GỌN NHỎ ---
+//sp
 const ProductItemDisplay = ({ item }) => {
     const displayName = item.productVariant?.variantName || item.productVariant?.product?.productName || 'Sản phẩm không rõ';
 
-    // ĐÃ SỬA TRIỆT ĐỂ: Dùng URL ảnh placeholder thật sự nhỏ (20x20px)
-    const imageUrl = item.productVariant?.imageUrl || 'https://placehold.co/20x20/f5f5f5/f5f5f5.png?text=SP';
+    const imageUrl = item.productVariant?.imageUrl || 'https://placehold.co/10x10/f5f5f5/f5f5f5.png?text=SP';
 
     return (
-        // Sử dụng FLEX-COL (chiều dọc) để đặt tên dưới ảnh
         <div className="flex flex-col items-start w-full">
-            <div className="flex items-start mb-1"> {/* Giảm mb để compact hơn */}
-                {/* ĐÃ SỬA TRIỆT ĐỂ: Kích thước ảnh cố định, RẤT nhỏ (w-5 h-5 ~ 20px) */}
+            <div className="flex items-start mb-1">
                 <img
                     src={imageUrl}
                     alt={displayName}
-                    className="w-5 h-5 object-cover rounded-sm mr-2 border border-gray-200 flex-shrink-0"
+                    className="w-12 h-12 object-cover rounded-sm mr-2 border border-gray-200 flex-shrink-0"
                 />
             </div>
 
             {/* Tên sản phẩm nằm ở dòng mới, dưới ảnh */}
             <div className="flex-grow min-w-0">
-                <p className="font-medium text-gray-800 leading-tight text-xs">{displayName}</p> {/* text-xs để tên nhỏ hơn */}
+                <p className="font-medium text-gray-800 leading-tight text-xs">{displayName}</p>
             </div>
         </div>
     );
@@ -118,7 +114,6 @@ const OrderItemRow = ({ item }) => {
     const lineTotal = lineSubTotal - discountAmount;
 
     return (
-        // ĐÃ SỬA: Tăng min-height để chứa nội dung dài theo chiều dọc, nhưng vẫn gọn
         <div className="flex items-center py-2 border-b border-gray-100 last:border-b-0 min-h-[60px]">
 
             {/* CỘT SẢN PHẨM: Chiếm 2/5 (40%) */}
@@ -157,7 +152,7 @@ const OrderDetailPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Dữ liệu mẫu - ĐÃ CẬP NHẬT theo cấu trúc bạn cung cấp và dùng URL ảnh nhỏ
+    // CẬP NHẬT: Dùng URL ảnh thật (tạm thời) để kiểm tra giao diện
     const [mockOrder] = useState({
         id: orderId || 'ORD-2024-001',
         orderDate: '2025-03-20T09:00:00',
@@ -172,9 +167,9 @@ const OrderDetailPage = () => {
                 productVariant: {
                     id: 1,
                     variantName: 'Sữa Rửa Mặt CeraVe Sạch Sâu Cho Da Thường Đến Da Dầu 473ml',
-                    // ĐÃ SỬA: Dùng URL ảnh nhỏ 20x20px (placeholder.co)
-                    imageUrl: 'https://placehold.co/20x20/86efac/86efac.png?text=CR',
-                    price: 439000, // Thêm các trường thiếu để khớp JSON
+                    // SỬ DỤNG URL ẢNH BÊN NGOÀI ĐỂ KIỂM TRA
+                    imageUrl: 'https://i.ibb.co/L8v1Y2F/cerave.jpg',
+                    price: 439000,
                     quantity: 100,
                     inStock: true
                 }
@@ -188,9 +183,9 @@ const OrderDetailPage = () => {
                 productVariant: {
                     id: 2,
                     variantName: 'Sữa Rửa Mặt CeraVe Sạch Sâu Cho Da Thường Đến Da Dầu 236ml',
-                    // ĐÃ SỬA: Dùng URL ảnh nhỏ 20x20px (placeholder.co)
-                    imageUrl: 'https://placehold.co/20x20/fcd34d/fcd34d.png?text=CR',
-                    price: 309000, // Thêm các trường thiếu để khớp JSON
+                    // SỬ DỤNG URL ẢNH BÊN NGOÀI ĐỂ KIỂM TRA
+                    imageUrl: 'https://i.ibb.co/L8v1Y2F/cerave.jpg',
+                    price: 309000,
                     quantity: 100,
                     inStock: true
                 }
@@ -229,6 +224,8 @@ const OrderDetailPage = () => {
                     ].filter(part => part).join(', ')
                 };
             }
+            // Logic quan trọng: Nếu data thật từ API đã có imageUrl, nó sẽ được sử dụng.
+            // Nếu data là mock (id không hợp lệ), thì mockOrder sẽ được dùng.
             return data;
         };
 
@@ -373,11 +370,9 @@ const OrderDetailPage = () => {
     if (error || !order) {
         return (
             <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
-                <Header />
                 <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16 text-center text-lg text-red-500">
                     {error || 'Không tìm thấy đơn hàng.'}
                 </div>
-                <Footer />
             </div>
         );
     }
@@ -424,16 +419,15 @@ const OrderDetailPage = () => {
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
-            <Header />
 
-            <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex-1 w-full mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
                 {/* Breadcrumbs */}
                 <div className="text-sm text-gray-500 mb-6 flex items-center">
                     <Link to="/" className="cursor-pointer hover:text-[#2B6377]">Home</Link>
                     <span className="mx-2">/</span>
                     <Link to="/account" className="cursor-pointer hover:text-[#2B6377]">Tài khoản</Link>
                     <span className="mx-2">/</span>
-                    <Link to="/orders" className="cursor-pointer hover:text-[#2B6377]">Quản lý đơn hàng</Link>
+                    <Link to="/order" className="cursor-pointer hover:text-[#2B6377]">Quản lý đơn hàng</Link>
                     <span className="mx-2">/</span>
                     <span className="font-medium text-[#2B6377]">Chi tiết đơn hàng</span>
                 </div>
@@ -543,8 +537,6 @@ const OrderDetailPage = () => {
                     </main>
                 </div>
             </div>
-
-            <Footer/>
         </div>
     );
 };

@@ -174,7 +174,7 @@ export default function ProductsPage() {
                 onClick={resetFilter}
                 className="text-xs text-teal-600 hover:underline"
               >
-                Xóa tất cả
+                Đặt lại
               </button>
             </div>
 

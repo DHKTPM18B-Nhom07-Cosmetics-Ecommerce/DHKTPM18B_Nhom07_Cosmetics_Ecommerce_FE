@@ -42,7 +42,7 @@ export default function ProductCard({ product }) {
     return "bg-[oklch(96.2%_0.044_156.743)] text-[oklch(39.8%_0.07_227.392)]"; // xanh lá
   };
 
-  // ---- HANDLE ADD TO CART ----
+  // ---- ADD TO CART ----
   const handleAddToCart = async (e) => {
     e.stopPropagation();
     e.preventDefault();
@@ -50,9 +50,7 @@ export default function ProductCard({ product }) {
     const userStored = localStorage.getItem("user");
     if (!userStored) {
       if (
-        window.confirm(
-          "Bạn cần đăng nhập để mua hàng. Chuyển đến trang đăng nhập?"
-        )
+        window.confirm("Bạn cần đăng nhập để mua hàng. Chuyển đến trang đăng nhập?")
       ) {
         navigate("/login");
       }
@@ -80,6 +78,10 @@ export default function ProductCard({ product }) {
     }
   };
 
+    
+
+    
+
   // ---- HIỂN THỊ GIÁ ----
   const renderPrice = () => {
     if (!product.variants?.length) return "Liên hệ";
@@ -99,39 +101,44 @@ export default function ProductCard({ product }) {
       hover:shadow-md hover:border-teal-600 hover:border-2 transition cursor-pointer group flex flex-col h-full"
     >
       {/* IMAGE */}
-      <div className="relative aspect-square overflow-hidden bg-gray-100">
-        <img
-          src={product.images?.[0] || "/placeholder.png"}
-          alt={product.name}
-          className="w-full h-48 object-cover transition-all duration-500 
-          group-hover:scale-105"
-        />
-
-        {/* like buttot  */}
-        <button className="absolute top-2 left-2 bg-blue-100 p-2 rounded-full hover:bg-blue-200 transition">
-          <Heart className="w-4 h-4 text-red-500" />
-        </button>
-
-        {/* STOCK BADGE góc phải – fade-in + bounce */}
-        <div
-          className={`
-            absolute top-2 right-2 px-2 py-1 rounded-full text-[11px] font-semibold 
-            shadow ${getStockColor()} animate-fadeBounce
-          `}
-        >
-          {getStockStatus()}
-        </div>
+        <div className="relative w-full overflow-hidden bg-gray-100">
+          <img
+              src={(product.images && product.images.length > 0) ? product.images[0] : "/placeholder.svg"}
+              alt={product.name}
+              className={`w-full aspect-square object-contain transition-all duration-500 ${product.images && product.images.length > 1
+                  ? "group-hover:opacity-0"
+                  : "group-hover:scale-105"
+                  }`}
+          />
+          {product.images && product.images.length > 1 && (
+              <img
+                  src={product.images[1]}
+                  alt={product.name}
+                  className="absolute inset-0 w-full aspect-square object-contain opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+              />
+          )}
+          {/* Like Button */}
+          <button className="absolute top-2 left-2 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition">
+              <Heart className="w-4 h-4 text-red-500" />
+          </button>
+          {/* Stock Badge (merge từ origin/kieutrang) */}
+          <div
+              className={`absolute top-2 right-2 px-2 py-1 rounded-full text-[11px] font-semibold 
+                shadow ${getStockColor()} animate-fadeBounce`}
+            >
+              {getStockStatus()}
+          </div>
       </div>
-
+  
+        
       {/* INFO */}
       <div className="p-4 gap-8">
         <p className="text-xs font-bold text-teal-700 uppercase mb-1">
           {getBrand()}
         </p>
-
-        <h3 className="font-semibold text-sm text-gray-800 mb-2 line-clamp-2 min-h-[40px]">
-          {product.name}
-        </h3>
+          <h3 className="font-semibold text-sm text-gray-800 mb-2 line-clamp-2 h-10">
+              {product.name}
+          </h3>
 
         <div className="mb-3">
           <ProductRating
@@ -146,7 +153,6 @@ export default function ProductCard({ product }) {
           </span>
         </div>
 
-        {/* BUTTON ADD TO CART */}
         <button
           onClick={handleAddToCart}
           disabled={adding}
@@ -166,6 +172,6 @@ export default function ProductCard({ product }) {
           )}
         </button>
       </div>
-    </div>
-  );
+  </div>
+    );
 }

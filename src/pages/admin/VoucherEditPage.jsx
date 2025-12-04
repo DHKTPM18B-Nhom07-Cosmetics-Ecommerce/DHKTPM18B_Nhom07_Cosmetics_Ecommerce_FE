@@ -154,7 +154,6 @@ export default function VoucherEditPage() {
       categoryIds: selectedCategories,
       brandIds: selectedBrands,
       productIds: selectedProducts,
-      // BE đang có minItemCount trong entity nên mình map luôn cho đồng bộ
     };
 
     try {

@@ -29,6 +29,10 @@ const ForgotPasswordPage = () => {
                 type: 'success'
             });
 
+            setTimeout(() => {
+                navigate('/reset-password'); // Chuyển về trang đăng nhập
+            }, 3000);
+
         } catch (err) {
             // Xử lý lỗi (Thường là 400 hoặc 500)
             let errorMessage = 'Lỗi kết nối hoặc hệ thống. Vui lòng thử lại sau.';
@@ -58,9 +62,6 @@ const ForgotPasswordPage = () => {
                             }}>
                                 {status.message}
                             </span>
-                            {status.type !== 'error' && (
-                                <p><Link to="/reset-password" className={styles.registerLink}>Xác nhận</Link></p>                             
-                            )}
                         </>
                     )}
 

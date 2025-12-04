@@ -29,6 +29,7 @@ export default function AdminLayout() {
         </div>
       </div>
 
+      {/* PAGE CONTENT */}
       <main className="pt-6 pb-12 px-6">
         <Outlet />
       </main>
