@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { X, AlertTriangle } from "lucide-react";
 import { updateVoucherStatus } from "../../services/voucherApi";
 import "../../../styles/voucher.css";
+import { notifySuccess, notifyError } from "../../utils/toast";
 
 export default function VoucherStatusModal({
   isOpen,
@@ -21,7 +22,8 @@ export default function VoucherStatusModal({
       onUpdated(voucher.id, nextStatus);
       onClose();
     } catch {
-      alert("Không thể cập nhật trạng thái.");
+      // alert("Không thể cập nhật trạng thái.");
+      notifySuccess("Đổi trạng thái voucher thành công!");
     } finally {
       setLoading(false);
     }

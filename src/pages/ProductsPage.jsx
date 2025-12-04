@@ -13,7 +13,10 @@ export default function ProductsPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Lấy từ Header (search param)
+  // SORT MENU STATE
+  const [showSort, setShowSort] = useState(false);
+
+  // Lấy param từ Header
   const initialSearch =
     new URLSearchParams(location.search).get("search") || "";
 
@@ -50,9 +53,7 @@ export default function ProductsPage() {
   // LOADING
   const [loading, setLoading] = useState(true);
 
-  // ---------------------------------------------------
   // LOAD categories + brands
-  // ---------------------------------------------------
   useEffect(() => {
     (async () => {
       const [c, b] = await Promise.all([getAllCategories(), getAllBrands()]);
@@ -61,23 +62,18 @@ export default function ProductsPage() {
     })();
   }, []);
 
-  // ---------------------------------------------------
-  //  cập nhật state search khi search param thaty đổi
-  // ---------------------------------------------------
+  // cập nhật state search khi search param thay đổi
   useEffect(() => {
     const q = new URLSearchParams(location.search).get("search") || "";
     setSearch(q);
     setPage(0);
   }, [location.search]);
 
-  // ---------------------------------------------------
   // FETCH FILTERED PRODUCTS
-  // ---------------------------------------------------
   useEffect(() => {
     (async () => {
       setLoading(true);
 
-      // Nếu query rỗng thì load toàn bộ
       const realSearch = search?.trim() === "" ? null : search;
 
       const res = await filterProducts({
@@ -118,9 +114,7 @@ export default function ProductsPage() {
     }
   }, [data, loading]);
 
-  // ---------------------------------------------------
   // APPLY FILTER
-  // ---------------------------------------------------
   const applyFilter = () => {
     setSelectedCategories(pendingCategories);
     setSelectedBrands(pendingBrands);
@@ -144,7 +138,6 @@ export default function ProductsPage() {
     setSelectedStocks([]);
     setPrice([0, 3000000]);
 
-    // Reset về tất cả sản phẩm
     navigate("/products");
   };
 
@@ -157,9 +150,16 @@ export default function ProductsPage() {
     if (c) title = `Danh mục: ${c.name}`;
   }
 
-  // ---------------------------------------------------
-  // RENDER
-  // ---------------------------------------------------
+  // SORT LABEL
+  const sortLabel = {
+    all: "Mặc định",
+    newest: "Mới nhất",
+    oldest: "Cũ nhất",
+    priceAsc: "Giá thấp → cao",
+    priceDesc: "Giá cao → thấp",
+  }[sort];
+
+  // ========================== UI ==========================
   return (
     <div className="min-h-screen bg-gray-50">
       <Breadcrumb />
@@ -208,7 +208,6 @@ export default function ProductsPage() {
             {/* BRAND */}
             <div>
               <p className="font-medium text-gray-800 mb-2">Thương hiệu</p>
-
               <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                 {brands.map((b) => (
                   <label key={b.id} className="flex items-center gap-2 text-sm">
@@ -328,7 +327,6 @@ export default function ProductsPage() {
               ))}
             </div>
 
-            {/* BUTTON APPLY */}
             <button
               onClick={applyFilter}
               className="w-full bg-[#2B6377] hover:bg-[#244f61] text-white py-2.5 rounded-xl font-semibold mt-4"
@@ -340,28 +338,69 @@ export default function ProductsPage() {
 
         {/* ===================== MAIN ===================== */}
         <main className="flex-1">
-          {/* SORT */}
-          <div className="flex justify-end mb-4">
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              className="border rounded-md text-sm px-3 py-2"
-            >
-              <option value="all">Tất cả</option>
-              <option value="newest">Mới nhất</option>
-              <option value="oldest">Cũ nhất</option>
-              <option value="priceAsc">Giá thấp → cao</option>
-              <option value="priceDesc">Giá cao → thấp</option>
-            </select>
-          </div>
+          {/* TITLE + SORT → UPgraded */}
+          <div className="flex items-center justify-between mb-6 relative">
+            {/* LEFT */}
+            <h2 className="text-2xl font-bold text-gray-800">
+              {title}
+              <span className="text-base ml-2 text-gray-500">
+                ({totalElements})
+              </span>
+            </h2>
 
-          {/* TITLE */}
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">
-            {title}{" "}
-            <span className="text-base ml-2 text-gray-500">
-              ({totalElements})
-            </span>
-          </h2>
+            {/* RIGHT SORT */}
+            <div className="relative">
+              <button
+                onClick={() => setShowSort(!showSort)}
+                className="flex items-center gap-2 px-4 py-2 bg-white border 
+                border-gray-300 rounded-xl text-sm font-medium 
+                hover:bg-gray-50 hover:shadow transition-all"
+              >
+                {sortLabel}
+
+                <svg width="16" height="16" className="text-gray-600">
+                  <path
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    d="M4 6l4 4 4-4"
+                    fill="none"
+                  />
+                </svg>
+              </button>
+
+              {/* Sort Menu */}
+              {showSort && (
+                <div
+                  className="absolute right-0 mt-2 w-48 bg-white rounded-xl 
+                  shadow-lg border border-gray-200 py-2 z-50 animate-fadeIn"
+                >
+                  {[
+                    { value: "all", label: "Mặc định" },
+                    { value: "newest", label: "Mới nhất" },
+                    { value: "oldest", label: "Cũ nhất" },
+                    { value: "priceAsc", label: "Giá thấp → cao" },
+                    { value: "priceDesc", label: "Giá cao → thấp" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setSort(opt.value);
+                        setShowSort(false);
+                      }}
+                      className={`w-full text-left px-4 py-2 text-sm 
+                      hover:bg-gray-100 transition ${
+                        sort === opt.value
+                          ? "font-semibold text-[#2B6377]"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* LOADING */}
           {loading ? (

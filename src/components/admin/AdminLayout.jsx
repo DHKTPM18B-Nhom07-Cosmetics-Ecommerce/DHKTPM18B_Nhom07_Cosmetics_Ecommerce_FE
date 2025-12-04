@@ -10,8 +10,7 @@ export default function AdminLayout() {
     <div className="admin-layout min-h-screen bg-gray-100">
       <HeaderNavbar />
 
-      {/* BREADCRUMB */}
-      <div className="bg-white border-b px-6 py-4 mt-16">
+      <div className="bg-white border-b px-6 py-4">
         <div className="text-sm text-gray-600">
           {pathnames.map((name, index) => (
             <span key={index}>
@@ -30,8 +29,7 @@ export default function AdminLayout() {
         </div>
       </div>
 
-      {/* PAGE CONTENT */}
-      <main className="pt-6 pb-12 px-6 mt-16">
+      <main className="pt-6 pb-12 px-6">
         <Outlet />
       </main>
     </div>
