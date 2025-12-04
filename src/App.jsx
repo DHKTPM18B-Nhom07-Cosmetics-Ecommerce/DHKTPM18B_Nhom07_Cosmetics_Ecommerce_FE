@@ -24,6 +24,7 @@ import OrderManagement from "./pages/admin/OrderManagement";
 import AddEmployee from "./pages/admin/AddEmployee";
 import UserDetail from "./pages/admin/UserDetail";
 import ScrollToTop from "./components/ScrollToTop";
+import NotFound from "./pages/NotFound";
 import "react-datepicker/dist/react-datepicker.css";
 
 export default function App() {
@@ -61,6 +62,9 @@ export default function App() {
             <Route path="orders" element={<OrderManagement />} />
             <Route path="vouchers" element={<VoucherManagement />} />
           </Route>
+
+          {/* 404 - Catch all undefined routes */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
 
         {/* Footer */}
