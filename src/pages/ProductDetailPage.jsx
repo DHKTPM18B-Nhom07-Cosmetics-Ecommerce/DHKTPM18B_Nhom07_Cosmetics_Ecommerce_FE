@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Heart, ShoppingCart, ChevronLeft, ChevronRight } from "lucide-react";
+import { Heart, ShoppingCart } from "lucide-react";
 import { getProductById, getProductVariants } from "../services/productService";
 import { addToCart } from "../services/cartService"; // Import service Cart
 import Breadcrumb from "../components/Breadcrumb";
+import ProductImageCarousel from "../components/ProductImageCarousel";
 
 // Format price to Vietnamese currency
 const formatPrice = (price) => {
@@ -18,13 +19,12 @@ export default function ProductDetailPage() {
   const navigate = useNavigate();
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState(null); // Đây chính là selectedVariant
-  const [activeTab, setActiveTab] = useState("mô tả"); // Sửa mặc định cho khớp key bên dưới
+  // Mặc định dùng key ASCII không dấu (mo-ta)
+  const [activeTab, setActiveTab] = useState("mo-ta");
   const [product, setProduct] = useState(null);
   const [variants, setVariants] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [mainImage, setMainImage] = useState(null);
   const [productCategory, setProductCategory] = useState(null);
-  const [thumbnailStartIndex, setThumbnailStartIndex] = useState(0);
   const [adding, setAdding] = useState(false); // Thêm state loading cho nút Add
 
   useEffect(() => {
@@ -41,13 +41,6 @@ export default function ProductDetailPage() {
 
         if (productData.category) {
           setProductCategory(productData.category.name || productData.category);
-        }
-
-        if (productData.images && productData.images.length > 0) {
-          setMainImage(productData.images[0]);
-        }
-        if (variantsData.length > 0) {
-          setSelectedSize(variantsData[0]);
         }
       } catch (error) {
         console.error("Error fetching product details:", error);
@@ -81,36 +74,6 @@ export default function ProductDetailPage() {
     });
     return unique;
   })();
-
-  const imagesCount = displayImages.length;
-
-  useEffect(() => {
-    const maxStart = Math.max(0, imagesCount - 4);
-    if (thumbnailStartIndex > maxStart) {
-      setThumbnailStartIndex(maxStart);
-    }
-  }, [imagesCount, thumbnailStartIndex]);
-
-  const visibleThumbnails = displayImages.slice(
-    thumbnailStartIndex,
-    thumbnailStartIndex + 4
-  );
-
-  const handleThumbnailPrev = () => {
-    const currentIndex = displayImages.indexOf(mainImage);
-    const newIndex = currentIndex > 0 ? currentIndex - 1 : imagesCount - 1;
-    setMainImage(displayImages[newIndex]);
-    const newStart = Math.max(0, Math.min(newIndex, imagesCount - 4));
-    setThumbnailStartIndex(newStart);
-  };
-
-  const handleThumbnailNext = () => {
-    const currentIndex = displayImages.indexOf(mainImage);
-    const newIndex = currentIndex < imagesCount - 1 ? currentIndex + 1 : 0;
-    setMainImage(displayImages[newIndex]);
-    const newStart = Math.max(0, Math.min(newIndex, imagesCount - 4));
-    setThumbnailStartIndex(newStart);
-  };
 
   // Helper to render stars with partial fill
   const renderStars = (rating) => {
@@ -146,10 +109,14 @@ export default function ProductDetailPage() {
   //  HÀM XỬ LÝ THÊM VÀO GIỎ  ---
   const handleAddToCart = async () => {
     // 1. Kiểm tra đăng nhập
-    const userStored = localStorage.getItem('user');
+    const userStored = localStorage.getItem("user");
     if (!userStored) {
-      if (window.confirm("Bạn cần đăng nhập để mua hàng. Chuyển đến trang đăng nhập?")) {
-        navigate('/login');
+      if (
+        window.confirm(
+          "Bạn cần đăng nhập để mua hàng. Chuyển đến trang đăng nhập?"
+        )
+      ) {
+        navigate("/login");
       }
       return;
     }
@@ -169,13 +136,12 @@ export default function ProductDetailPage() {
       setAdding(true);
       // 4. Gọi API
       await addToCart(accountId, variantId, quantity);
-      
+
       // 5. Thông báo & Chuyển hướng
       // alert("Đã thêm vào giỏ hàng thành công!"); // Có thể bỏ alert nếu muốn chuyển trang luôn
-      
+
       // CHUYỂN HƯỚNG SANG TRANG GIỎ HÀNG LUÔN
-      navigate('/cart');
-      
+      navigate("/cart");
     } catch (error) {
       console.error(error);
       alert("Lỗi: Không thể thêm vào giỏ hàng.");
@@ -204,23 +170,12 @@ export default function ProductDetailPage() {
   const currentPrice = selectedSize
     ? selectedSize.price
     : variants.length > 0
-      ? variants[0].price
-      : 0;
+    ? variants[0].price
+    : 0;
   const currentStock = selectedSize ? selectedSize.quantity : 0;
 
   const handleSelectVariant = (variant) => {
     setSelectedSize(variant);
-    const variantImage =
-      variant.imageUrls && variant.imageUrls.length > 0
-        ? variant.imageUrls[0]
-        : null;
-
-    if (variantImage) {
-      setMainImage(variantImage);
-    } else if (product?.images && product.images.length > 0) {
-      setMainImage(product.images[0]);
-    }
-    setThumbnailStartIndex(0);
   };
 
   return (
@@ -231,49 +186,10 @@ export default function ProductDetailPage() {
         <div className="bg-white rounded-lg shadow-sm p-4">
           <div className=" grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
-              <div className="bg-white rounded-lg overflow-hidden mb-4 aspect-square flex items-center justify-center p-4">
-                <img
-                  src={mainImage || "/placeholder.svg"}
-                  alt={product.name}
-                  className="w-full h-full object-contain"
-                />
-              </div>
-
-              {/* Thumbnail Gallery with Arrow Navigation */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleThumbnailPrev}
-                  className="flex-shrink-0 p-2 bg-white border border-gray-300 rounded hover:bg-[#2B6377] hover:text-white hover:border-[#2B6377] transition"
-                >
-                  <ChevronLeft className="w-4 h-8" />
-                </button>
-
-                <div className="flex gap-2 overflow-hidden flex-1">
-                  {visibleThumbnails.map((img, idx) => (
-                    <button
-                      key={thumbnailStartIndex + idx}
-                      onClick={() => setMainImage(img)}
-                      className={`w-20 h-20 rounded overflow-hidden border-2 transition flex-shrink-0 ${mainImage === img
-                        ? "border-[#2B6377]"
-                        : "border-gray-300 hover:border-[#2B6377]"
-                        }`}
-                    >
-                      <img
-                        src={img || "/placeholder.svg"}
-                        alt={`Ảnh ${thumbnailStartIndex + idx + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  onClick={handleThumbnailNext}
-                  className="flex-shrink-0 p-2 bg-white border border-gray-300 rounded hover:bg-[#2B6377] hover:text-white hover:border-[#2B6377] transition"
-                >
-                  <ChevronRight className="w-4 h-8" />
-                </button>
-              </div>
+              <ProductImageCarousel
+                images={displayImages}
+                selectedVariant={selectedSize}
+              />
             </div>
 
             <div>
@@ -306,7 +222,9 @@ export default function ProductDetailPage() {
 
                 {variants.length > 0 && (
                   <div className="mb-6">
-                    <h3 className="font-semibold text-gray-800 mb-3">Phân loại:</h3>
+                    <h3 className="font-semibold text-gray-800 mb-3">
+                      Phân loại:
+                    </h3>
                     <div className="flex gap-2 flex-wrap">
                       {variants.map((variant) => {
                         // Lấy ảnh từ imageUrls array
@@ -319,10 +237,11 @@ export default function ProductDetailPage() {
                           <button
                             key={variant.id}
                             onClick={() => handleSelectVariant(variant)}
-                            className={`flex items-center gap-2 p-1 rounded-lg border-2 font-medium transition text-xs ${selectedSize && selectedSize.id === variant.id
-                              ? "bg-[#2B6377] text-white border-[#2B6377]"
-                              : "border-gray-300 text-gray-700 hover:border-[#2B6377] bg-white"
-                              }`}
+                            className={`flex items-center gap-2 p-1 rounded-lg border-2 font-medium transition text-xs ${
+                              selectedSize && selectedSize.id === variant.id
+                                ? "bg-[#2B6377] text-white border-[#2B6377]"
+                                : "border-gray-300 text-gray-700 hover:border-[#2B6377] bg-white"
+                            }`}
                           >
                             {variantImage && (
                               <img
@@ -336,10 +255,11 @@ export default function ProductDetailPage() {
                                 {variant.variantName}
                               </div>
                               <div
-                                className={`text-[10px] ${selectedSize && selectedSize.id === variant.id
-                                  ? "text-white"
-                                  : "text-gray-600"
-                                  }`}
+                                className={`text-[10px] ${
+                                  selectedSize && selectedSize.id === variant.id
+                                    ? "text-white"
+                                    : "text-gray-600"
+                                }`}
                               >
                                 {formatPrice(variant.price)}
                               </div>
@@ -352,7 +272,9 @@ export default function ProductDetailPage() {
                 )}
 
                 <div className="mb-6">
-                  <h3 className="font-semibold text-gray-800 mb-3">Số lượng:</h3>
+                  <h3 className="font-semibold text-gray-800 mb-3">
+                    Số lượng:
+                  </h3>
                   <div className="flex items-center gap-3 w-fit">
                     <button
                       onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -363,7 +285,9 @@ export default function ProductDetailPage() {
                     <input
                       type="number"
                       value={quantity}
-                      onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
+                      onChange={(e) =>
+                        setQuantity(Math.max(1, Number(e.target.value) || 1))
+                      }
                       min="1"
                       className="w-10 h-8 border border-gray-300 rounded text-center bg-white no-spinner text-sm"
                     />
@@ -374,7 +298,9 @@ export default function ProductDetailPage() {
                       +
                     </button>
                   </div>
-                  <p className="text-sm text-gray-500 mt-2">Kho: {currentStock}</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Kho: {currentStock}
+                  </p>
                 </div>
 
                 <div className="flex gap-3">
@@ -382,9 +308,10 @@ export default function ProductDetailPage() {
                     onClick={handleAddToCart}
                     disabled={adding}
                     className={`flex-1 px-6 py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2
-                      ${adding 
-                        ? "bg-gray-300 text-gray-500 cursor-not-allowed" 
-                        : "bg-[#2B6377] text-white hover:bg-[#1f4654]"
+                      ${
+                        adding
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : "bg-[#2B6377] text-white hover:bg-[#1f4654]"
                       }`}
                   >
                     {adding ? (
@@ -411,36 +338,45 @@ export default function ProductDetailPage() {
 
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <div className="flex border-b">
-            {["Mô tả", "Thành phần", "Cách sử dụng"].map((tab) => (
+            {[
+              { id: "mo-ta", label: "Mô tả" },
+              { id: "thanh-phan", label: "Thành phần" },
+              { id: "cach-su-dung", label: "Cách sử dụng" },
+            ].map((tabItem) => (
               <button
-                key={tab}
-                onClick={() =>
-                  setActiveTab(tab.toLowerCase().replace(/\s/g, ""))
-                }
-                className={`flex-1 py-4 font-medium transition ${activeTab === tab.toLowerCase().replace(/\s/g, "")
-                  ? "border-b-2 border-teal-700 text-teal-700"
-                  : "text-gray-600 hover:text-gray-800"
-                  }`}
+                key={tabItem.id}
+                onClick={() => setActiveTab(tabItem.id)}
+                className={`flex-1 py-4 font-medium transition ${
+                  activeTab === tabItem.id
+                    ? "border-b-2 border-teal-700 text-teal-700"
+                    : "text-gray-600 hover:text-gray-800"
+                }`}
               >
-                {tab}
+                {tabItem.label}
               </button>
             ))}
           </div>
 
           <div className="p-6">
-            {activeTab === "mô tả" && (
+            {activeTab === "mo-ta" && (
               <div>
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">
                   Mô tả sản phẩm
                 </h3>
-                <p className="text-gray-700 whitespace-pre-line">{product.description}</p>
+                <p className="text-gray-700 whitespace-pre-line">
+                  {product.description}
+                </p>
               </div>
             )}
-            {activeTab === "thànhphần" && (
-              <p className="text-gray-700">Thông tin thành phần đang cập nhật.</p>
+            {activeTab === "thanh-phan" && (
+              <p className="text-gray-700">
+                Thông tin thành phần đang cập nhật.
+              </p>
             )}
-            {activeTab === "cáchsửdụng" && (
-              <p className="text-gray-700">Thông tin hướng dẫn sử dụng đang cập nhật.</p>
+            {activeTab === "cach-su-dung" && (
+              <p className="text-gray-700">
+                Thông tin hướng dẫn sử dụng đang cập nhật.
+              </p>
             )}
           </div>
         </div>
