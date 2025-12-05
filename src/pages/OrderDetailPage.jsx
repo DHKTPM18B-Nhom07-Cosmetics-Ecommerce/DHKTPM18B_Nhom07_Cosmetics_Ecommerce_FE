@@ -14,8 +14,7 @@ import {
     XCircle,
     ShoppingBag
 } from 'lucide-react';
-import Footer from '../components/Footer';
-import Header from '../components/Header';
+import { useAuth } from '../context/AuthContext';
 
 // Định nghĩa URL cơ sở của API
 const API_BASE_URL = 'http://localhost:8080/api/orders';
@@ -79,11 +78,24 @@ const AccountSidebar = () => (
         </nav>
     </div>
 );
-//sp
-const ProductItemDisplay = ({ item }) => {
-    const displayName = item.productVariant?.variantName || item.productVariant?.product?.productName || 'Sản phẩm không rõ';
 
-    const imageUrl = item.productVariant?.imageUrl || 'https://placehold.co/10x10/f5f5f5/f5f5f5.png?text=SP';
+/**
+ * ĐÃ SỬA: Cập nhật logic truy cập tên sản phẩm (Product.name) và ảnh (Product.images)
+ * để khớp với cấu trúc Entity đã buộc tải (force-loaded) ở Back-end.
+ */
+const ProductItemDisplay = ({ item }) => {
+    // Lấy tên từ Product.name (Entity Product có trường 'name')
+    const productName = item.productVariant?.product?.name;
+
+    // Tên hiển thị là Tên biến thể (nếu có) hoặc Tên sản phẩm chính
+    const displayName = item.productVariant?.variantName || productName || 'Sản phẩm không rõ';
+
+    // Lấy danh sách ảnh từ Product.images (thường là mảng các URL)
+    const images = item.productVariant?.product?.images;
+
+    // Ưu tiên: 1. imageUrl của variant (nếu có) -> 2. Ảnh đầu tiên của Product -> 3. Ảnh placeholder
+    const defaultImage = images?.length > 0 ? images[0] : 'https://placehold.co/10x10/f5f5f5/f5f5f5.png?text=SP';
+    const imageUrl = item.productVariant?.imageUrl || defaultImage;
 
     return (
         <div className="flex flex-col items-start w-full">
@@ -148,6 +160,11 @@ const OrderItemRow = ({ item }) => {
 // --- COMPONENT CHÍNH: OrderDetailPage ---
 const OrderDetailPage = () => {
     const { orderId } = useParams();
+
+    // BỔ SUNG: Lấy thông tin người dùng từ AuthContext
+    const { user, isLoading: authLoading, isLoggedIn } = useAuth();
+    const userToken = user?.token; // Lấy token
+
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -229,6 +246,13 @@ const OrderDetailPage = () => {
             return data;
         };
 
+        // KIỂM TRA XÁC THỰC: Bắt buộc phải đăng nhập và có token
+        if (!isLoggedIn || !userToken) {
+            setError('Vui lòng đăng nhập để xem chi tiết đơn hàng này.');
+            setLoading(false);
+            return;
+        }
+
         if (!id) {
             setOrder(mapApiData({ ...mockOrder }));
             setLoading(false);
@@ -238,22 +262,40 @@ const OrderDetailPage = () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await axios.get(`${API_BASE_URL}/${id}`);
+            // Cấu hình Authorization Header
+            const config = {
+                headers: {
+                    Authorization: `Bearer ${userToken}`, // Gửi token lên
+                },
+            };
+
+            // Gửi yêu cầu với config (chứa Token). API này đã được sửa để kiểm tra quyền sở hữu.
+            const response = await axios.get(`${API_BASE_URL}/${id}`, config);
             const finalData = mapApiData(response.data);
             setOrder(finalData);
 
         } catch (err) {
             console.error(`Lỗi khi tải chi tiết đơn hàng ${id}:`, err);
-            setError(`Không thể tải chi tiết đơn hàng #${id}. Vui lòng kiểm tra kết nối.`);
-            setOrder(mapApiData({ ...mockOrder }));
+            const status = err.response?.status;
+            if (status === 401 || status === 403) {
+                setError('Phiên đăng nhập hết hạn hoặc không có quyền xem đơn hàng này. Vui lòng đăng nhập lại.');
+            } else {
+                // Lỗi 404 (Not Found) thường là do Back-end đã kiểm tra quyền sở hữu và không cho phép truy cập.
+                setError(`Không thể tải chi tiết đơn hàng #${id}. Vui lòng kiểm tra kết nối.`);
+            }
+            // setOrder(mapApiData({ ...mockOrder })); // Giữ mock trong dev, nên xóa khi deploy production
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchOrderDetail(orderId);
-    }, [orderId]);
+        // Chỉ gọi fetch nếu auth đã tải xong
+        if (!authLoading) {
+            fetchOrderDetail(orderId);
+        }
+        // Thêm isLoggedIn, userToken, authLoading vào dependencies
+    }, [orderId, isLoggedIn, authLoading, userToken]);
 
     // --- HÀM CẬP NHẬT TRẠNG THÁI UI ---
     const updateOrderStatus = (newStatus) => {
@@ -263,10 +305,16 @@ const OrderDetailPage = () => {
         }));
     };
 
-    // --- HÀM XỬ LÝ HỦY ĐƠN HÀNG  ---
+    // --- HÀM XỬ LÝ HỦY ĐƠN HÀNG (Đã sửa để gửi token) ---
     const handleCancelOrder = async () => {
         if (order.status !== 'PENDING') {
             alert('Chỉ đơn hàng đang ở trạng thái "Chờ xử lý" mới có thể hủy.');
+            return;
+        }
+
+        // KIỂM TRA TOKEN trước khi hủy
+        if (!userToken) {
+            alert('Lỗi xác thực. Vui lòng đăng nhập lại.');
             return;
         }
 
@@ -274,18 +322,29 @@ const OrderDetailPage = () => {
             return;
         }
 
-        const CANCEL_URL = `${API_BASE_URL}/cancel/${orderId}`;
+        // URL đúng cho việc Hủy Đơn Hàng Của Khách Hàng
+        const CANCEL_URL = `${API_BASE_URL}/${orderId}/cancel`;
 
         try {
-            // Giả định API thành công
-            // const response = await axios.put(CANCEL_URL);
+            // Cấu hình Authorization Header
+            const config = {
+                headers: {
+                    Authorization: `Bearer ${userToken}`,
+                },
+            };
+
+            // Gửi yêu cầu PUT với token
+            await axios.put(CANCEL_URL, {}, config);
 
             updateOrderStatus('CANCELLED');
             alert(`Đơn hàng #${orderId} đã được hủy thành công.`);
+            // Sau khi hủy thành công, tải lại chi tiết đơn hàng
+            fetchOrderDetail(orderId);
 
         } catch (err) {
             console.error('Lỗi khi hủy đơn hàng:', err);
-            alert(`Lỗi hủy đơn hàng: Không thể hủy đơn hàng do lỗi kết nối hoặc server.`);
+            const errorMessage = err.response?.data?.message || 'Không thể hủy đơn hàng. Vui lòng kiểm tra lại quyền hạn.';
+            alert(`Lỗi hủy đơn hàng: ${errorMessage}`);
         }
     };
 
@@ -355,14 +414,24 @@ const OrderDetailPage = () => {
     };
 
     // --- Xử lý tải dữ liệu và lỗi ---
+    // Hiển thị loading auth
+    if (authLoading) {
+        return (
+            <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
+                <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16 text-center text-lg text-gray-600">
+                    Đang tải thông tin xác thực...
+                </div>
+            </div>
+        );
+    }
+
+    // Hiển thị loading data
     if (loading) {
         return (
             <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
-                <Header />
                 <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16 text-center text-lg text-gray-600">
                     Đang tải chi tiết đơn hàng...
                 </div>
-                <Footer />
             </div>
         );
     }
