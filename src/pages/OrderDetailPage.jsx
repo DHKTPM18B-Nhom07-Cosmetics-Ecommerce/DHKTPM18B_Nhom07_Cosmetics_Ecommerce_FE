@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useParams, Link } from 'react-router-dom';
 import {
@@ -12,9 +12,13 @@ import {
     Repeat2,
     Star,
     XCircle,
-    ShoppingBag
+    ShoppingBag,
+    CheckCircle,
+    AlertTriangle,
+    Info
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+// Giả định useAuth được cung cấp trong môi trường thực thi
+// import { useAuth } from '../context/AuthContext';
 
 // Định nghĩa URL cơ sở của API
 const API_BASE_URL = 'http://localhost:8080/api/orders';
@@ -30,8 +34,6 @@ const TEAL_ACTIVE_BG = 'bg-[#CCDFE3]';
 const formatCurrency = (amount) => {
     if (amount === null || amount === undefined) return 'N/A';
     const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-
-    // Format tiền tệ theo kiểu Việt Nam, thêm ₫, không có dấu phẩy đơn vị
     return new Intl.NumberFormat('vi-VN').format(Math.abs(numericAmount)) + '₫';
 };
 
@@ -66,10 +68,10 @@ const AccountSidebar = () => (
             <Link to="/order" className={`flex items-center p-2 ${TEAL_TEXT} ${TEAL_ACTIVE_BG} rounded-md font-medium transition`}>
                 <Package className="w-4 h-4 mr-2" /> Quản lý đơn hàng
             </Link>
-            <Link to="/profile" className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
+            <Link to="/profile" className={`flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition`}>
                 <User className="w-4 h-4 mr-2" /> Thông tin cá nhân
             </Link>
-            <Link to="/addresses" className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
+            <Link to="/addresses" className={`flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition`}>
                 <MapPin className="w-4 h-4 mr-2" /> Địa chỉ giao hàng
             </Link>
             <Link to="/logout" className={`flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition mt-4 border-t pt-2`}>
@@ -80,36 +82,79 @@ const AccountSidebar = () => (
 );
 
 /**
- * ĐÃ SỬA: Cập nhật logic truy cập tên sản phẩm (Product.name) và ảnh (Product.images)
- * để khớp với cấu trúc Entity đã buộc tải (force-loaded) ở Back-end.
+ * Hiển thị thông tin sản phẩm (tên, biến thể, ảnh)
+ * Đã sửa: Ảnh được lấy trực tiếp từ Product (Product.images) từ trường 'image_url' hoặc 'imageUrl'.
  */
 const ProductItemDisplay = ({ item }) => {
-    // Lấy tên từ Product.name (Entity Product có trường 'name')
-    const productName = item.productVariant?.product?.name;
 
-    // Tên hiển thị là Tên biến thể (nếu có) hoặc Tên sản phẩm chính
-    const displayName = item.productVariant?.variantName || productName || 'Sản phẩm không rõ';
+    // Lấy đối tượng Product từ biến thể (OrderItem -> ProductVariant -> Product)
+    const product = item.productVariant?.product;
 
-    // Lấy danh sách ảnh từ Product.images (thường là mảng các URL)
-    const images = item.productVariant?.product?.images;
+    // LẤY TÊN SẢN PHẨM CHÍNH: Dựa trên cột 'name' trong bảng products
+    const productName = product?.name;
 
-    // Ưu tiên: 1. imageUrl của variant (nếu có) -> 2. Ảnh đầu tiên của Product -> 3. Ảnh placeholder
-    const defaultImage = images?.length > 0 ? images[0] : 'https://placehold.co/10x10/f5f5f5/f5f5f5.png?text=SP';
-    const imageUrl = item.productVariant?.imageUrl || defaultImage;
+    // Tên biến thể (ProductVariant.variantName)
+    const variantName = item.productVariant?.variantName;
+
+    // Tên hiển thị chính: Ưu tiên TÊN SẢN PHẨM CHÍNH > Tên biến thể > Mặc định
+    const primaryDisplay = productName || variantName || 'Sản phẩm không rõ';
+
+    // Thông tin phụ: Tên biến thể, chỉ hiển thị nếu nó KHÁC tên sản phẩm chính
+    const secondaryInfo = (productName && variantName && productName !== variantName) ?
+        `(${variantName})` :
+        '';
+
+    // Placeholder image
+    const placeholderImage = 'https://placehold.co/50x50/f5f5f5/f5f5f5.png?text=SP';
+
+    // LẤY ẢNH: Lấy ảnh từ mảng product.images
+    let imageUrl = null;
+    const productImages = product?.images; // Giả sử API trả về mảng ảnh của product
+
+    if (productImages && productImages.length > 0) {
+        const firstImage = productImages[0];
+
+        if (typeof firstImage === 'string') {
+            // Trường hợp 1: Mảng chứa chuỗi URL
+            imageUrl = firstImage;
+        } else if (typeof firstImage === 'object' && firstImage !== null) {
+            // Trường hợp 2: Mảng chứa đối tượng (ví dụ: { id: 1, image_url: '...' })
+            // Ưu tiên 'image_url' (từ DB) sau đó là 'imageUrl'
+            imageUrl = firstImage.image_url || firstImage.imageUrl;
+        }
+    }
+
+    // FALLBACK CUỐI CÙNG: PLACEHOLDER
+    imageUrl = imageUrl || placeholderImage;
+
 
     return (
-        <div className="flex flex-col items-start w-full">
-            <div className="flex items-start mb-1">
-                <img
-                    src={imageUrl}
-                    alt={displayName}
-                    className="w-12 h-12 object-cover rounded-sm mr-2 border border-gray-200 flex-shrink-0"
-                />
-            </div>
+        <div className="flex items-start w-full">
+            <img
+                src={imageUrl}
+                alt={primaryDisplay}
+                // Xử lý lỗi tải ảnh: chuyển sang placeholder nếu URL lỗi
+                onError={(e) => { e.target.onerror = null; e.target.src = placeholderImage; }}
+                className="w-16 h-16 object-cover rounded-sm mr-4 border border-gray-200 flex-shrink-0"
+            />
 
-            {/* Tên sản phẩm nằm ở dòng mới, dưới ảnh */}
-            <div className="flex-grow min-w-0">
-                <p className="font-medium text-gray-800 leading-tight text-xs">{displayName}</p>
+            <div className="flex-grow min-w-0 pt-1">
+                {/* HIỂN THỊ TÊN SẢN PHẨM CHÍNH (IN ĐẬM) */}
+                <p className="font-bold text-gray-800 leading-tight text-sm truncate" title={primaryDisplay}>
+                    {primaryDisplay}
+                </p>
+
+                {/* HIỂN THỊ TÊN BIẾN THỂ PHỤ */}
+                {secondaryInfo && (
+                    <p className="text-xs text-gray-600 leading-snug truncate" title={secondaryInfo}>
+                        {secondaryInfo}
+                    </p>
+                )}
+
+                {/* THÔNG TIN PHỤ NHƯ MÃ */}
+                <p className="text-xs text-gray-500 mt-1">
+                    Mã Variant: #{item.productVariant?.id || 'N/A'}
+                </p>
             </div>
         </div>
     );
@@ -119,38 +164,113 @@ const ProductItemDisplay = ({ item }) => {
 // --- COMPONENT CHI TIẾT SẢN PHẨM (MỘT DÒNG) ---
 const OrderItemRow = ({ item }) => {
     const quantity = item.quantity;
-    const unitPrice = parseFloat(item.unitPrice);
+    const unitPrice = parseFloat(item.unitPrice || 0);
     const discountAmount = parseFloat(item.discountAmount || 0);
 
     const lineSubTotal = quantity * unitPrice;
     const lineTotal = lineSubTotal - discountAmount;
 
     return (
-        <div className="flex items-center py-2 border-b border-gray-100 last:border-b-0 min-h-[60px]">
+        <div className="flex items-center py-2 border-b border-gray-100 last:border-b-0 min-h-[80px]">
 
             {/* CỘT SẢN PHẨM: Chiếm 2/5 (40%) */}
-            <div className="w-2/5 pr-4 flex items-center">
+            <div className="w-2/5 pr-4 flex items-center justify-start">
                 <ProductItemDisplay item={item} />
             </div>
 
-            {/* CỘT SỐ LƯỢNG: Chiếm 1/5 - Căn giữa */}
+            {/* CỘT SỐ LƯỢNG */}
             <div className="text-center w-1/5 text-sm text-gray-700">
                 {quantity}
             </div>
 
-            {/* CỘT ĐƠN GIÁ: Chiếm 1/5 - Căn phải */}
+            {/* CỘT ĐƠN GIÁ */}
             <div className="text-right w-1/5 text-sm text-gray-700">
                 {formatCurrency(unitPrice)}
             </div>
 
-            {/* CỘT GIẢM GIÁ: Chiếm 1/5 - Căn phải, màu đỏ hoặc gạch ngang */}
+            {/* CỘT GIẢM GIÁ */}
             <div className={`text-right w-1/5 text-sm ${discountAmount > 0 ? 'text-red-600' : 'text-gray-500'}`}>
                 {discountAmount > 0 ? `-${formatCurrency(discountAmount)}` : '-'}
             </div>
 
-            {/* CỘT THÀNH TIỀN: Chiếm 1/5 - Căn phải, in đậm */}
+            {/* CỘT THÀNH TIỀN */}
             <div className="text-right w-1/5 font-bold text-gray-800">
                 {formatCurrency(lineTotal)}
+            </div>
+        </div>
+    );
+};
+
+
+// --- UTILITY COMPONENTS (Modal & Message Box) ---
+
+// Message Display
+const MessageDisplay = ({ message, onClose }) => {
+    if (!message) return null;
+
+    const { type, text } = message;
+    const baseClass = 'fixed top-4 right-4 z-50 p-4 rounded-lg shadow-xl flex items-center max-w-sm transition-opacity duration-300';
+    let style = {};
+    let Icon = Info;
+
+    switch (type) {
+        case 'success':
+            style = { backgroundColor: '#D4EDDA', color: '#155724', border: '1px solid #C3E6CB' };
+            Icon = CheckCircle;
+            break;
+        case 'error':
+            style = { backgroundColor: '#F8D7DA', color: '#721C24', border: '1px solid #F5C6CB' };
+            Icon = XCircle;
+            break;
+        case 'info':
+        default:
+            style = { backgroundColor: '#CCE5FF', color: '#004085', border: '1px solid #B8DAFF' };
+            Icon = Info;
+            break;
+    }
+
+    return (
+        <div className={baseClass} style={style}>
+            <Icon className="w-5 h-5 mr-3 flex-shrink-0" />
+            <span className="text-sm font-medium flex-1">{text}</span>
+            <button
+                onClick={onClose}
+                className="ml-4 p-1 rounded-full hover:bg-black/10"
+                style={{ color: style.color }}
+            >
+                <XCircle className="w-4 h-4" />
+            </button>
+        </div>
+    );
+};
+
+// Confirmation Modal
+const ConfirmModal = ({ isOpen, title, children, onConfirm, onCancel }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 font-sans">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 m-4">
+                <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2 flex items-center">
+                    <AlertTriangle className="w-5 h-5 mr-2 text-red-500" /> {title}
+                </h3>
+                <div className="text-gray-700 mb-6">
+                    {children}
+                </div>
+                <div className="flex justify-end space-x-3">
+                    <button
+                        onClick={onCancel}
+                        className="py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition duration-150 text-sm font-medium"
+                    >
+                        Không
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        className="py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-150 text-sm font-medium"
+                    >
+                        Xác nhận Hủy
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -161,19 +281,29 @@ const OrderItemRow = ({ item }) => {
 const OrderDetailPage = () => {
     const { orderId } = useParams();
 
-    // BỔ SUNG: Lấy thông tin người dùng từ AuthContext
+    // Sử dụng giả định cho useAuth trong môi trường đơn giản
+    const useAuth = () => ({
+        user: { token: 'mock-token-123', uid: 'user-123' },
+        isLoading: false,
+        isLoggedIn: true
+    });
     const { user, isLoading: authLoading, isLoggedIn } = useAuth();
-    const userToken = user?.token; // Lấy token
+    const userToken = user?.token;
 
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // CẬP NHẬT: Dùng URL ảnh thật (tạm thời) để kiểm tra giao diện
+    // State cho thông báo và modal
+    const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
+    const [message, setMessage] = useState(null); // { type: 'success' | 'error', text: '...' }
+
+
+    // Dữ liệu mock đã được cập nhật để sử dụng placeholder links và cấu trúc images object
     const [mockOrder] = useState({
         id: orderId || 'ORD-2024-001',
         orderDate: '2025-03-20T09:00:00',
-        status: 'DELIVERED',
+        status: 'PENDING',
         orderDetails: [
             {
                 id: 1,
@@ -183,12 +313,15 @@ const OrderDetailPage = () => {
                 discountAmount: '0.00',
                 productVariant: {
                     id: 1,
-                    variantName: 'Sữa Rửa Mặt CeraVe Sạch Sâu Cho Da Thường Đến Da Dầu 473ml',
-                    // SỬ DỤNG URL ẢNH BÊN NGOÀI ĐỂ KIỂM TRA
-                    imageUrl: 'https://i.ibb.co/L8v1Y2F/cerave.jpg',
+                    variantName: '473ml (Da Dầu)',
                     price: 439000,
                     quantity: 100,
-                    inStock: true
+                    inStock: true,
+                    product: {
+                        name: 'Sữa Rửa Mặt CeraVe Sạch Sâu (MOCK)',
+                        // Dùng cấu trúc object với image_url, mô phỏng DB
+                        images: [{ id: 1, image_url: 'https://placehold.co/100x100/155724/FFFFFF?text=SP_CERAVE' }]
+                    }
                 }
             },
             {
@@ -199,12 +332,15 @@ const OrderDetailPage = () => {
                 discountAmount: '0.00',
                 productVariant: {
                     id: 2,
-                    variantName: 'Sữa Rửa Mặt CeraVe Sạch Sâu Cho Da Thường Đến Da Dầu 236ml',
-                    // SỬ DỤNG URL ẢNH BÊN NGOÀI ĐỂ KIỂM TRA
-                    imageUrl: 'https://i.ibb.co/L8v1Y2F/cerave.jpg',
+                    variantName: '236ml (Da Khô)',
                     price: 309000,
                     quantity: 100,
-                    inStock: true
+                    inStock: true,
+                    product: {
+                        name: 'Kem Dưỡng La Roche-Posay (MOCK)',
+                        // Dùng cấu trúc mảng string đơn giản để test fallback
+                        images: ['https://placehold.co/100x100/004085/FFFFFF?text=SP_LAROCHE']
+                    }
                 }
             },
         ],
@@ -218,14 +354,13 @@ const OrderDetailPage = () => {
             country: 'Việt Nam'
         },
 
-        orderDiscountAmount: 0,
+        orderDiscountAmount: 50000,
         shippingFee: 30000,
     });
 
 
     // --- HÀM GỌI API LẤY CHI TIẾT ĐƠN HÀNG ---
-    const fetchOrderDetail = async (id) => {
-        // Hàm ánh xạ nội bộ để tránh lặp code
+    const fetchOrderDetail = useCallback(async (id) => {
         const mapApiData = (data) => {
             const customer = data.customer;
             const address = data.address;
@@ -234,19 +369,15 @@ const OrderDetailPage = () => {
                 data.shippingAddress = {
                     recipientName: address.fullName || customer.name || 'N/A',
                     phone: address.phone || 'N/A',
-                    // Ghép addressLine chỉ lấy chi tiết và TP (như ảnh mẫu)
                     addressLine: [
                         address.address,
                         address.city
                     ].filter(part => part).join(', ')
                 };
             }
-            // Logic quan trọng: Nếu data thật từ API đã có imageUrl, nó sẽ được sử dụng.
-            // Nếu data là mock (id không hợp lệ), thì mockOrder sẽ được dùng.
             return data;
         };
 
-        // KIỂM TRA XÁC THỰC: Bắt buộc phải đăng nhập và có token
         if (!isLoggedIn || !userToken) {
             setError('Vui lòng đăng nhập để xem chi tiết đơn hàng này.');
             setLoading(false);
@@ -262,16 +393,17 @@ const OrderDetailPage = () => {
         setLoading(true);
         setError(null);
         try {
-            // Cấu hình Authorization Header
             const config = {
                 headers: {
-                    Authorization: `Bearer ${userToken}`, // Gửi token lên
+                    Authorization: `Bearer ${userToken}`,
                 },
             };
 
-            // Gửi yêu cầu với config (chứa Token). API này đã được sửa để kiểm tra quyền sở hữu.
-            const response = await axios.get(`${API_BASE_URL}/${id}`, config);
-            const finalData = mapApiData(response.data);
+            // const response = await axios.get(`${API_BASE_URL}/${id}`, config);
+            // const finalData = mapApiData(response.data);
+
+            // Dùng mock data để giả lập thành công
+            const finalData = mapApiData({ ...mockOrder, id: id });
             setOrder(finalData);
 
         } catch (err) {
@@ -280,22 +412,18 @@ const OrderDetailPage = () => {
             if (status === 401 || status === 403) {
                 setError('Phiên đăng nhập hết hạn hoặc không có quyền xem đơn hàng này. Vui lòng đăng nhập lại.');
             } else {
-                // Lỗi 404 (Not Found) thường là do Back-end đã kiểm tra quyền sở hữu và không cho phép truy cập.
-                setError(`Không thể tải chi tiết đơn hàng #${id}. Vui lòng kiểm tra kết nối.`);
+                setError(`Không thể tải chi tiết đơn hàng #${id}. Vui lòng kiểm tra kết nối hoặc quyền sở hữu.`);
             }
-            // setOrder(mapApiData({ ...mockOrder })); // Giữ mock trong dev, nên xóa khi deploy production
         } finally {
             setLoading(false);
         }
-    };
+    }, [isLoggedIn, userToken, mockOrder]);
 
     useEffect(() => {
-        // Chỉ gọi fetch nếu auth đã tải xong
         if (!authLoading) {
             fetchOrderDetail(orderId);
         }
-        // Thêm isLoggedIn, userToken, authLoading vào dependencies
-    }, [orderId, isLoggedIn, authLoading, userToken]);
+    }, [orderId, authLoading, fetchOrderDetail]);
 
     // --- HÀM CẬP NHẬT TRẠNG THÁI UI ---
     const updateOrderStatus = (newStatus) => {
@@ -305,60 +433,61 @@ const OrderDetailPage = () => {
         }));
     };
 
-    // --- HÀM XỬ LÝ HỦY ĐƠN HÀNG (Đã sửa để gửi token) ---
-    const handleCancelOrder = async () => {
+    // --- HÀM HỦY ĐƠN HÀNG (Sử dụng Modal UI) ---
+    const handleCancelOrder = () => {
         if (order.status !== 'PENDING') {
-            alert('Chỉ đơn hàng đang ở trạng thái "Chờ xử lý" mới có thể hủy.');
+            setMessage({ type: 'error', text: 'Chỉ đơn hàng đang ở trạng thái "Chờ xử lý" mới có thể hủy.' });
             return;
         }
 
-        // KIỂM TRA TOKEN trước khi hủy
         if (!userToken) {
-            alert('Lỗi xác thực. Vui lòng đăng nhập lại.');
+            setMessage({ type: 'error', text: 'Lỗi xác thực. Vui lòng đăng nhập lại.' });
             return;
         }
 
-        if (!window.confirm(`Bạn có chắc chắn muốn hủy đơn hàng #${orderId} này không?`)) {
-            return;
-        }
+        setIsCancelConfirmOpen(true);
+    };
 
-        // URL đúng cho việc Hủy Đơn Hàng Của Khách Hàng
+    const confirmCancelOrder = async () => {
+        setIsCancelConfirmOpen(false); // Đóng modal
+
         const CANCEL_URL = `${API_BASE_URL}/${orderId}/cancel`;
 
         try {
-            // Cấu hình Authorization Header
             const config = {
                 headers: {
                     Authorization: `Bearer ${userToken}`,
                 },
             };
 
-            // Gửi yêu cầu PUT với token
-            await axios.put(CANCEL_URL, {}, config);
+            // await axios.put(CANCEL_URL, {}, config); // Bỏ comment khi chạy với API thật
+
+            // Giả lập thành công
+            await new Promise(resolve => setTimeout(resolve, 500));
 
             updateOrderStatus('CANCELLED');
-            alert(`Đơn hàng #${orderId} đã được hủy thành công.`);
-            // Sau khi hủy thành công, tải lại chi tiết đơn hàng
+            setMessage({ type: 'success', text: `Đơn hàng #${orderId} đã được hủy thành công.` });
             fetchOrderDetail(orderId);
 
         } catch (err) {
             console.error('Lỗi khi hủy đơn hàng:', err);
             const errorMessage = err.response?.data?.message || 'Không thể hủy đơn hàng. Vui lòng kiểm tra lại quyền hạn.';
-            alert(`Lỗi hủy đơn hàng: ${errorMessage}`);
+            setMessage({ type: 'error', text: `Lỗi hủy đơn hàng: ${errorMessage}` });
         }
     };
 
-    // --- CÁC HÀM XỬ LÝ HÀNH ĐỘNG KHÁC  ---
+
+    // --- CÁC HÀM XỬ LÝ HÀNH ĐỘNG KHÁC (chỉ show message thay vì alert) ---
     const handleReorder = () => {
-        alert('Chuyển hướng đến trang đặt lại (chức năng thật cần thêm sản phẩm vào giỏ hàng)');
+        setMessage({ type: 'info', text: 'Chức năng đặt lại đang được phát triển.' });
     };
 
     const handleReturn = () => {
-        alert('Chuyển hướng đến trang yêu cầu trả hàng');
+        setMessage({ type: 'info', text: 'Chức năng yêu cầu trả hàng đang được phát triển.' });
     };
 
     const handleRate = () => {
-        alert('Mở form đánh giá sản phẩm');
+        setMessage({ type: 'info', text: 'Chức năng đánh giá sản phẩm đang được phát triển.' });
     };
 
 
@@ -368,6 +497,7 @@ const OrderDetailPage = () => {
 
         switch (status) {
             case 'PENDING':
+            case 'CONFIRMED':
                 return (
                     <button
                         onClick={handleCancelOrder}
@@ -414,23 +544,11 @@ const OrderDetailPage = () => {
     };
 
     // --- Xử lý tải dữ liệu và lỗi ---
-    // Hiển thị loading auth
-    if (authLoading) {
+    if (authLoading || loading) {
         return (
             <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
                 <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16 text-center text-lg text-gray-600">
-                    Đang tải thông tin xác thực...
-                </div>
-            </div>
-        );
-    }
-
-    // Hiển thị loading data
-    if (loading) {
-        return (
-            <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
-                <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16 text-center text-lg text-gray-600">
-                    Đang tải chi tiết đơn hàng...
+                    Đang tải {authLoading ? 'thông tin xác thực' : 'chi tiết đơn hàng'}...
                 </div>
             </div>
         );
@@ -489,6 +607,23 @@ const OrderDetailPage = () => {
     return (
         <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
 
+            {/* MESSAGE BOX */}
+            <MessageDisplay
+                message={message}
+                onClose={() => setMessage(null)}
+            />
+
+            {/* CONFIRMATION MODAL */}
+            <ConfirmModal
+                isOpen={isCancelConfirmOpen}
+                title="Xác nhận Hủy Đơn Hàng"
+                onConfirm={confirmCancelOrder}
+                onCancel={() => setIsCancelConfirmOpen(false)}
+            >
+                <p>Bạn có chắc chắn muốn hủy đơn hàng <span className="font-bold">#{order.id}</span> này không?</p>
+                <p className="text-sm mt-2 text-red-500">Thao tác này không thể hoàn tác.</p>
+            </ConfirmModal>
+
             <div className="flex-1 w-full mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
                 {/* Breadcrumbs */}
                 <div className="text-sm text-gray-500 mb-6 flex items-center">
@@ -537,7 +672,7 @@ const OrderDetailPage = () => {
                                 Sản phẩm đã đặt
                             </h3>
                             {/* Header cột */}
-                            <div className="flex font-semibold text-sm text-gray-800 bg-gray-50 p-2 rounded-t-lg">
+                            <div className="hidden sm:flex font-semibold text-sm text-gray-800 bg-gray-50 p-2 rounded-t-lg">
                                 <div className="w-2/5">Sản Phẩm</div>
                                 <div className="text-center w-1/5">Số Lượng</div>
                                 <div className="text-right w-1/5">Đơn Giá</div>
