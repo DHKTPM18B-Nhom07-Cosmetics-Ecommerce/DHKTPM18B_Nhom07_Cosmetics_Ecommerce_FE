@@ -33,13 +33,12 @@ const OrderManagement = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(0);
-    const [totalPages, setTotalPages] = useState(0);
     const [error, setError] = useState(null);
 
     // --- State Chính thức để gọi API ---
     const [filters, setFilters] = useState({
-        search: '', // Lọc theo tên khách hàng
-        status: '', // Lọc theo trạng thái
+        search: '',
+        status: '',
         startDate: '',
         endDate: ''
     });
@@ -49,6 +48,10 @@ const OrderManagement = () => {
     const [tempStatus, setTempStatus] = useState('');
     const [tempStartDate, setTempStartDate] = useState('');
     const [tempEndDate, setTempEndDate] = useState('');
+
+    // SỬA LỖI: Lấy Token Admin
+    const [adminToken, setAdminToken] = useState(localStorage.getItem('adminToken') || null);
+
 
     // --- Helper Functions (Định dạng & Dịch) ---
     const TEAL_COLOR = '#2B6377';
@@ -89,50 +92,62 @@ const OrderManagement = () => {
         }
     };
 
-    // --- Logic Lấy Dữ liệu (FIXED API URL) ---
+    // --- Logic Lấy Dữ liệu (FIXED TO ADMIN ENDPOINT LOGIC) ---
     const fetchOrders = async () => {
         setLoading(true);
         setError(null);
 
-        // ĐIỀU CHỈNH: Trở lại endpoint gốc để đảm bảo dữ liệu được lấy
-        let url = `${API_BASE_URL}`;
+        const token = adminToken;
+        if (!token) {
+            // Lỗi xác thực nếu không tìm thấy token Admin
+            setError('Lỗi xác thực: Vui lòng đăng nhập bằng tài khoản Admin/Employee.');
+            setLoading(false);
+            return;
+        }
+
+        let url;
         const params = {};
 
-        // Vẫn giữ logic lọc theo ngày và trạng thái để truyền vào params
+        // 1. Xác định URL cơ sở: Ưu tiên lọc theo ngày, nếu không có, dùng /admin/all
         if (filters.startDate && filters.endDate) {
-            // Giả định backend chấp nhận lọc ngày qua params trên endpoint gốc
+            // Dùng endpoint chuyên biệt nếu có lọc ngày
+            url = `${API_BASE_URL}/admin/date-range`;
             params.start = `${filters.startDate}T00:00:00`;
             params.end = `${filters.endDate}T23:59:59`;
+        } else {
+            // DÙNG ENDPOINT ADMIN LẤY TẤT CẢ khi không có lọc ngày
+            url = `${API_BASE_URL}/admin/all`;
         }
+
+        // 2. Thêm Status Filter (Luôn gửi đi nếu có giá trị)
         if (filters.status) {
             params.status = filters.status;
         }
 
-        // --- CHÚ Ý QUAN TRỌNG VỀ ADMIN TOKEN ---
-        // Nếu API cần token, bạn cần thêm nó vào headers:
-        /* const token = localStorage.getItem('adminToken'); // Lấy token
+        // Gửi token xác thực Admin
         const config = {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
             params: params
         };
-        */
 
         try {
-            // Đã truyền params vào Axios
-            const response = await axios.get(url, { params });
+            const response = await axios.get(url, config);
 
             let fetchedOrders = Array.isArray(response.data)
                 ? response.data
                 : response.data?.content ||
+                response.data?.orders ||
                 [];
 
             setOrders(fetchedOrders);
         } catch (err) {
             console.error('Lỗi khi tải đơn hàng:', err);
-            // Thông báo lỗi rõ ràng hơn
             const status = err.response?.status;
             if (status === 401 || status === 403) {
-                setError('Không có quyền truy cập. Vui lòng kiểm tra đăng nhập Admin.');
+                // Sửa lỗi hiển thị thông báo 403 rõ ràng hơn
+                setError('Lỗi phân quyền: Token không đủ quyền truy cập hoặc hết hạn. Vui lòng đăng nhập lại.');
             } else {
                 setError('Không thể tải dữ liệu đơn hàng. Vui lòng kiểm tra kết nối.');
             }
@@ -144,9 +159,8 @@ const OrderManagement = () => {
 
     // --- Effect và Hàm Xử lý Lọc ---
     useEffect(() => {
-        // Sử dụng filters làm dependency để fetchOrders chạy lại
         fetchOrders();
-    }, [filters, page]);
+    }, [filters]);
 
     const handleApplyFilters = () => {
         if ((tempStartDate && !tempEndDate) || (!tempStartDate && tempEndDate)) {
@@ -159,7 +173,7 @@ const OrderManagement = () => {
             startDate: tempStartDate,
             endDate: tempEndDate
         });
-        setPage(0);
+        setPage(0); // Reset phân trang khi áp dụng bộ lọc mới
     };
 
     // --- Lọc dữ liệu trên Frontend (Lọc theo Tên/Search) ---
@@ -169,6 +183,7 @@ const OrderManagement = () => {
         // Lọc theo Tên/ID khách hàng (filters.search)
         if (filters.search) {
             result = result.filter(order => {
+                // Truy cập an toàn qua customer -> account -> fullName
                 const customerFullName = order.customer?.account?.fullName || '';
                 const orderId = String(order.id);
                 const searchLower = filters.search.toLowerCase();
@@ -177,6 +192,7 @@ const OrderManagement = () => {
                     orderId.includes(searchLower);
             });
         }
+
         return result;
     }, [orders, filters.search]);
 
@@ -189,7 +205,8 @@ const OrderManagement = () => {
         // Tính Tổng Doanh Thu (chỉ đơn đã DELIVERED)
         const totalRevenueAmount = ordersData.reduce((sum, order) => {
             const amount = (order.status === 'DELIVERED' && order.total) ? order.total : 0;
-            return sum + amount;
+            const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+            return sum + numericAmount;
         }, 0);
 
         // Đếm Tổng Khách hàng Duy nhất
@@ -434,13 +451,12 @@ const OrderManagement = () => {
                                             <Link
                                                 to={`/admin/orders/${order.id}`}
                                                 title="Xem Chi Tiết Đơn Hàng"
-                                                // Thay thế các class icon bằng class button chữ
                                                 className={`
                                                             px-3 py-1 text-xs rounded-lg font-medium transition 
-                                                            text-blue-600 border border:text-[#2B6377] bg-white 
+                                                            text-blue-600 border border-gray-300 bg-white 
                                                             hover:bg-blue-50 hover:text-blue-800
                                                         `}>
-                                                Xem Chi Tiết
+                                                <Eye className="w-4 h-4 inline mr-1" /> Chi Tiết
                                             </Link>
                                         </td>
                                     </tr>

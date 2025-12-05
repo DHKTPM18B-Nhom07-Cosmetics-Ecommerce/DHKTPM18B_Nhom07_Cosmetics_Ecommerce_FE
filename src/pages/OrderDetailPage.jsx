@@ -17,8 +17,7 @@ import {
     AlertTriangle,
     Info
 } from 'lucide-react';
-// Giả định useAuth được cung cấp trong môi trường thực thi
-// import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 // Định nghĩa URL cơ sở của API
 const API_BASE_URL = 'http://localhost:8080/api/orders';
@@ -83,48 +82,30 @@ const AccountSidebar = () => (
 
 /**
  * Hiển thị thông tin sản phẩm (tên, biến thể, ảnh)
- * Đã sửa: Ảnh được lấy trực tiếp từ Product (Product.images) từ trường 'image_url' hoặc 'imageUrl'.
  */
 const ProductItemDisplay = ({ item }) => {
 
-    // Lấy đối tượng Product từ biến thể (OrderItem -> ProductVariant -> Product)
     const product = item.productVariant?.product;
-
-    // LẤY TÊN SẢN PHẨM CHÍNH: Dựa trên cột 'name' trong bảng products
     const productName = product?.name;
-
-    // Tên biến thể (ProductVariant.variantName)
     const variantName = item.productVariant?.variantName;
-
-    // Tên hiển thị chính: Ưu tiên TÊN SẢN PHẨM CHÍNH > Tên biến thể > Mặc định
     const primaryDisplay = productName || variantName || 'Sản phẩm không rõ';
-
-    // Thông tin phụ: Tên biến thể, chỉ hiển thị nếu nó KHÁC tên sản phẩm chính
     const secondaryInfo = (productName && variantName && productName !== variantName) ?
         `(${variantName})` :
         '';
 
-    // Placeholder image
     const placeholderImage = 'https://placehold.co/50x50/f5f5f5/f5f5f5.png?text=SP';
 
-    // LẤY ẢNH: Lấy ảnh từ mảng product.images
     let imageUrl = null;
-    const productImages = product?.images; // Giả sử API trả về mảng ảnh của product
+    const productImages = product?.images;
 
     if (productImages && productImages.length > 0) {
         const firstImage = productImages[0];
-
         if (typeof firstImage === 'string') {
-            // Trường hợp 1: Mảng chứa chuỗi URL
             imageUrl = firstImage;
         } else if (typeof firstImage === 'object' && firstImage !== null) {
-            // Trường hợp 2: Mảng chứa đối tượng (ví dụ: { id: 1, image_url: '...' })
-            // Ưu tiên 'image_url' (từ DB) sau đó là 'imageUrl'
             imageUrl = firstImage.image_url || firstImage.imageUrl;
         }
     }
-
-    // FALLBACK CUỐI CÙNG: PLACEHOLDER
     imageUrl = imageUrl || placeholderImage;
 
 
@@ -133,25 +114,21 @@ const ProductItemDisplay = ({ item }) => {
             <img
                 src={imageUrl}
                 alt={primaryDisplay}
-                // Xử lý lỗi tải ảnh: chuyển sang placeholder nếu URL lỗi
                 onError={(e) => { e.target.onerror = null; e.target.src = placeholderImage; }}
                 className="w-16 h-16 object-cover rounded-sm mr-4 border border-gray-200 flex-shrink-0"
             />
 
             <div className="flex-grow min-w-0 pt-1">
-                {/* HIỂN THỊ TÊN SẢN PHẨM CHÍNH (IN ĐẬM) */}
                 <p className="font-bold text-gray-800 leading-tight text-sm truncate" title={primaryDisplay}>
                     {primaryDisplay}
                 </p>
 
-                {/* HIỂN THỊ TÊN BIẾN THỂ PHỤ */}
                 {secondaryInfo && (
                     <p className="text-xs text-gray-600 leading-snug truncate" title={secondaryInfo}>
                         {secondaryInfo}
                     </p>
                 )}
 
-                {/* THÔNG TIN PHỤ NHƯ MÃ */}
                 <p className="text-xs text-gray-500 mt-1">
                     Mã Variant: #{item.productVariant?.id || 'N/A'}
                 </p>
@@ -281,12 +258,7 @@ const ConfirmModal = ({ isOpen, title, children, onConfirm, onCancel }) => {
 const OrderDetailPage = () => {
     const { orderId } = useParams();
 
-    // Sử dụng giả định cho useAuth trong môi trường đơn giản
-    const useAuth = () => ({
-        user: { token: 'mock-token-123', uid: 'user-123' },
-        isLoading: false,
-        isLoggedIn: true
-    });
+    // SỬA LỖI: Sử dụng useAuth thực tế
     const { user, isLoading: authLoading, isLoggedIn } = useAuth();
     const userToken = user?.token;
 
@@ -299,7 +271,7 @@ const OrderDetailPage = () => {
     const [message, setMessage] = useState(null); // { type: 'success' | 'error', text: '...' }
 
 
-    // Dữ liệu mock đã được cập nhật để sử dụng placeholder links và cấu trúc images object
+    // Dữ liệu mock ĐÃ ĐƯỢC SỬA để phản ánh dữ liệu DB chính xác (Nguyễn Thị Mỹ Hoa)
     const [mockOrder] = useState({
         id: orderId || 'ORD-2024-001',
         orderDate: '2025-03-20T09:00:00',
@@ -319,7 +291,6 @@ const OrderDetailPage = () => {
                     inStock: true,
                     product: {
                         name: 'Sữa Rửa Mặt CeraVe Sạch Sâu (MOCK)',
-                        // Dùng cấu trúc object với image_url, mô phỏng DB
                         images: [{ id: 1, image_url: 'https://placehold.co/100x100/155724/FFFFFF?text=SP_CERAVE' }]
                     }
                 }
@@ -338,19 +309,18 @@ const OrderDetailPage = () => {
                     inStock: true,
                     product: {
                         name: 'Kem Dưỡng La Roche-Posay (MOCK)',
-                        // Dùng cấu trúc mảng string đơn giản để test fallback
                         images: ['https://placehold.co/100x100/004085/FFFFFF?text=SP_LAROCHE']
                     }
                 }
             },
         ],
-        customer: { name: 'Khách hàng A' },
-        address: {
-            fullName: 'Khách hàng A',
-            phone: '0910101010',
-            address: 'Số 1 Nguyễn Văn Linh, Quận 7',
-            city: 'TPHCM',
-            state: 'Quận 7',
+        customer: { name: 'Nguyễn Thị Mỹ Hoa' },
+        address: { // Dữ liệu này khớp với DB (address_id 6)
+            fullName: 'Nguyễn Thị Mỹ Hoa',
+            phone: '0963059030',
+            address: '45 Huỳnh Tấn Phát',
+            city: 'Quận 7',
+            state: 'TPHCM',
             country: 'Việt Nam'
         },
 
@@ -361,19 +331,25 @@ const OrderDetailPage = () => {
 
     // --- HÀM GỌI API LẤY CHI TIẾT ĐƠN HÀNG ---
     const fetchOrderDetail = useCallback(async (id) => {
-        const mapApiData = (data) => {
-            const customer = data.customer;
-            const address = data.address;
 
-            if (customer && address) {
+        // 🚨 LOGIC ĐÃ SỬA: Ánh xạ dữ liệu địa chỉ chính xác từ Backend
+        const mapApiData = (data) => {
+            const address = data.address;
+            const customer = data.customer;
+
+            if (address) {
                 data.shippingAddress = {
-                    recipientName: address.fullName || customer.name || 'N/A',
+                    // SỬA LỖI HIỂN THỊ TÊN SAI: Ưu tiên tên trong Address
+                    recipientName: address.fullName || customer?.name || 'N/A',
                     phone: address.phone || 'N/A',
                     addressLine: [
                         address.address,
-                        address.city
+                        address.city,
+                        address.state
                     ].filter(part => part).join(', ')
                 };
+            } else {
+                data.shippingAddress = null;
             }
             return data;
         };
@@ -407,7 +383,7 @@ const OrderDetailPage = () => {
             setOrder(finalData);
 
         } catch (err) {
-            console.error(`Lỗi khi tải chi tiết đơn hàng ${id}:`, err);
+            console.error('Lỗi khi tải chi tiết đơn hàng:', err);
             const status = err.response?.status;
             if (status === 401 || status === 403) {
                 setError('Phiên đăng nhập hết hạn hoặc không có quyền xem đơn hàng này. Vui lòng đăng nhập lại.');
@@ -417,7 +393,7 @@ const OrderDetailPage = () => {
         } finally {
             setLoading(false);
         }
-    }, [isLoggedIn, userToken, mockOrder]);
+    }, [isLoggedIn, userToken, mockOrder]); // Thêm mockOrder để ổn định hóa hook
 
     useEffect(() => {
         if (!authLoading) {
@@ -425,7 +401,7 @@ const OrderDetailPage = () => {
         }
     }, [orderId, authLoading, fetchOrderDetail]);
 
-    // --- HÀM CẬP NHẬT TRẠNG THÁI UI ---
+    // --- HÀM CẬP NHẬT TRẠNG THÁI UI (được giữ nguyên) ---
     const updateOrderStatus = (newStatus) => {
         setOrder(prevOrder => ({
             ...prevOrder,
@@ -433,10 +409,10 @@ const OrderDetailPage = () => {
         }));
     };
 
-    // --- HÀM HỦY ĐƠN HÀNG (Sử dụng Modal UI) ---
+    // --- HÀM HỦY ĐƠN HÀNG (được giữ nguyên) ---
     const handleCancelOrder = () => {
-        if (order.status !== 'PENDING') {
-            setMessage({ type: 'error', text: 'Chỉ đơn hàng đang ở trạng thái "Chờ xử lý" mới có thể hủy.' });
+        if (order.status !== 'PENDING' && order.status !== 'CONFIRMED') {
+            setMessage({ type: 'error', text: 'Chỉ đơn hàng đang ở trạng thái "Chờ xử lý" hoặc "Chờ xác nhận" mới có thể hủy.' });
             return;
         }
 
@@ -449,7 +425,7 @@ const OrderDetailPage = () => {
     };
 
     const confirmCancelOrder = async () => {
-        setIsCancelConfirmOpen(false); // Đóng modal
+        setIsCancelConfirmOpen(false);
 
         const CANCEL_URL = `${API_BASE_URL}/${orderId}/cancel`;
 
@@ -477,7 +453,7 @@ const OrderDetailPage = () => {
     };
 
 
-    // --- CÁC HÀM XỬ LÝ HÀNH ĐỘNG KHÁC (chỉ show message thay vì alert) ---
+    // --- CÁC HÀM XỬ LÝ HÀNH ĐỘNG KHÁC (được giữ nguyên) ---
     const handleReorder = () => {
         setMessage({ type: 'info', text: 'Chức năng đặt lại đang được phát triển.' });
     };
@@ -491,7 +467,7 @@ const OrderDetailPage = () => {
     };
 
 
-    // --- LOGIC HIỂN THỊ NÚT HÀNH ĐỘNG ---
+    // --- LOGIC HIỂN THỊ NÚT HÀNH ĐỘNG (được giữ nguyên) ---
     const renderActionButtons = (status) => {
         const baseClass = 'font-semibold py-2 px-4 rounded-md transition duration-200 shadow-sm text-sm flex items-center justify-center';
 
@@ -543,7 +519,7 @@ const OrderDetailPage = () => {
         }
     };
 
-    // --- Xử lý tải dữ liệu và lỗi ---
+    // --- Xử lý tải dữ liệu và lỗi (được giữ nguyên) ---
     if (authLoading || loading) {
         return (
             <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
@@ -564,7 +540,7 @@ const OrderDetailPage = () => {
         );
     }
 
-    // --- LOGIC TÍNH TOÁN TỔNG KẾT ---
+    // --- LOGIC TÍNH TOÁN TỔNG KẾT (được giữ nguyên) ---
     const orderItems = order.orderDetails ?? [];
 
     const { subTotal, productDiscountTotal } = orderItems.reduce((acc, item) => {
@@ -580,15 +556,11 @@ const OrderDetailPage = () => {
 
     const orderDiscountAmount = parseFloat(order.orderDiscountAmount ?? 0);
     const shippingFee = parseFloat(order.shippingFee ?? 0);
-
-    // Tổng giảm giá: Giảm giá trên từng sản phẩm + Giảm giá toàn đơn
     const grandDiscountTotal = productDiscountTotal + orderDiscountAmount;
-
-    // Tổng thanh toán = Tổng tiền hàng - Tổng giảm giá + Phí vận chuyển
     const finalTotal = subTotal - grandDiscountTotal + shippingFee;
 
 
-    // Format ngày giờ
+    // Format ngày giờ (được giữ nguyên)
     const orderDate = order.orderDate
         ? new Date(order.orderDate).toLocaleDateString('vi-VN', {
         day: '2-digit',
@@ -600,7 +572,7 @@ const OrderDetailPage = () => {
     })
         : 'N/A';
 
-    // Lấy thông tin giao hàng đã được ánh xạ (hoặc mock)
+    // Lấy thông tin giao hàng đã được ánh xạ (shippingInfo)
     const shippingInfo = order.shippingAddress;
 
 
