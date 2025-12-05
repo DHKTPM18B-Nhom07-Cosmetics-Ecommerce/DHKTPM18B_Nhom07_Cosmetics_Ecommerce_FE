@@ -1,8 +1,8 @@
 // src/components/admin/HeaderNavbar.jsx
-import { Bell, Search, ChevronDown, User, LogOut, Settings, AlertTriangle, X } from 'lucide-react';
+import { Bell, Search, ChevronDown, User, LogOut, Settings, AlertTriangle } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
-import { getSystemAlerts } from '../../services/api'; // Đảm bảo đường dẫn đúng
+import { getSystemAlerts } from '../../services/api';
 
 const navItems = [
   { name: 'Dashboard', path: '/admin' },
@@ -21,34 +21,48 @@ export default function HeaderNavbar() {
   const [alerts, setAlerts] = useState([]);
   const [showNotification, setShowNotification] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  
+  // [SỬA]: Khởi tạo null, không hardcode "Admin User"
+  const [currentUser, setCurrentUser] = useState(null);
 
-  // Ref để click outside thì đóng menu
   const notifRef = useRef(null);
   const userRef = useRef(null);
 
-  // --- 1. LẤY THÔNG BÁO TỪ SERVER (Polling mỗi 10s) ---
+  // --- 1. LẤY THÔNG TIN USER TỪ LOCAL STORAGE (Dữ liệu thật) ---
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem('user'); 
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        // Map dữ liệu từ localStorage vào state
+        setCurrentUser({
+      
+          fullName: parsed.fullName || parsed.username || "User",
+          
+          email: parsed.email || parsed.username || "", 
+          role: parsed.role || ""
+        });
+      }
+    } catch (error) {
+      console.warn("Không đọc được thông tin user từ localStorage");
+    }
+  }, []);
+
+  // --- 2. LẤY THÔNG BÁO TỪ SERVER (Polling mỗi 10s) ---
   useEffect(() => {
     const fetchAlerts = async () => {
       try {
         const res = await getSystemAlerts();
-        // Backend trả về List<SystemAlert>, ta set vào state
         setAlerts(res.data || []);
-      } catch (err) {
-        // console.error("Lỗi lấy thông báo (ẩn đi để đỡ rối console):", err);
-      }
+      } catch (err) { }
     };
     
-    // Gọi ngay lần đầu
     fetchAlerts(); 
-    
-    // Lặp lại mỗi 10 giây
     const interval = setInterval(fetchAlerts, 10000); 
-    
-    // Cleanup khi component unmount
     return () => clearInterval(interval);
   }, []);
 
-  // --- 2. CLICK OUTSIDE ĐỂ ĐÓNG MENU ---
+  // --- 3. CLICK OUTSIDE ĐỂ ĐÓNG MENU ---
   useEffect(() => {
     function handleClickOutside(event) {
       if (notifRef.current && !notifRef.current.contains(event.target)) {
@@ -62,7 +76,7 @@ export default function HeaderNavbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- 3. HÀM ĐĂNG XUẤT ---
+  // --- 4. HÀM ĐĂNG XUẤT ---
   const handleLogout = () => {
     localStorage.removeItem('token'); 
     localStorage.removeItem('user');
@@ -141,49 +155,45 @@ export default function HeaderNavbar() {
                             <p className="text-sm">Không có thông báo mới</p>
                         </div>
                     ) : (
-                       alerts.map((alert, idx) => (
-    <div 
-        key={idx} 
-        // [THÊM SỰ KIỆN CLICK Ở ĐÂY]
-        onClick={() => {
-            if (alert.targetId) {
-                navigate(`/admin/users/${alert.targetId}`); // Điều hướng
-                setShowNotification(false); // Đóng dropdown
-            }
-        }}
-        className="p-3 border-b border-gray-100 hover:bg-red-50/50 transition cursor-pointer group"
-    >
-        <div className="flex gap-3">
-            <div className="mt-1 p-1.5 bg-red-100 rounded-full shrink-0 h-fit">
-                <AlertTriangle className="w-4 h-4 text-red-600" />
-            </div>
-            <div>
-                <div className="flex justify-between items-start w-full">
-                    <p className="text-xs font-bold text-red-700 uppercase tracking-wide">{alert.type}</p>
-                    <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2">
-                        {new Date(alert.time).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}
-                    </span>
-                </div>
-                <p className="text-sm text-gray-700 mt-0.5 leading-snug group-hover:text-gray-900">
-                    {alert.message}
-                </p>
-                
-                {/* [THÊM] Gợi ý bấm vào */}
-                {alert.targetId && (
-                    <p className="text-[10px] text-blue-500 mt-1 font-medium group-hover:underline">
-                        Bấm để xem chi tiết →
-                    </p>
-                )}
-            </div>
-        </div>
-    </div>
-))
+                        alerts.map((alert, idx) => (
+                            <div key={idx} 
+                                onClick={() => {
+                                    if (alert.targetId) {
+                                        navigate(`/admin/users/${alert.targetId}`);
+                                        setShowNotification(false);
+                                    }
+                                }}
+                                className="p-3 border-b border-gray-100 hover:bg-red-50/50 transition cursor-pointer group"
+                            >
+                                <div className="flex gap-3">
+                                    <div className="mt-1 p-1.5 bg-red-100 rounded-full shrink-0 h-fit">
+                                        <AlertTriangle className="w-4 h-4 text-red-600" />
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between items-start w-full">
+                                            <p className="text-xs font-bold text-red-700 uppercase tracking-wide">{alert.type}</p>
+                                            <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2">
+                                                {new Date(alert.time).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-gray-700 mt-0.5 leading-snug group-hover:text-gray-900">
+                                            {alert.message}
+                                        </p>
+                                        {alert.targetId && (
+                                            <p className="text-[10px] text-blue-500 mt-1 font-medium group-hover:underline">
+                                                Bấm để xem chi tiết →
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))
                     )}
                 </div>
                 
                 {alerts.length > 0 && (
                     <div className="p-2 border-t bg-gray-50 text-center">
-                        <button className="text-xs text-blue-600 hover:underline font-medium">Xem tất cả</button>
+                        <button className="text-xs text-blue-600 hover:underline font-medium">Đánh dấu tất cả là đã đọc</button>
                     </div>
                 )}
               </div>
@@ -200,21 +210,31 @@ export default function HeaderNavbar() {
                 className="flex items-center gap-3 hover:opacity-90 transition group"
             >
                 <div className="text-right hidden md:block">
-                    <p className="text-sm font-bold leading-none group-hover:text-white">Admin User</p>
-                    <p className="text-xs text-gray-300 group-hover:text-gray-100 mt-0.5">Quản trị viên</p>
+                    {/* [HIỂN THỊ TÊN THẬT - CHECK NULL TRƯỚC KHI RENDER] */}
+                    <p className="text-sm font-bold leading-none group-hover:text-white max-w-[150px] truncate">
+                        {currentUser?.fullName || 'Đang tải...'}
+                    </p>
+                    <p className="text-xs text-gray-300 group-hover:text-gray-100 mt-0.5 capitalize">
+                        {currentUser?.role?.toLowerCase() || '...'}
+                    </p>
                 </div>
+                
+                {/* Avatar: Lấy chữ cái đầu của tên */}
                 <div className="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center text-white font-bold shadow-md border-2 border-transparent group-hover:border-white/30 transition">
-                    A
+                    {currentUser?.fullName ? currentUser.fullName.charAt(0).toUpperCase() : 'U'}
                 </div>
+                
                 <ChevronDown className={`w-4 h-4 text-gray-300 transition-transform duration-200 ${showUserMenu ? 'rotate-180' : ''}`} />
             </button>
 
             {/* DROPDOWN MENU USER */}
             {showUserMenu && (
                 <div className="absolute right-0 top-full mt-3 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-in fade-in zoom-in duration-200 origin-top-right text-gray-700">
-                    <div className="p-4 border-b bg-gray-50 md:hidden">
-                        <p className="font-bold text-gray-900">Admin User</p>
-                        <p className="text-xs text-gray-500">admin@embrosia.com</p>
+                    <div className="p-4 border-b bg-gray-50">
+                        <p className="font-bold text-gray-900 truncate" title={currentUser?.fullName}>
+                            {currentUser?.fullName || 'User'}
+                        </p>
+                      
                     </div>
 
                     <div className="py-2">
