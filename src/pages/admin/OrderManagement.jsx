@@ -13,6 +13,8 @@ import {
     CheckSquare,
 } from 'lucide-react';
 import { Link } from "react-router-dom";
+// SỬA LỖI: Import useAuth từ Context
+import { useAuth } from "../../context/AuthContext";
 
 // Định nghĩa trạng thái đơn hàng
 const ORDER_STATUSES = [
@@ -29,6 +31,12 @@ const API_BASE_URL = 'http://localhost:8080/api/orders';
 const ORDERS_PER_PAGE = 10;
 
 const OrderManagement = () => {
+    // --- SỬ DỤNG AUTH CONTEXT ĐỂ LẤY TRẠNG THÁI ---
+    const { user, isLoggedIn, isLoading: authLoading } = useAuth();
+    // Token được lưu trong user.token của Context
+    const adminToken = user?.token;
+    const isAdminOrEmployee = user && (user.role === 'ADMIN' || user.role === 'EMPLOYEE');
+
     // --- State Quản lý Dữ liệu ---
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -48,9 +56,6 @@ const OrderManagement = () => {
     const [tempStatus, setTempStatus] = useState('');
     const [tempStartDate, setTempStartDate] = useState('');
     const [tempEndDate, setTempEndDate] = useState('');
-
-    // SỬA LỖI: Lấy Token Admin
-    const [adminToken, setAdminToken] = useState(localStorage.getItem('adminToken') || null);
 
 
     // --- Helper Functions (Định dạng & Dịch) ---
@@ -94,13 +99,18 @@ const OrderManagement = () => {
 
     // --- Logic Lấy Dữ liệu (FIXED TO ADMIN ENDPOINT LOGIC) ---
     const fetchOrders = async () => {
+
+        // Chờ Auth Context tải xong
+        if (authLoading) return;
+
         setLoading(true);
         setError(null);
 
         const token = adminToken;
-        if (!token) {
-            // Lỗi xác thực nếu không tìm thấy token Admin
-            setError('Lỗi xác thực: Vui lòng đăng nhập bằng tài khoản Admin/Employee.');
+
+        // KIỂM TRA XÁC THỰC RÕ RÀNG VÀ QUA CONTEXT
+        if (!isLoggedIn || !isAdminOrEmployee || !token) {
+            setError('Lỗi xác thực: Vui lòng đăng nhập bằng tài khoản Quản lý.');
             setLoading(false);
             return;
         }
@@ -110,7 +120,6 @@ const OrderManagement = () => {
 
         // 1. Xác định URL cơ sở: Ưu tiên lọc theo ngày, nếu không có, dùng /admin/all
         if (filters.startDate && filters.endDate) {
-            // Dùng endpoint chuyên biệt nếu có lọc ngày
             url = `${API_BASE_URL}/admin/date-range`;
             params.start = `${filters.startDate}T00:00:00`;
             params.end = `${filters.endDate}T23:59:59`;
@@ -119,7 +128,7 @@ const OrderManagement = () => {
             url = `${API_BASE_URL}/admin/all`;
         }
 
-        // 2. Thêm Status Filter (Luôn gửi đi nếu có giá trị)
+        // 2. Thêm Status Filter
         if (filters.status) {
             params.status = filters.status;
         }
@@ -146,10 +155,11 @@ const OrderManagement = () => {
             console.error('Lỗi khi tải đơn hàng:', err);
             const status = err.response?.status;
             if (status === 401 || status === 403) {
-                // Sửa lỗi hiển thị thông báo 403 rõ ràng hơn
+                // Lỗi 403/401: Token có vấn đề (hết hạn hoặc thiếu quyền Admin/Employee)
                 setError('Lỗi phân quyền: Token không đủ quyền truy cập hoặc hết hạn. Vui lòng đăng nhập lại.');
+                // Có thể gọi logout() để xóa token cũ nếu cần
             } else {
-                setError('Không thể tải dữ liệu đơn hàng. Vui lòng kiểm tra kết nối.');
+                setError(`Không thể tải dữ liệu đơn hàng. Lỗi HTTP: ${status || 'Không rõ'}. Vui lòng kiểm tra kết nối.`);
             }
             setOrders([]);
         } finally {
@@ -159,8 +169,11 @@ const OrderManagement = () => {
 
     // --- Effect và Hàm Xử lý Lọc ---
     useEffect(() => {
-        fetchOrders();
-    }, [filters]);
+        // Chỉ fetch khi Auth context đã tải xong
+        if (!authLoading) {
+            fetchOrders();
+        }
+    }, [filters, authLoading]); // Thêm authLoading vào đây để kích hoạt fetch sau khi context tải xong
 
     const handleApplyFilters = () => {
         if ((tempStartDate && !tempEndDate) || (!tempStartDate && tempEndDate)) {
@@ -233,6 +246,21 @@ const OrderManagement = () => {
     const totalPagesFE = Math.ceil(totalOrders / ORDERS_PER_PAGE);
     const startIndex = page * ORDERS_PER_PAGE;
     const currentOrders = filteredOrdersByCustomer.slice(startIndex, startIndex + ORDERS_PER_PAGE);
+
+
+    if (authLoading) {
+        return <div className="p-8 text-center text-gray-500">Đang tải thông tin xác thực...</div>;
+    }
+
+    if (!isLoggedIn || !isAdminOrEmployee) {
+        return (
+            <div className="p-8 bg-white rounded-lg shadow-md max-w-xl mx-auto mt-16 text-center">
+                <h2 className="text-xl font-bold text-red-600 mb-4">Không có quyền truy cập</h2>
+                <p className="text-gray-700">Bạn cần đăng nhập bằng tài khoản Quản trị viên hoặc Nhân viên để xem trang này.</p>
+                {/* Bạn có thể thêm nút điều hướng đến trang đăng nhập tại đây */}
+            </div>
+        );
+    }
 
 
     return (

@@ -24,6 +24,7 @@ import OrderManagement from "./pages/admin/OrderManagement";
 import AddEmployee from "./pages/admin/AddEmployee";
 import UserDetail from "./pages/admin/UserDetail";
 import ScrollToTop from "./components/ScrollToTop";
+import OrderDetailManagement from "./pages/admin/OrderDetailManagement";
 import "react-datepicker/dist/react-datepicker.css";
 
 export default function App() {
@@ -59,6 +60,7 @@ export default function App() {
             <Route path="categories" element={<CategoryManagement />} />
             <Route path="products" element={<ProductManagement />} />
             <Route path="orders" element={<OrderManagement />} />
+            <Route path="orders/:orderId" element={<OrderDetailManagement />} />
             <Route path="vouchers" element={<VoucherManagement />} />
           </Route>
         </Routes>

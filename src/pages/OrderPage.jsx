@@ -144,6 +144,15 @@ const OrderPage = () => {
 
     // Hàm Hủy đơn hàng (Cần Token)
     const handleCancelOrder = async (orderId) => {
+
+        // 🚨 SỬA LỖI NGHIỆP VỤ: Lấy đơn hàng hiện tại để kiểm tra trạng thái
+        const orderToCancel = orders.find(o => o.id === orderId);
+
+        if (!orderToCancel || orderToCancel.status !== 'PENDING') {
+            alert('Chỉ đơn hàng ở trạng thái "Chờ xử lý" mới có thể hủy.');
+            return;
+        }
+
         if (!window.confirm(`Bạn có chắc chắn muốn hủy đơn hàng ${orderId} này không? Hành động này không thể hoàn tác.`)) {
             return;
         }
@@ -172,6 +181,58 @@ const OrderPage = () => {
             console.error(`Lỗi khi hủy đơn hàng ${orderId}:`, err);
             const errorMessage = err.response?.data?.message || 'Không thể hủy đơn hàng. Vui lòng kiểm tra lại quyền hạn.';
             alert(`Lỗi: ${errorMessage}`);
+        }
+    };
+
+    // 🚨 LOGIC MỚI: Render các nút thao tác dựa trên trạng thái
+    const renderActionButtons = (status, orderId) => {
+        const baseClass = 'w-28 text-center px-3 py-1 text-xs rounded-lg font-medium transition';
+
+        switch (status) {
+            case 'PENDING':
+                return (
+                    <button
+                        onClick={() => handleCancelOrder(orderId)}
+                        title="Hủy Đơn Hàng"
+                        disabled={loading}
+                        className={`${baseClass} bg-red-500 text-white hover:bg-red-600 disabled:opacity-50`}
+                    >
+                        Hủy Đơn Hàng
+                    </button>
+                );
+
+            case 'DELIVERED':
+                return (
+                    <Link
+                        to={`/orders/${orderId}/review`}
+                        title="Đánh Giá và Mua Lại"
+                        className={`${baseClass} bg-green-500 text-white hover:bg-green-600`}
+                    >
+                        Đánh Giá
+                    </Link>
+                );
+
+            case 'CANCELLED':
+            case 'RETURNED':
+            case 'REFUNDED':
+                return (
+                    <button
+                        title="Mua Lại"
+                        className={`${baseClass} ${TEAL_TEXT} border border-gray-300 hover:bg-gray-100`}
+                        // Giả lập hành động mua lại
+                        onClick={() => alert(`Chuẩn bị mua lại đơn hàng #${orderId}`)}
+                    >
+                        Mua Lại
+                    </button>
+                );
+
+            case 'CONFIRMED':
+            case 'PROCESSING':
+            case 'SHIPPING':
+                return <span className="w-28 inline-block text-gray-500 text-xs">Đang trong quy trình</span>;
+
+            default:
+                return <span className="w-28 inline-block text-gray-500 text-xs">Không có thao tác</span>;
         }
     };
 
@@ -340,20 +401,9 @@ const OrderPage = () => {
                                                         Xem Chi Tiết
                                                     </Link>
 
-                                                    {/* NÚT HỦY ĐƠN HÀNG */}
-                                                    {order.status === 'PENDING' ? (
-                                                        <button
-                                                            onClick={() => handleCancelOrder(order.id)}
-                                                            title="Hủy Đơn Hàng"
-                                                            disabled={loading}
-                                                            className="w-28 text-center px-3 py-1 text-xs rounded-lg font-medium transition bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
-                                                        >
-                                                            Hủy Đơn Hàng
-                                                        </button>
-                                                    ) : (
-                                                        // Placeholder để căn chỉnh nút Xem Chi Tiết
-                                                        <span className="w-28 inline-block" aria-hidden="true"></span>
-                                                    )}
+                                                    {/* NÚT HỦY ĐƠN HÀNG VÀ THAO TÁC KHÁC */}
+                                                    {renderActionButtons(order.status, order.id)}
+
                                                 </div>
                                             </td>
                                         </tr>
