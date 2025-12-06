@@ -7,9 +7,9 @@ import {
     Package,
     MapPin,
     LogOut,
-    // Loại bỏ Eye và XCircle
 } from 'lucide-react';
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // Thêm useNavigate
+import { useAuth } from '../context/AuthContext';
 
 const ORDER_STATUSES = [
     'Tất cả',
@@ -21,10 +21,16 @@ const ORDER_STATUSES = [
     'CANCELLED',
 ];
 
-// CHÚ Ý: Đảm bảo API này có thể xử lý việc hủy đơn hàng
 const API_BASE_URL = 'http://localhost:8080/api/orders';
 
 const OrderPage = () => {
+
+    // Sử dụng useNavigate để điều hướng
+    const navigate = useNavigate();
+
+    // SỬ DỤNG HOOK ĐỂ LẤY THÔNG TIN TỪ AuthProvider
+    const { user, isLoading: authLoading, isLoggedIn, logout } = useAuth(); // Thêm logout
+    const userToken = user?.token;
 
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -70,7 +76,16 @@ const OrderPage = () => {
         }
     };
 
+    // Hàm FETCH ĐƠN HÀNG (QUAN TRỌNG: Thêm Authorization Header)
     const fetchOrders = async () => {
+        if (!isLoggedIn || !userToken) {
+            // Không fetch nếu không có token
+            setOrders([]);
+            setLoading(false);
+            setError('Vui lòng đăng nhập để xem lịch sử đơn hàng.');
+            return;
+        }
+
         setLoading(true);
         setError(null);
         setCurrentPage(1);
@@ -78,19 +93,27 @@ const OrderPage = () => {
         let url = `${API_BASE_URL}`;
         const params = {};
 
-        // Ưu tiên lọc theo ngày
+        // Lọc theo ngày
         if (startDate && endDate) {
-            url = `${API_BASE_URL}/search/date-range`;
             params.start = `${startDate}T00:00:00`;
             params.end = `${endDate}T23:59:59`;
         }
-        // Lọc theo trạng thái nếu không có lọc ngày
+        // Lọc theo trạng thái
         else if (!startDate && !endDate && statusFilter !== 'Tất cả') {
-            url = `${API_BASE_URL}/search/status/${statusFilter}`;
+            params.status = statusFilter;
         }
 
+        // Cấu hình Authorization Header
+        const config = {
+            headers: {
+                // Đảm bảo userToken có giá trị trước khi sử dụng!
+                Authorization: `Bearer ${userToken}`,
+            },
+            params: params
+        };
+
         try {
-            const response = await axios.get(url, { params });
+            const response = await axios.get(url, config);
 
             let fetchedOrders = Array.isArray(response.data)
                 ? response.data
@@ -102,44 +125,129 @@ const OrderPage = () => {
 
         } catch (err) {
             console.error('Lỗi khi tải đơn hàng:', err);
-            setError('Không thể tải dữ liệu đơn hàng. Vui lòng kiểm tra kết nối hoặc cấu hình API.');
+            const status = err.response?.status;
+
+            // XỬ LÝ LỖI XÁC THỰC RÕ RÀNG HƠN
+            if (status === 401 || status === 403) {
+                setError('Phiên đăng nhập hết hạn hoặc không có quyền. Vui lòng đăng nhập lại.');
+                // Gợi ý đăng xuất và chuyển hướng đến trang đăng nhập
+                // logout(); // Nếu bạn muốn tự động đăng xuất
+                // navigate('/login');
+            } else {
+                setError('Không thể tải dữ liệu đơn hàng. Vui lòng kiểm tra kết nối.');
+            }
             setOrders([]);
         } finally {
             setLoading(false);
         }
     };
 
-    // Hàm Hủy đơn hàng (Giữ nguyên logic API)
+    // Hàm Hủy đơn hàng (Cần Token)
     const handleCancelOrder = async (orderId) => {
+
+        // 🚨 SỬA LỖI NGHIỆP VỤ: Lấy đơn hàng hiện tại để kiểm tra trạng thái
+        const orderToCancel = orders.find(o => o.id === orderId);
+
+        if (!orderToCancel || orderToCancel.status !== 'PENDING') {
+            alert('Chỉ đơn hàng ở trạng thái "Chờ xử lý" mới có thể hủy.');
+            return;
+        }
+
         if (!window.confirm(`Bạn có chắc chắn muốn hủy đơn hàng ${orderId} này không? Hành động này không thể hoàn tác.`)) {
+            return;
+        }
+        if (!userToken) {
+            alert('Lỗi xác thực. Vui lòng đăng nhập lại.');
             return;
         }
 
         try {
             setLoading(true);
 
-            // Giả định API của bạn là PUT /api/orders/{orderId}/cancel
-            await axios.put(`${API_BASE_URL}/${orderId}/cancel`);
+            // Cấu hình Authorization Header cho hành động Hủy
+            const config = {
+                headers: {
+                    Authorization: `Bearer ${userToken}`,
+                },
+            };
+
+            await axios.put(`${API_BASE_URL}/${orderId}/cancel`, {}, config);
 
             alert(`Đơn hàng ${orderId} đã được hủy thành công.`);
-
-            // Tải lại danh sách đơn hàng
             fetchOrders();
 
         } catch (err) {
             setLoading(false);
             console.error(`Lỗi khi hủy đơn hàng ${orderId}:`, err);
-            const errorMessage = err.response?.data?.message || 'Không thể hủy đơn hàng. Vui lòng kiểm tra lại quyền hạn và kết nối.';
+            const errorMessage = err.response?.data?.message || 'Không thể hủy đơn hàng. Vui lòng kiểm tra lại quyền hạn.';
             alert(`Lỗi: ${errorMessage}`);
+        }
+    };
+
+    // 🚨 LOGIC MỚI: Render các nút thao tác dựa trên trạng thái
+    const renderActionButtons = (status, orderId) => {
+        const baseClass = 'w-28 text-center px-3 py-1 text-xs rounded-lg font-medium transition';
+
+        switch (status) {
+            case 'PENDING':
+                return (
+                    <button
+                        onClick={() => handleCancelOrder(orderId)}
+                        title="Hủy Đơn Hàng"
+                        disabled={loading}
+                        className={`${baseClass} bg-red-500 text-white hover:bg-red-600 disabled:opacity-50`}
+                    >
+                        Hủy Đơn Hàng
+                    </button>
+                );
+
+            case 'DELIVERED':
+                return (
+                    <Link
+                        to={`/orders/${orderId}/review`}
+                        title="Đánh Giá và Mua Lại"
+                        className={`${baseClass} bg-green-500 text-white hover:bg-green-600`}
+                    >
+                        Đánh Giá
+                    </Link>
+                );
+
+            case 'CANCELLED':
+            case 'RETURNED':
+            case 'REFUNDED':
+                return (
+                    <button
+                        title="Mua Lại"
+                        className={`${baseClass} ${TEAL_TEXT} border border-gray-300 hover:bg-gray-100`}
+                        // Giả lập hành động mua lại
+                        onClick={() => alert(`Chuẩn bị mua lại đơn hàng #${orderId}`)}
+                    >
+                        Mua Lại
+                    </button>
+                );
+
+            case 'CONFIRMED':
+            case 'PROCESSING':
+            case 'SHIPPING':
+                return <span className="w-28 inline-block text-gray-500 text-xs">Đang trong quy trình</span>;
+
+            default:
+                return <span className="w-28 inline-block text-gray-500 text-xs">Không có thao tác</span>;
         }
     };
 
 
     useEffect(() => {
-        if (!startDate && !endDate) {
+        // Chỉ fetch nếu Auth đã tải xong và user đã đăng nhập
+        if (!authLoading && isLoggedIn) {
             fetchOrders();
+        } else if (!authLoading && !isLoggedIn) {
+            // Chỉ đặt lỗi nếu loading auth đã xong và user chưa đăng nhập
+            setError('Vui lòng đăng nhập để xem lịch sử đơn hàng.');
+            setLoading(false);
         }
-    }, [statusFilter]);
+
+    }, [statusFilter, isLoggedIn, authLoading]); // Chạy lại khi trạng thái đăng nhập hoặc filter thay đổi
 
     const handleApplyFilters = () => {
         if ((startDate && !endDate) || (!startDate && endDate)) {
@@ -166,9 +274,12 @@ const OrderPage = () => {
                 <a className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
                     <MapPin className="w-4 h-4 mr-2" /> Địa chỉ giao hàng
                 </a>
-                <Link to="/logout" className="flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition mt-4 border-t pt-2">
+                <a
+                    onClick={logout} // Dùng hàm logout từ context
+                    className="cursor-pointer flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition mt-4 border-t pt-2"
+                >
                     <LogOut className="w-4 h-4 mr-2" /> Thoát
-                </Link>
+                </a>
             </nav>
         </div>
     );
@@ -240,16 +351,19 @@ const OrderPage = () => {
                         </div>
 
                         {/* ORDER LIST (Bảng) */}
-                        {loading && <div className="text-center text-[#2B6377] py-8">Đang tải đơn hàng...</div>}
-                        {error && <div className="text-center text-red-500 py-8">Lỗi: {error}</div>}
+                        {authLoading && <div className="text-center text-[#2B6377] py-8">Đang tải thông tin xác thực...</div>}
+                        {error && <div className="text-center text-red-500 py-8 border border-red-300 bg-red-50 rounded-lg">{error}</div>}
 
-                        {!loading && !error && currentOrders.length === 0 && (
+                        {loading && isLoggedIn && <div className="text-center text-[#2B6377] py-8">Đang tải đơn hàng...</div>}
+
+
+                        {!loading && !error && currentOrders.length === 0 && isLoggedIn && (
                             <div className="text-center py-8 bg-white rounded-lg border text-gray-500">
                                 Không tìm thấy đơn hàng nào phù hợp.
                             </div>
                         )}
 
-                        {!loading && !error && currentOrders.length > 0 && (
+                        {!loading && !error && currentOrders.length > 0 && isLoggedIn && (
                             <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-[#eaf4f7]">
@@ -287,17 +401,9 @@ const OrderPage = () => {
                                                         Xem Chi Tiết
                                                     </Link>
 
-                                                    {/* NÚT HỦY ĐƠN HANG*/}
-                                                    {order.status === 'PENDING' && (
-                                                        <button
-                                                            onClick={() => handleCancelOrder(order.id)}
-                                                            title="Hủy Đơn Hàng"
-                                                            disabled={loading}
-                                                            className="w-28 text-center px-3 py-1 text-xs rounded-lg font-medium transition bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
-                                                        >
-                                                            Hủy Đơn Hàng
-                                                        </button>
-                                                    )}
+                                                    {/* NÚT HỦY ĐƠN HÀNG VÀ THAO TÁC KHÁC */}
+                                                    {renderActionButtons(order.status, order.id)}
+
                                                 </div>
                                             </td>
                                         </tr>

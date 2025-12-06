@@ -25,6 +25,7 @@ import AddEmployee from "./pages/admin/AddEmployee";
 import UserDetail from "./pages/admin/UserDetail";
 import ScrollToTop from "./components/ScrollToTop";
 import NotFound from "./pages/NotFound";
+import OrderDetailManagement from "./pages/admin/OrderDetailManagement";
 import "react-datepicker/dist/react-datepicker.css";
 
 import { ToastContainer } from "react-toastify";
@@ -66,6 +67,7 @@ export default function App() {
             <Route path="categories" element={<CategoryManagement />} />
             <Route path="products" element={<ProductManagement />} />
             <Route path="orders" element={<OrderManagement />} />
+            <Route path="orders/:orderId" element={<OrderDetailManagement />} />
             <Route path="vouchers" element={<VoucherManagement />} />
             <Route path="vouchers/create" element={<VoucherCreatePage />} />
             <Route path="vouchers/:id/edit" element={<VoucherEditPage />} />
