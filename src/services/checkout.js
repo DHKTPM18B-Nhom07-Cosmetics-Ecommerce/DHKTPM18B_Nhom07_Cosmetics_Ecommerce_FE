@@ -1,24 +1,14 @@
 import api from './api';
 
-// Try to find a Customer record that maps to a given Account id.
-// The backend does not provide a direct `customer/by-account/{accountId}` endpoint
-// in this codebase, so we fetch the customers list and lookup by `account.id`.
+// Get customer ID by account ID
 export const getCustomerIdByAccountId = async (accountId) => {
   if (!accountId) return null;
   try {
-    const res = await api.get('/api/customers');
-    let list = [];
-
-    if (Array.isArray(res.data)) {
-      list = res.data;
-    } else if (res.data && Array.isArray(res.data.content)) {
-      list = res.data.content;
-    }
-
-    const found = list.find(c => c.account && String(c.account.id) === String(accountId));
-    return found ? found.id : null;
+    // Use endpoint: GET /api/accounts/{accountId}/customer-id
+    const res = await api.get(`/api/accounts/${accountId}/customer-id`);
+    return res.data; // Returns Long directly
   } catch (err) {
-    console.warn('getCustomerIdByAccountId error', err);
+    console.warn('getCustomerIdByAccountId error:', err.message);
     return null;
   }
 };

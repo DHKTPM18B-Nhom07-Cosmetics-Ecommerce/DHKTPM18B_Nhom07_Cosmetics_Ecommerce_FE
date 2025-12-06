@@ -10,6 +10,7 @@ import CartPage from "./pages/CartPage";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import CheckoutPage from "./pages/CheckoutPage";
+import AddAddressPage from "./pages/AddAddressPage";
 import ProductReviewPage from "./pages/ProductReviewPage";
 import OrderPage from "./pages/OrderPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="/products/:id" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/add-address" element={<AddAddressPage />} />
           <Route path="/order" element={<OrderPage />} />
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />
           <Route path="/review-product" element={<ProductReviewPage />} />

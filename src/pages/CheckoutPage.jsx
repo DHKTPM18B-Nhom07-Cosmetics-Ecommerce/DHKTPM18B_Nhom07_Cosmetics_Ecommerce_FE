@@ -74,6 +74,7 @@ export default function CheckoutPage() {
   const [addressObject, setAddressObject] = useState(null); // Store full address object for order creation
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGuestCheckout, setIsGuestCheckout] = useState(false); // Track if user is logged in
+  const [noAddressFound, setNoAddressFound] = useState(false); // Track if logged-in user has no address
   
   // Manual address form state
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -113,9 +114,13 @@ export default function CheckoutPage() {
         const addr = await getDefaultAddressForCurrentUser();
         if (!addr) {
           console.warn('No default address found for current user');
-          setShowAddressForm(true); // Show form if no address
+          // Show UI to go to add address page - will display button in render
+          setNoAddressFound(true);
+          setShowAddressForm(false);
           return;
         }
+
+        setNoAddressFound(false);
 
         setAddressObject(addr); // Store full address object
         setDefaultAddress({
@@ -454,7 +459,7 @@ export default function CheckoutPage() {
             <div className="bg-white rounded-2xl p-6 shadow-[0_6px_20px_rgba(45,55,72,0.06)] border border-[#f0ece8]">
               <div className="flex justify-between items-start mb-3">
                 <h3 className="font-serif text-[#567A85] text-xl tracking-wide uppercase">Thông tin giao hàng</h3>
-                {!showAddressForm && (
+                {!showAddressForm && !noAddressFound && (
                   <button 
                     onClick={() => setShowAddressForm(true)}
                     className="text-xs bg-[#f3f8f8] px-3 py-1.5 rounded-md text-[#2B5F68] font-semibold hover:bg-[#e6f2f2]"
@@ -464,7 +469,20 @@ export default function CheckoutPage() {
                 )}
               </div>
 
-              {showAddressForm ? (
+              {noAddressFound ? (
+                /* No Address Found - Show Button to Add */
+                <div className="py-8 px-4 text-center">
+                  <MapPin size={48} className="mx-auto text-[#bfcfcf] mb-4" />
+                  <h4 className="text-lg font-semibold text-[#12343b] mb-2">Bạn chưa có địa chỉ giao hàng</h4>
+                  <p className="text-sm text-[#7b8a8b] mb-6">Vui lòng thêm địa chỉ để tiếp tục thanh toán</p>
+                  <button
+                    onClick={() => navigate('/add-address')}
+                    className="px-6 py-2.5 bg-[#2B5F68] text-white font-semibold rounded-lg hover:bg-[#224b4b] transition-all"
+                  >
+                    Thêm địa chỉ giao hàng
+                  </button>
+                </div>
+              ) : showAddressForm ? (
                 /* Manual Address Form */
                 <div className="space-y-4">
                   {/* Name fields */}

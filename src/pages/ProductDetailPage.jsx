@@ -144,7 +144,7 @@ export default function ProductDetailPage() {
         productName: product.name,
         sizeName: selectedSize.variantName,
         price: selectedSize.price,
-        image: mainImage || "/placeholder.svg"
+        image: displayImages[0] || product.images?.[0] || "/placeholder.svg"
     };
 
     try {

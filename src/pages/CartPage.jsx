@@ -1,22 +1,25 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingBag } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { getCartData, updateCartItemQuantity, removeCartItem } from '../services/cartService';
 import CartItem from '../components/CartItem';
 import CartSummary from '../components/CartSummary';
 
 export default function CartPage() {
   const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
   const [cartData, setCartData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedItems, setSelectedItems] = useState(new Set()); // Track selected item IDs
 
   useEffect(() => {
     loadCart();
-  }, []);
+  }, [isLoggedIn]); // Reload cart khi login status thay đổi
 
   const loadCart = async () => {
     try {
+      setLoading(true);
       const data = await getCartData();
       setCartData(data);
     } catch (error) {
