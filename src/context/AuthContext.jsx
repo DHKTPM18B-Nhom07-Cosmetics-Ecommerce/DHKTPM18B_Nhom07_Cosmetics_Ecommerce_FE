@@ -38,7 +38,17 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('jwtToken');
     localStorage.removeItem('userName');
     localStorage.removeItem('userRole');
+
+    // 2. [QUAN TRỌNG] Xóa key 'user' mà CartService đang dùng để check ID
+    localStorage.removeItem('user');
+
+    // 3. [TÙY CHỌN] Xóa sạch giỏ hàng Guest trong Session (để reset hoàn toàn)
+    sessionStorage.removeItem('guest_cart');
+
     setUser(null);
+
+    // 5. [QUAN TRỌNG] Bắn tín hiệu để Header cập nhật số lượng về 0 ngay lập tức
+    window.dispatchEvent(new Event('cart-updated'));
   };
   
   // Giá trị Context cung cấp
