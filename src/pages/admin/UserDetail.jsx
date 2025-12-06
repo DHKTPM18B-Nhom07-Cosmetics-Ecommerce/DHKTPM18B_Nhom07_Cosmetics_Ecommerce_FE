@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Edit, TrendingUp, Clock, CheckCircle, 
-  FileText, Phone, Mail, Calendar, MapPin, Package, AlertCircle
+  FileText, Phone, Mail, Calendar, MapPin, Package, 
+  AlertCircle, AlertTriangle // [THÊM] Import icon AlertTriangle
 } from 'lucide-react';
 
 import { 
@@ -13,14 +14,16 @@ import {
     getOrdersByEmployeeId,
     getAllCustomers, 
     getAllEmployees,
-    updateAccount
+    updateAccount,
+    checkAccountRisk
 } from '../../services/api'; 
 import DisableAccountModal from '../../components/admin/DisableReason_Modal';
 import EditRoleModal from '../../components/admin/EditRoleModal';
+
 export default function UserDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  
+  const [riskData, setRiskData] = useState(null);
   const [user, setUser] = useState(null); 
   const [orders, setOrders] = useState([]); 
   const [loading, setLoading] = useState(true);
@@ -65,6 +68,16 @@ export default function UserDetail() {
         const accountData = resAccount.data;
         setUser(accountData); 
 
+        // === [THÊM MỚI] GỌI API CHECK RỦI RO NGAY KHI LOAD TRANG ===
+        try {
+            const resRisk = await checkAccountRisk(id);
+            setRiskData(resRisk.data); // Lưu kết quả: { level: "HIGH", note: "..." }
+            console.log("⚠️ Risk Data:", resRisk.data);
+        } catch (err) {
+            console.warn("Không lấy được thông tin rủi ro:", err);
+        }
+        // ============================================================
+
         console.log("🔹 Account đang xem:", accountData);
 
         let orderList = [];
@@ -96,7 +109,6 @@ export default function UserDetail() {
                 try {
                     const jsonString = JSON.stringify(resOrders.data);
                     const parsedData = JSON.parse(jsonString);
-                    console.log("✅ Parsed data type:", typeof parsedData, Array.isArray(parsedData));
                     
                     if (Array.isArray(parsedData)) {
                         rawData = parsedData;
@@ -112,8 +124,6 @@ export default function UserDetail() {
                         rawData = resOrders.data.content;
                     }
                 }
-
-                console.log("✅ rawData length:", rawData.length);
 
                 // CLEAN DATA
                 orderList = rawData.map(order => {
@@ -132,15 +142,11 @@ export default function UserDetail() {
                                 price: detail.price
                             })) : []
                         };
-                        console.log("🧹 Cleaned order:", cleaned);
                         return cleaned;
                     } catch (err) {
-                        console.error("❌ Lỗi parse order:", err);
                         return null;
                     }
                 }).filter(Boolean);
-
-                console.log("✅ orderList after clean:", orderList);
             }
         } 
         else if (accountData.role === 'EMPLOYEE' || accountData.role === 'ADMIN') {
@@ -156,36 +162,28 @@ export default function UserDetail() {
             }
 
             if (!targetId) {
-                console.warn("⚠️ Không tìm thấy Employee ID khớp, thử dùng Account ID:", accountData.id);
                 targetId = accountData.id;
             }
 
             if (targetId) {
-                console.log("🚀 Gọi API Order cho Employee ID:", targetId);
                 const resOrders = await getOrdersByEmployeeId(targetId);
 
-                // ✅ FIX: Break circular reference bằng JSON parse
                 let rawData = [];
                 try {
                     const jsonString = JSON.stringify(resOrders.data);
                     const parsedData = JSON.parse(jsonString);
-                    console.log("✅ Parsed data type:", typeof parsedData, Array.isArray(parsedData));
-                    
                     if (Array.isArray(parsedData)) {
                         rawData = parsedData;
                     } else if (parsedData && parsedData.content) {
                         rawData = parsedData.content;
                     }
                 } catch (jsonError) {
-                    console.error("❌ JSON parse error:", jsonError);
                     if (Array.isArray(resOrders.data)) {
                         rawData = resOrders.data;
                     } else if (resOrders.data && resOrders.data.content) {
                         rawData = resOrders.data.content;
                     }
                 }
-
-                console.log("✅ rawData length:", rawData.length);
 
                 orderList = rawData.map(order => {
                     try {
@@ -203,39 +201,24 @@ export default function UserDetail() {
                                 price: detail.price
                             })) : []
                         };
-                        console.log("🧹 Cleaned order:", cleaned);
                         return cleaned;
                     } catch (err) {
-                        console.error("❌ Lỗi parse order:", err);
                         return null;
                     }
                 }).filter(Boolean);
-
-                console.log("✅ orderList after clean:", orderList);
             }
         }
-
-        console.log("🔍 Final orderList before sort:", orderList);
 
         // Sắp xếp
         if (Array.isArray(orderList) && orderList.length > 0) {
             const sortedOrders = [...orderList].sort((a, b) => {
                 const dateA = a.orderDate ? new Date(a.orderDate) : new Date(0);
                 const dateB = b.orderDate ? new Date(b.orderDate) : new Date(0);
-                
-                if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) {
-                    return 0;
-                }
                 return dateB - dateA;
             });
-            
-            console.log("✅ Sorted orders:", sortedOrders);
             setOrders(sortedOrders);
-            
             calculateStats(accountData.role, sortedOrders);
-            
         } else {
-            console.log("⚠️ orderList rỗng hoặc không phải array");
             setOrders([]);
             calculateStats(accountData.role, []);
         }
@@ -251,17 +234,15 @@ export default function UserDetail() {
 
  const handleUpdateRole = async (id, newRole) => {
       try {
-          // Backend yêu cầu gửi cả object account khi update
-          // Ta copy user hiện tại, chỉ sửa role
           const payload = { ...user, role: newRole };
-          
           await updateAccount(id, payload);
           alert('Cập nhật vai trò thành công!');
-          window.location.reload(); // Reload trang để thấy thay đổi
+          window.location.reload(); 
       } catch (err) {
           alert('Lỗi: ' + (err.response?.data?.message || err.message));
       }
   };
+
   if (loading) return <div className="p-10 text-center text-gray-500">Đang tải thông tin...</div>;
   if (!user) return <div className="p-10 text-center text-red-500">Không tìm thấy người dùng</div>;
 
@@ -284,6 +265,19 @@ export default function UserDetail() {
 
   const formatCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
 
+  const handleOpenDisableModal = async () => {
+      try {
+          // Vẫn giữ check ở đây để refresh dữ liệu nếu cần
+          const res = await checkAccountRisk(user.id);
+          setRiskData(res.data); 
+      } catch (error) {
+          console.error("Lỗi check risk:", error);
+          setRiskData(null);
+      } finally {
+          setIsDisableModalOpen(true);
+      }
+  };
+
   return (
     <div className="admin-user-detail-page p-8 bg-[#F8F9FA] min-h-screen font-sans">
       <div className="flex items-center gap-2 mb-6 text-sm text-gray-500">
@@ -293,6 +287,30 @@ export default function UserDetail() {
         <span>/</span>
         <span className="font-semibold text-gray-800">Chi tiết tài khoản</span>
       </div>
+
+      {/* === [THÊM MỚI] BANNER CẢNH BÁO NGUY HIỂM (Chỉ hiện khi có rủi ro HIGH) === */}
+      {riskData && riskData.level === 'HIGH' && (
+        <div className="bg-red-50 border-l-4 border-red-600 p-4 mb-6 rounded-r shadow-sm flex items-start gap-4 animate-in slide-in-from-top-2">
+            <div className="p-2 bg-red-100 rounded-full">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+            </div>
+            <div className="flex-1">
+                <h3 className="text-lg font-bold text-red-800">CẢNH BÁO HỆ THỐNG: TÀI KHOẢN CÓ DẤU HIỆU BẤT THƯỜNG</h3>
+                <p className="text-red-700 mt-1 font-medium">
+                    {riskData.note || riskData.suggestedReason}
+                </p>
+                <div className="mt-2 flex gap-3">
+                     <button 
+                        onClick={handleOpenDisableModal}
+                        className="px-4 py-2 bg-red-600 text-white text-sm font-bold rounded hover:bg-red-700 transition shadow"
+                    >
+                        Xử lý ngay
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+      {/* ========================================================================== */}
 
       <div className="bg-[#D5E2E6] rounded-2xl p-6 mb-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center">
         <div>
@@ -307,15 +325,12 @@ export default function UserDetail() {
                 {user.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN') : '—'}
               </span>
             </div>
-       <div className="flex items-end gap-3">
-  <div>
-    <span className="block text-gray-400 text-xs">Vai trò</span>
-    <span className="font-semibold text-gray-800 capitalize">{user.role}</span>
-  </div>
-
- 
-</div>
-
+            <div className="flex items-end gap-3">
+                <div>
+                    <span className="block text-gray-400 text-xs">Vai trò</span>
+                    <span className="font-semibold text-gray-800 capitalize">{user.role}</span>
+                </div>
+            </div>
           </div>
         </div>
         <div className="mt-4 md:mt-0">
@@ -495,7 +510,7 @@ export default function UserDetail() {
           <div className="bg-[#D5E2E6] rounded-2xl p-6 shadow-sm">
             <h3 className="font-bold text-gray-800 mb-4">Thao tác nhanh</h3>
             <button 
-              onClick={() => setIsDisableModalOpen(true)}
+              onClick={handleOpenDisableModal}
               className="w-full py-3 bg-white border border-red-200 text-red-600 rounded-lg font-medium hover:bg-red-50 transition flex items-center justify-center gap-2"
             >
               <AlertCircle className="w-5 h-5" />
@@ -516,14 +531,17 @@ export default function UserDetail() {
       <DisableAccountModal 
         isOpen={isDisableModalOpen}
         onClose={() => setIsDisableModalOpen(false)}
-        onConfirm={async (id, reason) => {
+        onConfirm={async (reason, customReason) => {
             try {
-                await disableAccount(user.id, reason);
-                alert('Thành công!');
+                // Logic ghép reason nếu cần
+                const finalReason = reason === 'OTHER' ? customReason : (customReason ? `${reason}: ${customReason}` : reason);
+                await disableAccount(user.id, finalReason);
+                alert('Thành công! Email thông báo đã được gửi.');
                 window.location.reload();
             } catch(e) { alert('Lỗi: ' + e.message); }
         }}
         user={user} 
+        riskData={riskData} 
       />
       {/* MODAL SỬA ROLE MỚI */}
       <EditRoleModal 

@@ -70,3 +70,9 @@ export const getAllOrders = () => {
 export const updateAccount = (id, data) => {
   return api.put(`/api/accounts/${id}`, data);
 };
+export const checkAccountRisk = (id) => {
+  return api.get(`/api/accounts/${id}/risk-check`);
+};
+export const getSystemAlerts = () => {
+  return api.get('/api/accounts/alerts');
+};
