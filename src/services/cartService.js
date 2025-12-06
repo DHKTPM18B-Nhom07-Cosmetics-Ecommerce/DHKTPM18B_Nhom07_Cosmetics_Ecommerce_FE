@@ -111,3 +111,23 @@ export const removeCartItem = async (cartItemId) => {
         throw error;
     }
 };
+
+// Xóa các items đã được đặt hàng thành công
+export const clearOrderedItems = async (orderedItems) => {
+    try {
+        if (!orderedItems || orderedItems.length === 0) {
+            return;
+        }
+
+        // Xóa từng item trong order từ giỏ hàng
+        await Promise.all(
+            orderedItems.map(item => removeCartItem(item.id))
+        );
+        
+        triggerCartUpdate(); // Bắn tín hiệu cập nhật giỏ hàng
+        console.log('✅ Các items đã đặt hàng đã được xóa khỏi giỏ hàng');
+    } catch (error) {
+        console.error('❌ Lỗi khi xóa items khỏi giỏ hàng:', error);
+        // Không throw error, vì clear items không critical - order đã thành công
+    }
+};

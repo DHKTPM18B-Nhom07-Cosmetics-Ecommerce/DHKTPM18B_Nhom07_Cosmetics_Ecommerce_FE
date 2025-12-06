@@ -1,7 +1,9 @@
 // src/pages/CheckoutPage.jsx
 import React, { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getDefaultAddressForCurrentUser } from "../services/checkout";
+import { getDefaultAddressForCurrentUser, getCustomerIdByAccountId, createOrder } from "../services/checkout";
+import { getCartData, clearOrderedItems } from "../services/cartService";
 import {
   User,
   Phone,
@@ -23,6 +25,13 @@ import {
  */
 
 export default function CheckoutPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get selected items from CartPage via navigation state
+  const selectedItemsData = location.state?.selectedItems;
+  const selectedItemIds = location.state?.selectedItemIds;
+  
   // Mock data (you'll replace with real props / API)
   const checkoutData = {
     address: {
@@ -60,9 +69,14 @@ export default function CheckoutPage() {
     phone: "",
     fullAddressString: ""
   });
+  const [addressObject, setAddressObject] = useState(null); // Store full address object for order creation
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { user: authUser } = useAuth();
 
+  const [cartData, setCartData] = useState(checkoutData.cart);
+
+  const subtotal = cartData?.subtotal || checkoutData.cart.subtotal;
   useEffect(() => {
     const fetchDefaultAddress = async () => {
       try {
@@ -72,6 +86,7 @@ export default function CheckoutPage() {
           return;
         }
 
+        setAddressObject(addr); // Store full address object
         setDefaultAddress({
           fullName: addr.fullName || addr.receiverName || '',
           phone: addr.phone || addr.phoneNumber || addr.receiverPhone || '',
@@ -85,6 +100,24 @@ export default function CheckoutPage() {
     fetchDefaultAddress();
   }, [authUser]);
 
+  useEffect(() => {
+    const fetchCart = async () => {
+      try {
+        // Use selectedItemsData from CartPage if available
+        if (selectedItemsData) {
+          setCartData(selectedItemsData);
+        } else {
+          const data = await getCartData();
+          if (data) setCartData(data);
+        }
+      } catch (err) {
+        console.warn('Failed to load cart data', err);
+      }
+    };
+
+    fetchCart();
+  }, [authUser, selectedItemsData]);
+
 
 
   const [shippingMethod, setShippingMethod] = useState("standard");
@@ -93,7 +126,7 @@ export default function CheckoutPage() {
     { id: "fast", title: "Giao hàng nhanh", subtitle: "Giao hàng trong 1-2 ngày làm việc", price: 60000 },
     { id: "express", title: "Giao hàng trong ngày", subtitle: "Nhận hàng trong vòng 24 giờ", price: 100000 },
   ];
-  const shippingFee = shippingOptions.find(o => o.id === shippingMethod).price;
+  const shippingFee = shippingOptions.find(o => o.id === shippingMethod)?.price || 0;
   const [voucherCode, setVoucherCode] = useState("");
   const [selectedVoucher, setSelectedVoucher] = useState(null);
 
@@ -104,9 +137,99 @@ export default function CheckoutPage() {
     { code: "FREESHIP", title: "Free shipping on all orders", save: "Save $12.00", color: "blue" },
   ];
 
-  const subtotal = checkoutData.cart.subtotal;
   const discount = selectedVoucher ? 92490 : 0; // mock discount in VND if a voucher applied
   const total = subtotal + shippingFee - discount;
+
+  // Validation checks
+  const hasValidAddress = defaultAddress.fullName && defaultAddress.phone && defaultAddress.fullAddressString;
+  const hasCartItems = cartData?.items && cartData.items.length > 0;
+
+  // Handle order submission
+  const handleCheckout = async () => {
+    // Validate address
+    if (!hasValidAddress) {
+      alert('Vui lòng thêm địa chỉ giao hàng để thanh toán!');
+      return;
+    }
+
+    // Validate cart
+    if (!hasCartItems) {
+      alert('Giỏ hàng trống! Vui lòng thêm sản phẩm trước khi thanh toán.');
+      return;
+    }
+
+    // Validate addressObject exists
+    if (!addressObject || !addressObject.id) {
+      alert('Không tìm thấy thông tin địa chỉ. Vui lòng thử lại.');
+      return;
+    }
+
+    // Get customer ID
+    try {
+      setIsSubmitting(true);
+      const userStored = localStorage.getItem('user');
+      if (!userStored) {
+        alert('Vui lòng đăng nhập để tiếp tục!');
+        navigate('/login');
+        return;
+      }
+
+      const user = JSON.parse(userStored);
+      const accountId = user.id;
+      const customerId = await getCustomerIdByAccountId(accountId);
+
+      if (!customerId) {
+        alert('Không tìm thấy thông tin khách hàng. Vui lòng liên hệ hỗ trợ.');
+        return;
+      }
+
+      // Build order payload with EXACT structure required by BE
+      const orderPayload = {
+        customerId: customerId,
+        addressId: addressObject.id,
+        orderDate: new Date().toISOString(),
+        status: "PENDING",
+        totalAmount: total,
+        shippingFee: shippingFee,
+        discount: discount,
+        orderDetails: cartData.items.map(item => {
+          const itemPrice = item.salePrice || item.originalPrice;
+          const itemSubtotal = itemPrice * item.quantity;
+          return {
+            productVariantId: item.variantId,
+            quantity: item.quantity,
+            price: itemPrice,
+            subtotal: itemSubtotal
+          };
+        })
+      };
+
+      console.log('📦 Order Payload:', orderPayload);
+
+      // Call create order API
+      const createdOrder = await createOrder(orderPayload);
+      
+      console.log('✅ Created Order:', createdOrder);
+      
+      alert(`Đặt hàng thành công! Mã đơn hàng: ${createdOrder.id || createdOrder.orderId || 'N/A'}`);
+      
+      // Clear only ordered items from cart - use selectedItemIds if available, otherwise use all cart items
+      const itemsToClear = selectedItemIds ? 
+        cartData.items.filter(item => selectedItemIds.includes(item.id)) : 
+        cartData.items;
+      
+      await clearOrderedItems(itemsToClear);
+      
+      // Navigate to order success page or order detail
+      navigate(`/orders/${createdOrder.id || createdOrder.orderId}`);
+    } catch (error) {
+      console.error('❌ Checkout error:', error);
+      const errorMsg = error.response?.data?.message || error.message || 'Đặt hàng thất bại. Vui lòng thử lại sau.';
+      alert(errorMsg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] font-sans text-[#1f2d3d]">
@@ -132,11 +255,17 @@ export default function CheckoutPage() {
               </div>
 
               <div className="pl-3 space-y-4 border-l-2 border-[#ecf3f3]">
+                {!hasValidAddress && (
+                  <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2">
+                    <MapPin size={16} className="text-yellow-600 mt-0.5" />
+                    <p className="text-sm text-yellow-800 font-semibold">Vui lòng thêm địa chỉ giao hàng để thanh toán</p>
+                  </div>
+                )}
                 <div className="flex gap-4 items-start">
                   <div className="text-[#2B5F68]"><User size={18} /></div>
                   <div>
                     <p className="text-[11px] text-[#8da0a0] uppercase tracking-wider font-semibold mb-1">Họ tên</p>
-                    <p className="font-semibold text-[#12343b]">{defaultAddress.fullName}</p>
+                    <p className="font-semibold text-[#12343b]">{defaultAddress.fullName || <span className="text-gray-400 italic">Chưa có thông tin</span>}</p>
                   </div>
                 </div>
 
@@ -144,7 +273,7 @@ export default function CheckoutPage() {
                   <div className="text-[#2B5F68]"><Phone size={18} /></div>
                   <div>
                     <p className="text-[11px] text-[#8da0a0] uppercase tracking-wider font-semibold mb-1">Số điện thoại</p>
-                    <p className="font-semibold text-[#12343b]">{defaultAddress.phone}</p>
+                    <p className="font-semibold text-[#12343b]">{defaultAddress.phone || <span className="text-gray-400 italic">Chưa có thông tin</span>}</p>
                   </div>
                 </div>
 
@@ -152,7 +281,7 @@ export default function CheckoutPage() {
                   <div className="text-[#2B5F68]"><MapPin size={18} /></div>
                   <div>
                     <p className="text-[11px] text-[#8da0a0] uppercase tracking-wider font-semibold mb-1">Địa chỉ giao hàng</p>
-                    <p className="font-semibold text-[#12343b]">{defaultAddress.fullAddressString}</p>
+                    <p className="font-semibold text-[#12343b]">{defaultAddress.fullAddressString || <span className="text-gray-400 italic">Chưa có thông tin</span>}</p>
                   </div>
                 </div>
               </div>
@@ -214,10 +343,10 @@ export default function CheckoutPage() {
 
               {/* products list */}
               <div className="space-y-4 mb-4 max-h-56 overflow-y-auto pr-2">
-                {checkoutData.cart.items.map((it, idx) => (
+                {(cartData?.items || checkoutData.cart.items).map((it, idx) => (
                   <div key={it.id} className="flex gap-3 items-start">
                     <div className="relative">
-                      <img src={it.thumbnail} alt={it.productName} className="w-16 h-16 rounded-md object-cover border border-[#f0f0f0] bg-gray-50" />
+                      <img src={it.productImage || it.thumbnail} alt={it.productName} className="w-16 h-16 rounded-md object-cover border border-[#f0f0f0] bg-gray-50" />
                       <div className="absolute -top-2 -left-2 bg-[#eaf6f6] text-[#2B5F68] text-xs font-semibold w-5 h-5 rounded-full flex items-center justify-center border border-white">
                         {idx+1}
                       </div>
@@ -225,7 +354,7 @@ export default function CheckoutPage() {
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-[#12343b] leading-tight">{it.productName}</div>
                       <div className="text-xs text-[#7b8a8b] mt-1">{it.variantName}</div>
-                      <div className="text-sm font-semibold text-[#12343b] mt-2">{it.unitPrice.toLocaleString()}₫</div>
+                      <div className="text-sm font-semibold text-[#12343b] mt-2">{(it.salePrice || it.unitPrice || it.originalPrice).toLocaleString()}₫</div>
                     </div>
                   </div>
                 ))}
@@ -311,9 +440,26 @@ export default function CheckoutPage() {
               </div>
 
               {/* main CTA */}
-              <button className="w-full mt-2 py-3 rounded-xl bg-[#2B5F68] hover:bg-[#224b4b] text-white font-semibold flex items-center justify-center gap-2 shadow-md">
-                Đặt hàng
-                <span className="text-sm">→</span>
+              <button 
+                onClick={handleCheckout}
+                disabled={isSubmitting || !hasValidAddress || !hasCartItems}
+                className={`w-full mt-2 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 shadow-md transition-all ${
+                  isSubmitting || !hasValidAddress || !hasCartItems
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-[#2B5F68] hover:bg-[#224b4b] text-white'
+                }`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <span>Đang xử lý...</span>
+                  </>
+                ) : (
+                  <>
+                    Đặt hàng
+                    <span className="text-sm">→</span>
+                  </>
+                )}
               </button>
 
               <p className="text-xs text-[#9aa8a8] text-center mt-3">

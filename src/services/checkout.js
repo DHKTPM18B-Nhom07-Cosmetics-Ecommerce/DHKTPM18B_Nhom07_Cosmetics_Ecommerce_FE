@@ -61,8 +61,52 @@ export const getDefaultAddressForCurrentUser = async () => {
   }
 };
 
+// Create order by posting to /api/orders with exact payload structure
+// Payload structure:
+// {
+//   "customerId": 123,
+//   "addressId": 456,
+//   "orderDate": "2025-12-07T13:00:00",
+//   "status": "PENDING",
+//   "totalAmount": 150000,
+//   "shippingFee": 30000,
+//   "discount": 0,
+//   "orderDetails": [
+//     {
+//       "productVariantId": 789,
+//       "quantity": 2,
+//       "price": 50000,
+//       "subtotal": 100000
+//     }
+//   ]
+// }
+export const createOrder = async (orderPayload) => {
+  try {
+    // Get JWT token from localStorage
+    const token = localStorage.getItem('jwtToken');
+    
+    const config = {
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    };
+    
+    // Add Authorization header if token exists
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    const res = await api.post('/api/orders', orderPayload, config);
+    return res.data;
+  } catch (err) {
+    console.error('createOrder error', err);
+    throw err;
+  }
+};
+
 export default {
   getCustomerIdByAccountId,
   getAddressesByCustomerId,
   getDefaultAddressForCurrentUser,
+  createOrder,
 };
