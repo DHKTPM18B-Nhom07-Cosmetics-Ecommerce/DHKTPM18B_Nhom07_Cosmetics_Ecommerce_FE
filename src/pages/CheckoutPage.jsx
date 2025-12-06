@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getDefaultAddressForCurrentUser, getCustomerIdByAccountId, createOrder } from "../services/checkout";
+import { getDefaultAddressForCurrentUser, getCustomerIdByAccountId, createOrder, createAddress } from "../services/checkout";
 import { getCartData, clearOrderedItems } from "../services/cartService";
 import Select from 'react-select';
 import { provinces, getDistrictsByProvince, getWardsByDistrict } from '../data/vietnamAddresses';
@@ -73,6 +73,7 @@ export default function CheckoutPage() {
   });
   const [addressObject, setAddressObject] = useState(null); // Store full address object for order creation
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGuestCheckout, setIsGuestCheckout] = useState(false); // Track if user is logged in
   
   // Manual address form state
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -98,6 +99,17 @@ export default function CheckoutPage() {
   useEffect(() => {
     const fetchDefaultAddress = async () => {
       try {
+        // Check if user is logged in
+        const userStored = localStorage.getItem('user');
+        if (!userStored) {
+          console.log('Guest checkout mode - no user logged in');
+          setIsGuestCheckout(true);
+          setShowAddressForm(true); // Show form for guest
+          return;
+        }
+
+        // User is logged in, try to fetch their default address
+        setIsGuestCheckout(false);
         const addr = await getDefaultAddressForCurrentUser();
         if (!addr) {
           console.warn('No default address found for current user');
@@ -119,7 +131,7 @@ export default function CheckoutPage() {
     };
 
     fetchDefaultAddress();
-  }, [authUser]);
+  }, []);
 
   useEffect(() => {
     const fetchCart = async () => {
@@ -163,7 +175,7 @@ export default function CheckoutPage() {
 
   // Validation checks
   const hasValidAddress = showAddressForm 
-    ? (manualAddress.firstName && manualAddress.lastName && manualAddress.phone && manualAddress.province && manualAddress.district && manualAddress.street)
+    ? (manualAddress.firstName && manualAddress.lastName && manualAddress.email && manualAddress.phone && manualAddress.province && manualAddress.district && manualAddress.street)
     : (defaultAddress.fullName && defaultAddress.phone && defaultAddress.fullAddressString);
   const hasCartItems = cartData?.items && cartData.items.length > 0;
 
@@ -219,69 +231,165 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Get customer ID
+    // Get customer ID (or create guest customer for guest checkout)
     try {
       setIsSubmitting(true);
+      let customerId = null;
+      
       const userStored = localStorage.getItem('user');
-      if (!userStored) {
-        alert('Vui lòng đăng nhập để tiếp tục!');
-        navigate('/login');
-        return;
+      if (userStored) {
+        // User is logged in - get their customer ID
+        const user = JSON.parse(userStored);
+        const accountId = user.id;
+        customerId = await getCustomerIdByAccountId(accountId);
+        
+        if (!customerId) {
+          alert('Không tìm thấy thông tin khách hàng. Vui lòng liên hệ hỗ trợ.');
+          return;
+        }
+        
+        // Ensure customerId is a valid number
+        customerId = parseInt(customerId);
+        if (isNaN(customerId)) {
+          alert('ID khách hàng không hợp lệ.');
+          return;
+        }
+      } else {
+        // Guest checkout - use customerId = 0
+        console.log('👤 Guest checkout with customerId = 0');
+        customerId = 0;
       }
 
-      const user = JSON.parse(userStored);
-      const accountId = user.id;
-      const customerId = await getCustomerIdByAccountId(accountId);
-
-      if (!customerId) {
-        alert('Không tìm thấy thông tin khách hàng. Vui lòng liên hệ hỗ trợ.');
-        return;
+      // Prepare address information for order (from form or existing)
+      let addressInfo = null;
+      
+      if (showAddressForm) {
+        // Use manual form address
+        const fullName = `${manualAddress.firstName} ${manualAddress.lastName}`.trim();
+        const addressLine = manualAddress.street;
+        const city = manualAddress.district?.label || '';
+        const state = manualAddress.province?.label || '';
+        const country = 'Vietnam';
+        
+        // Validate required fields
+        if (!fullName || !manualAddress.phone || !addressLine) {
+          throw new Error('Vui lòng điền đầy đủ thông tin: Họ tên, Số điện thoại, và Địa chỉ cụ thể.');
+        }
+        
+        addressInfo = {
+          fullName: fullName,
+          phone: manualAddress.phone,
+          address: addressLine,
+          city: city || 'N/A',
+          state: state || 'N/A',
+          country: country
+        };
+        
+        console.log('📍 Using address from form:', addressInfo);
+      } else if (!showAddressForm && userStored) {
+        // Use existing address for logged-in users
+        addressInfo = {
+          fullName: addressObject?.fullName || '',
+          phone: addressObject?.phone || '',
+          address: addressObject?.address || '',
+          city: addressObject?.city || '',
+          state: addressObject?.state || '',
+          country: addressObject?.country || 'Vietnam'
+        };
+        
+        console.log('📍 Using existing address:', addressInfo);
+      }
+      
+      // For guest checkout, validate address fields
+      if (!userStored && addressInfo) {
+        if (!addressInfo.fullName || !addressInfo.phone || !addressInfo.address) {
+          throw new Error('Vui lòng điền đầy đủ thông tin: Họ tên, Số điện thoại, và Địa chỉ cụ thể.');
+        }
       }
 
-      // Build order payload with EXACT structure required by BE
+      // Validate cart items have variantId
+      const invalidItems = cartData.items.filter(item => !item.variantId);
+      if (invalidItems.length > 0) {
+        console.error('❌ Items without variantId:', invalidItems);
+        throw new Error('Một số sản phẩm trong giỏ hàng thiếu thông tin. Vui lòng thử lại.');
+      }
+
+      console.log('🔍 Building order payload...');
+      console.log('  Cart items:', cartData.items);
+      console.log('  Total:', total);
+      console.log('  Shipping:', shippingFee);
+      console.log('  Discount:', discount);
+
+      // Build order payload with address fields embedded
       const orderPayload = {
         customerId: customerId,
-        // If using manual form, we may need to create address first or send null
-        // For now, send addressId only if we have it from existing address
-        addressId: showAddressForm ? null : addressObject.id,
         orderDate: new Date().toISOString(),
         status: "PENDING",
-        totalAmount: total,
-        shippingFee: shippingFee,
-        discount: discount,
+        totalAmount: parseFloat(total) || 0,
+        shippingFee: parseFloat(shippingFee) || 0,
+        discount: parseFloat(discount) || 0,
+        // Address fields
+        ...(addressInfo && {
+          shippingFullName: addressInfo.fullName,
+          shippingPhone: addressInfo.phone,
+          shippingAddress: addressInfo.address,
+          shippingCity: addressInfo.city,
+          shippingState: addressInfo.state,
+          shippingCountry: addressInfo.country
+        }),
         orderDetails: cartData.items.map(item => {
-          const itemPrice = item.salePrice || item.originalPrice;
-          const itemSubtotal = itemPrice * item.quantity;
-          return {
-            productVariantId: item.variantId,
-            quantity: item.quantity,
+          const itemPrice = item.salePrice || item.originalPrice || item.price || 0;
+          const itemQuantity = item.quantity || 1;
+          const itemSubtotal = itemPrice * itemQuantity;
+          
+          console.log(`  Processing item: ${item.productName}`, {
+            variantId: item.variantId,
             price: itemPrice,
+            quantity: itemQuantity,
             subtotal: itemSubtotal
+          });
+          
+          // Ensure all required fields are present
+          if (!item.variantId) {
+            console.error('❌ Invalid item - missing variantId:', item);
+            throw new Error(`Sản phẩm "${item.productName || 'Unknown'}" thiếu thông tin variant`);
+          }
+          
+          if (!itemPrice || itemPrice <= 0) {
+            console.error('❌ Invalid item - invalid price:', item);
+            throw new Error(`Sản phẩm "${item.productName || 'Unknown'}" có giá không hợp lệ`);
+          }
+          
+          if (!itemQuantity || itemQuantity <= 0) {
+            console.error('❌ Invalid item - invalid quantity:', item);
+            throw new Error(`Sản phẩm "${item.productName || 'Unknown'}" có số lượng không hợp lệ`);
+          }
+          
+          return {
+            productVariantId: parseInt(item.variantId),
+            quantity: parseInt(itemQuantity),
+            price: parseFloat(itemPrice),
+            subtotal: parseFloat(itemSubtotal)
           };
         })
       };
 
-      // If using manual address, add shipping info to payload or handle separately
-      if (showAddressForm) {
-        // You may need to create address via API first, then get addressId
-        // Or send shipping info separately
-        console.log('📝 Manual Address:', manualAddress);
-        // TODO: Call API to create address and get ID
-        // For now, we'll alert user that manual address needs backend support
-        if (!confirm('Chức năng tạo địa chỉ mới đang được phát triển. Bạn có muốn tiếp tục với thông tin này không?')) {
-          setIsSubmitting(false);
-          return;
-        }
-      }
+      // Log order details
+      console.log('📝 Order Details:');
+      console.log('  Guest Checkout:', isGuestCheckout);
+      console.log('  Customer ID:', customerId);
+      console.log('  Address Info:', addressInfo);
 
-      console.log('📦 Order Payload:', orderPayload);
+      console.log('📦 Order Payload:', JSON.stringify(orderPayload, null, 2));
 
       // Call create order API
       const createdOrder = await createOrder(orderPayload);
       
       console.log('✅ Created Order:', createdOrder);
       
-      alert(`Đặt hàng thành công! Mã đơn hàng: ${createdOrder.id || createdOrder.orderId || 'N/A'}`);
+      const orderId = createdOrder?.id || createdOrder?.orderId;
+      const successMsg = `Đặt hàng thành công!${orderId ? ' Mã đơn hàng: ' + orderId : ''}`;
+      alert(successMsg);
       
       // Clear only ordered items from cart - use selectedItemIds if available, otherwise use all cart items
       const itemsToClear = selectedItemIds ? 
@@ -291,10 +399,20 @@ export default function CheckoutPage() {
       await clearOrderedItems(itemsToClear);
       
       // Navigate to order success page or order detail
-      navigate(`/orders/${createdOrder.id || createdOrder.orderId}`);
+      if (orderId) {
+        navigate(`/orders/${orderId}`);
+      } else {
+        // If no order ID returned, go back to home
+        navigate('/');
+      }
     } catch (error) {
       console.error('❌ Checkout error:', error);
-      const errorMsg = error.response?.data?.message || error.message || 'Đặt hàng thất bại. Vui lòng thử lại sau.';
+      let errorMsg = 'Đặt hàng thất bại. Vui lòng thử lại sau.';
+      if (error.response?.data?.message) {
+        errorMsg = error.response.data.message;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
       alert(errorMsg);
     } finally {
       setIsSubmitting(false);
@@ -317,6 +435,21 @@ export default function CheckoutPage() {
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           {/* left column */}
           <div className="w-full lg:w-2/3 space-y-6">
+            {/* Guest Checkout Notification */}
+            {isGuestCheckout && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold text-blue-900">Bạn đang thanh toán mà không đăng nhập</h4>
+                  <p className="text-sm text-blue-700 mt-1">Vui lòng điền đầy đủ thông tin giao hàng bên dưới để tiếp tục đặt hàng.</p>
+                </div>
+              </div>
+            )}
+            
             {/* address card */}
             <div className="bg-white rounded-2xl p-6 shadow-[0_6px_20px_rgba(45,55,72,0.06)] border border-[#f0ece8]">
               <div className="flex justify-between items-start mb-3">

@@ -61,6 +61,46 @@ export const getDefaultAddressForCurrentUser = async () => {
   }
 };
 
+
+
+// Create a new address
+// Payload structure:
+// {
+//   "customerId": 123 or null (for guest),
+//   "fullName": "Nguyen Van A",
+//   "phone": "0123456789",
+//   "address": "123 Nguyen Hue",
+//   "city": "Quan 1",
+//   "state": "Ho Chi Minh",
+//   "country": "Vietnam",
+//   "isDefault": false
+// }
+export const createAddress = async (addressPayload) => {
+  try {
+    const token = localStorage.getItem('jwtToken');
+    
+    const config = {
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    };
+    
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    const payload = { ...addressPayload };
+    
+    console.log('🔵 Sending address payload to backend:', payload);
+    
+    const res = await api.post('/api/addresses', payload, config);
+    return res.data;
+  } catch (err) {
+    console.error('createAddress error', err);
+    throw err;
+  }
+};
+
 // Create order by posting to /api/orders with exact payload structure
 // Payload structure:
 // {
@@ -96,7 +136,11 @@ export const createOrder = async (orderPayload) => {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const res = await api.post('/api/orders', orderPayload, config);
+    const payload = { ...orderPayload };
+    
+    console.log('🔵 Sending order payload to backend:', payload);
+    
+    const res = await api.post('/api/orders', payload, config);
     return res.data;
   } catch (err) {
     console.error('createOrder error', err);
@@ -108,5 +152,6 @@ export default {
   getCustomerIdByAccountId,
   getAddressesByCustomerId,
   getDefaultAddressForCurrentUser,
+  createAddress,
   createOrder,
 };
