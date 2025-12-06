@@ -1,5 +1,7 @@
 // src/pages/CheckoutPage.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { getDefaultAddressForCurrentUser } from "../services/checkout";
 import {
   User,
   Phone,
@@ -52,6 +54,39 @@ export default function CheckoutPage() {
     },
   };
 
+
+  const [defaultAddress, setDefaultAddress] = useState({
+    fullName: "",
+    phone: "",
+    fullAddressString: ""
+  });
+
+  const { user: authUser } = useAuth();
+
+  useEffect(() => {
+    const fetchDefaultAddress = async () => {
+      try {
+        const addr = await getDefaultAddressForCurrentUser();
+        if (!addr) {
+          console.warn('No default address found for current user');
+          return;
+        }
+
+        setDefaultAddress({
+          fullName: addr.fullName || addr.receiverName || '',
+          phone: addr.phone || addr.phoneNumber || addr.receiverPhone || '',
+          fullAddressString: `${addr.address || addr.street || ''}${addr.city ? ', ' + addr.city : ''}${addr.state ? ', ' + addr.state : ''}${addr.country ? ', ' + addr.country : ''}`
+        });
+      } catch (error) {
+        console.error('Failed to load address: ', error);
+      }
+    };
+
+    fetchDefaultAddress();
+  }, [authUser]);
+
+
+
   const [shippingMethod, setShippingMethod] = useState("standard");
   const shippingOptions = [
     { id: "standard", title: "Giao hàng tiêu chuẩn", subtitle: "Giao hàng trong 3-5 ngày làm việc", price: 30000 },
@@ -101,7 +136,7 @@ export default function CheckoutPage() {
                   <div className="text-[#2B5F68]"><User size={18} /></div>
                   <div>
                     <p className="text-[11px] text-[#8da0a0] uppercase tracking-wider font-semibold mb-1">Họ tên</p>
-                    <p className="font-semibold text-[#12343b]">{checkoutData.address.fullName}</p>
+                    <p className="font-semibold text-[#12343b]">{defaultAddress.fullName}</p>
                   </div>
                 </div>
 
@@ -109,7 +144,7 @@ export default function CheckoutPage() {
                   <div className="text-[#2B5F68]"><Phone size={18} /></div>
                   <div>
                     <p className="text-[11px] text-[#8da0a0] uppercase tracking-wider font-semibold mb-1">Số điện thoại</p>
-                    <p className="font-semibold text-[#12343b]">{checkoutData.address.phone}</p>
+                    <p className="font-semibold text-[#12343b]">{defaultAddress.phone}</p>
                   </div>
                 </div>
 
@@ -117,7 +152,7 @@ export default function CheckoutPage() {
                   <div className="text-[#2B5F68]"><MapPin size={18} /></div>
                   <div>
                     <p className="text-[11px] text-[#8da0a0] uppercase tracking-wider font-semibold mb-1">Địa chỉ giao hàng</p>
-                    <p className="font-semibold text-[#12343b]">{checkoutData.address.fullAddressString}</p>
+                    <p className="font-semibold text-[#12343b]">{defaultAddress.fullAddressString}</p>
                   </div>
                 </div>
               </div>
@@ -165,8 +200,8 @@ export default function CheckoutPage() {
 
               <div className="mt-4 p-4 border border-[#f0ece8] bg-[#fbfaf9] text-sm text-[#6b7b7b] rounded-md">
                 <ol className="list-decimal ml-4 space-y-2">
-                  <li>Khi click vào nút hoàn tất đơn hàng thì đơn hàng sẽ được hệ thống tự động xác nhận...</li>
-                  <li>Trường hợp đặt hàng xong nhưng muốn HỦY ĐƠN, vui lòng soạn tin nhắn theo cú pháp...</li>
+                  <li><p>Khi click vào nút hoàn tất đơn hàng thì đơn hàng sẽ được hệ thống tự động xác nhận mà không cần phải gọi qua điện thoại, nếu điền thông tin địa chỉ và số điện thoại chính xác thì đơn hàng sẽ được vận chuyển từ 3-4-5 ngày tùy vùng miền.</p></li>
+                  <li><p>Trường hợp đặt hàng xong nhưng muốn HỦY ĐƠN, vui lòng soạn tin nhắn theo cú pháp: SĐT ĐÃ ĐẶT ĐƠN (hoặc MÃ ĐƠN hoặc GMAIL ĐƠN HÀNG) + TÊN NGƯỜI NHẬN sau đó gửi qua các kênh online: Page Facebook, Intagram. Nhân viên check tin nhắn sẽ xử lý hủy giúp quý khách hàng.</p></li>
                 </ol>
               </div>
             </div>
