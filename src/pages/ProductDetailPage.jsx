@@ -147,12 +147,14 @@ export default function ProductDetailPage() {
   const handleAddToCart = async () => {
     // 1. Kiểm tra đăng nhập
     const userStored = localStorage.getItem('user');
+    /*
     if (!userStored) {
       if (window.confirm("Bạn cần đăng nhập để mua hàng. Chuyển đến trang đăng nhập?")) {
         navigate('/login');
       }
       return;
     }
+    */
 
     // 2. Kiểm tra đã chọn size/phân loại chưa
     if (!selectedSize) {
@@ -161,14 +163,27 @@ export default function ProductDetailPage() {
     }
 
     // 3. Lấy dữ liệu cần thiết
-    const user = JSON.parse(userStored);
-    const accountId = user.id;
+    let accountId = null;
+    if (userStored) {
+        const user = JSON.parse(userStored);
+        accountId = user.id;
+    }
+
     const variantId = selectedSize.id; // ID của biến thể đang chọn
+
+    // Chuẩn bị thông tin cho khách vãng lai
+    const productInfoForGuest = {
+        productId: product.id,
+        productName: product.name,
+        sizeName: selectedSize.variantName,
+        price: selectedSize.price,
+        image: mainImage || "/placeholder.svg"
+    };
 
     try {
       setAdding(true);
       // 4. Gọi API
-      await addToCart(accountId, variantId, quantity);
+      await addToCart(accountId, variantId, quantity, productInfoForGuest);
       
       // 5. Thông báo & Chuyển hướng
       // alert("Đã thêm vào giỏ hàng thành công!"); // Có thể bỏ alert nếu muốn chuyển trang luôn
