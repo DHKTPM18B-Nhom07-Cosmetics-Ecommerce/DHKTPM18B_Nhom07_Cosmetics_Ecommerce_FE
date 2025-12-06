@@ -4,6 +4,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getDefaultAddressForCurrentUser, getCustomerIdByAccountId, createOrder } from "../services/checkout";
 import { getCartData, clearOrderedItems } from "../services/cartService";
+import Select from 'react-select';
+import { provinces, getDistrictsByProvince, getWardsByDistrict } from '../data/vietnamAddresses';
 import {
   User,
   Phone,
@@ -71,6 +73,22 @@ export default function CheckoutPage() {
   });
   const [addressObject, setAddressObject] = useState(null); // Store full address object for order creation
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Manual address form state
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [manualAddress, setManualAddress] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    province: null,
+    district: null,
+    ward: null,
+    street: '',
+    note: ''
+  });
+  const [availableDistricts, setAvailableDistricts] = useState([]);
+  const [availableWards, setAvailableWards] = useState([]);
 
   const { user: authUser } = useAuth();
 
@@ -83,6 +101,7 @@ export default function CheckoutPage() {
         const addr = await getDefaultAddressForCurrentUser();
         if (!addr) {
           console.warn('No default address found for current user');
+          setShowAddressForm(true); // Show form if no address
           return;
         }
 
@@ -92,8 +111,10 @@ export default function CheckoutPage() {
           phone: addr.phone || addr.phoneNumber || addr.receiverPhone || '',
           fullAddressString: `${addr.address || addr.street || ''}${addr.city ? ', ' + addr.city : ''}${addr.state ? ', ' + addr.state : ''}${addr.country ? ', ' + addr.country : ''}`
         });
+        setShowAddressForm(false); // Hide form if address found
       } catch (error) {
         console.error('Failed to load address: ', error);
+        setShowAddressForm(true); // Show form on error
       }
     };
 
@@ -141,8 +162,40 @@ export default function CheckoutPage() {
   const total = subtotal + shippingFee - discount;
 
   // Validation checks
-  const hasValidAddress = defaultAddress.fullName && defaultAddress.phone && defaultAddress.fullAddressString;
+  const hasValidAddress = showAddressForm 
+    ? (manualAddress.firstName && manualAddress.lastName && manualAddress.phone && manualAddress.province && manualAddress.district && manualAddress.street)
+    : (defaultAddress.fullName && defaultAddress.phone && defaultAddress.fullAddressString);
   const hasCartItems = cartData?.items && cartData.items.length > 0;
+
+  // Handle province change
+  const handleProvinceChange = (selectedOption) => {
+    setManualAddress({
+      ...manualAddress,
+      province: selectedOption,
+      district: null,
+      ward: null
+    });
+    setAvailableDistricts(getDistrictsByProvince(selectedOption.value) || []);
+    setAvailableWards([]);
+  };
+
+  // Handle district change
+  const handleDistrictChange = (selectedOption) => {
+    setManualAddress({
+      ...manualAddress,
+      district: selectedOption,
+      ward: null
+    });
+    setAvailableWards(getWardsByDistrict(manualAddress.province.value, selectedOption.value) || []);
+  };
+
+  // Handle ward change
+  const handleWardChange = (selectedOption) => {
+    setManualAddress({
+      ...manualAddress,
+      ward: selectedOption
+    });
+  };
 
   // Handle order submission
   const handleCheckout = async () => {
@@ -158,8 +211,10 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Validate addressObject exists
-    if (!addressObject || !addressObject.id) {
+    // For manual address form, we need to create address or use temporary address
+    // Since we don't have addressId for manual form, we'll need to handle this differently
+    // For now, we'll skip addressId validation if using manual form
+    if (!showAddressForm && (!addressObject || !addressObject.id)) {
       alert('Không tìm thấy thông tin địa chỉ. Vui lòng thử lại.');
       return;
     }
@@ -186,7 +241,9 @@ export default function CheckoutPage() {
       // Build order payload with EXACT structure required by BE
       const orderPayload = {
         customerId: customerId,
-        addressId: addressObject.id,
+        // If using manual form, we may need to create address first or send null
+        // For now, send addressId only if we have it from existing address
+        addressId: showAddressForm ? null : addressObject.id,
         orderDate: new Date().toISOString(),
         status: "PENDING",
         totalAmount: total,
@@ -203,6 +260,19 @@ export default function CheckoutPage() {
           };
         })
       };
+
+      // If using manual address, add shipping info to payload or handle separately
+      if (showAddressForm) {
+        // You may need to create address via API first, then get addressId
+        // Or send shipping info separately
+        console.log('📝 Manual Address:', manualAddress);
+        // TODO: Call API to create address and get ID
+        // For now, we'll alert user that manual address needs backend support
+        if (!confirm('Chức năng tạo địa chỉ mới đang được phát triển. Bạn có muốn tiếp tục với thông tin này không?')) {
+          setIsSubmitting(false);
+          return;
+        }
+      }
 
       console.log('📦 Order Payload:', orderPayload);
 
@@ -251,40 +321,179 @@ export default function CheckoutPage() {
             <div className="bg-white rounded-2xl p-6 shadow-[0_6px_20px_rgba(45,55,72,0.06)] border border-[#f0ece8]">
               <div className="flex justify-between items-start mb-3">
                 <h3 className="font-serif text-[#567A85] text-xl tracking-wide uppercase">Thông tin giao hàng</h3>
-                <button className="text-xs bg-[#f3f8f8] px-3 py-1.5 rounded-md text-[#2B5F68] font-semibold hover:bg-[#e6f2f2]">Thay đổi địa chỉ</button>
-              </div>
-
-              <div className="pl-3 space-y-4 border-l-2 border-[#ecf3f3]">
-                {!hasValidAddress && (
-                  <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2">
-                    <MapPin size={16} className="text-yellow-600 mt-0.5" />
-                    <p className="text-sm text-yellow-800 font-semibold">Vui lòng thêm địa chỉ giao hàng để thanh toán</p>
-                  </div>
+                {!showAddressForm && (
+                  <button 
+                    onClick={() => setShowAddressForm(true)}
+                    className="text-xs bg-[#f3f8f8] px-3 py-1.5 rounded-md text-[#2B5F68] font-semibold hover:bg-[#e6f2f2]"
+                  >
+                    Thay đổi địa chỉ
+                  </button>
                 )}
-                <div className="flex gap-4 items-start">
-                  <div className="text-[#2B5F68]"><User size={18} /></div>
-                  <div>
-                    <p className="text-[11px] text-[#8da0a0] uppercase tracking-wider font-semibold mb-1">Họ tên</p>
-                    <p className="font-semibold text-[#12343b]">{defaultAddress.fullName || <span className="text-gray-400 italic">Chưa có thông tin</span>}</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4 items-start">
-                  <div className="text-[#2B5F68]"><Phone size={18} /></div>
-                  <div>
-                    <p className="text-[11px] text-[#8da0a0] uppercase tracking-wider font-semibold mb-1">Số điện thoại</p>
-                    <p className="font-semibold text-[#12343b]">{defaultAddress.phone || <span className="text-gray-400 italic">Chưa có thông tin</span>}</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-4 items-start">
-                  <div className="text-[#2B5F68]"><MapPin size={18} /></div>
-                  <div>
-                    <p className="text-[11px] text-[#8da0a0] uppercase tracking-wider font-semibold mb-1">Địa chỉ giao hàng</p>
-                    <p className="font-semibold text-[#12343b]">{defaultAddress.fullAddressString || <span className="text-gray-400 italic">Chưa có thông tin</span>}</p>
-                  </div>
-                </div>
               </div>
+
+              {showAddressForm ? (
+                /* Manual Address Form */
+                <div className="space-y-4">
+                  {/* Name fields */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs text-[#8da0a0] uppercase tracking-wider font-semibold mb-2">
+                        Họ <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Nguyễn"
+                        value={manualAddress.firstName}
+                        onChange={(e) => setManualAddress({...manualAddress, firstName: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B5F68]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-[#8da0a0] uppercase tracking-wider font-semibold mb-2">
+                        Tên <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Văn A"
+                        value={manualAddress.lastName}
+                        onChange={(e) => setManualAddress({...manualAddress, lastName: e.target.value})}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B5F68]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className="block text-xs text-[#8da0a0] uppercase tracking-wider font-semibold mb-2">
+                      Email <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="example@email.com"
+                      value={manualAddress.email}
+                      onChange={(e) => setManualAddress({...manualAddress, email: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B5F68]"
+                    />
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label className="block text-xs text-[#8da0a0] uppercase tracking-wider font-semibold mb-2">
+                      Số điện thoại <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      placeholder="0912 345 678"
+                      value={manualAddress.phone}
+                      onChange={(e) => setManualAddress({...manualAddress, phone: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B5F68]"
+                    />
+                  </div>
+
+                  {/* Address dropdowns */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs text-[#8da0a0] uppercase tracking-wider font-semibold mb-2">
+                        Tỉnh/Thành phố <span className="text-red-500">*</span>
+                      </label>
+                      <Select
+                        value={manualAddress.province}
+                        onChange={handleProvinceChange}
+                        options={provinces}
+                        placeholder="Chọn tỉnh/thành"
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-[#8da0a0] uppercase tracking-wider font-semibold mb-2">
+                        Quận/Huyện <span className="text-red-500">*</span>
+                      </label>
+                      <Select
+                        value={manualAddress.district}
+                        onChange={handleDistrictChange}
+                        options={availableDistricts}
+                        placeholder="Chọn quận/huyện"
+                        isDisabled={!manualAddress.province}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-[#8da0a0] uppercase tracking-wider font-semibold mb-2">
+                        Phường/Xã <span className="text-red-500">*</span>
+                      </label>
+                      <Select
+                        value={manualAddress.ward}
+                        onChange={handleWardChange}
+                        options={availableWards}
+                        placeholder="Chọn phường/xã"
+                        isDisabled={!manualAddress.district}
+                        className="text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Street address */}
+                  <div>
+                    <label className="block text-xs text-[#8da0a0] uppercase tracking-wider font-semibold mb-2">
+                      Địa chỉ cụ thể <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Số nhà, tên đường"
+                      value={manualAddress.street}
+                      onChange={(e) => setManualAddress({...manualAddress, street: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B5F68]"
+                    />
+                  </div>
+
+                  {/* Note */}
+                  <div>
+                    <label className="block text-xs text-[#8da0a0] uppercase tracking-wider font-semibold mb-2">
+                      Ghi chú đơn hàng (tùy chọn)
+                    </label>
+                    <textarea
+                      placeholder="Ghi chú về đơn hàng, ví dụ: thời gian hay chỉ dẫn địa điểm giao hàng chi tiết hơn"
+                      value={manualAddress.note}
+                      onChange={(e) => setManualAddress({...manualAddress, note: e.target.value})}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2B5F68]"
+                    />
+                  </div>
+                </div>
+              ) : (
+                /* Display existing address */
+                <div className="pl-3 space-y-4 border-l-2 border-[#ecf3f3]">
+                  {!hasValidAddress && (
+                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2">
+                      <MapPin size={16} className="text-yellow-600 mt-0.5" />
+                      <p className="text-sm text-yellow-800 font-semibold">Vui lòng thêm địa chỉ giao hàng để thanh toán</p>
+                    </div>
+                  )}
+                  <div className="flex gap-4 items-start">
+                    <div className="text-[#2B5F68]"><User size={18} /></div>
+                    <div>
+                      <p className="text-[11px] text-[#8da0a0] uppercase tracking-wider font-semibold mb-1">Họ tên</p>
+                      <p className="font-semibold text-[#12343b]">{defaultAddress.fullName || <span className="text-gray-400 italic">Chưa có thông tin</span>}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 items-start">
+                    <div className="text-[#2B5F68]"><Phone size={18} /></div>
+                    <div>
+                      <p className="text-[11px] text-[#8da0a0] uppercase tracking-wider font-semibold mb-1">Số điện thoại</p>
+                      <p className="font-semibold text-[#12343b]">{defaultAddress.phone || <span className="text-gray-400 italic">Chưa có thông tin</span>}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 items-start">
+                    <div className="text-[#2B5F68]"><MapPin size={18} /></div>
+                    <div>
+                      <p className="text-[11px] text-[#8da0a0] uppercase tracking-wider font-semibold mb-1">Địa chỉ giao hàng</p>
+                      <p className="font-semibold text-[#12343b]">{defaultAddress.fullAddressString || <span className="text-gray-400 italic">Chưa có thông tin</span>}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* shipping */}
