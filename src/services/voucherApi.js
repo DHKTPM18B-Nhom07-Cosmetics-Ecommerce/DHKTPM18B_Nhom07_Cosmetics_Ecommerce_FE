@@ -1,4 +1,3 @@
-// src/services/voucherApi.js
 import axios from "axios";
 
 const voucherApi = axios.create({
@@ -6,9 +5,7 @@ const voucherApi = axios.create({
   headers: { "Content-Type": "application/json" }
 });
 
-// =====================
-// VOUCHER API CHUẨN
-// =====================
+// VOUCHER API
 
 // GET ALL
 export const getAllVouchers = async () => {
@@ -38,5 +35,42 @@ export const updateVoucher = (id, data) =>
 // UPDATE STATUS
 export const updateVoucherStatus = (id, newStatus) =>
   voucherApi.patch(`/api/vouchers/${id}/status`, { status: newStatus });
+
+// APPLY VOUCHER
+// GUEST – chỉ 1 voucher
+export const applyVoucher = async (payload) => {
+  try {
+    const res = await voucherApi.post("/api/vouchers/apply", payload);
+    return res.data;
+  } catch (err) {
+    console.error("Apply voucher failed:", err.response?.data || err);
+    throw err;
+  }
+};
+
+// CUSTOMER – nhiều voucher
+export const applyMultipleVouchers = async (payload) => {
+  /*
+    payload = {
+      codes: ["SALE10", "FREESHIP"],
+      items: [
+        { productId, quantity, price }
+      ]
+    }
+  */
+  try {
+    const res = await voucherApi.post(
+      "/api/vouchers/apply-multiple",
+      payload
+    );
+    return res.data;
+  } catch (err) {
+    console.error(
+      "Apply multiple vouchers failed:",
+      err.response?.data || err
+    );
+    throw err;
+  }
+};
 
 export default voucherApi;
