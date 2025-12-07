@@ -16,6 +16,7 @@ export default function CartPage() {
   const [cartData, setCartData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedItems, setSelectedItems] = useState(new Set()); // Track selected item IDs
+  const [updatingItems, setUpdatingItems] = useState(new Set()); // Track items being updated
 
   useEffect(() => {
     loadCart();
@@ -35,20 +36,66 @@ export default function CartPage() {
 
   const handleQuantityChange = async (cartItemId, newQuantity) => {
     if (newQuantity < 1) return;
+    
+    // Optimistic update - cập nhật UI ngay lập tức
+    setCartData(prevData => {
+      const updatedItems = prevData.items.map(item => 
+        item.id === cartItemId ? { ...item, quantity: newQuantity } : item
+      );
+      
+      return {
+        ...prevData,
+        items: updatedItems
+      };
+    });
+
+    // Track updating state
+    setUpdatingItems(prev => new Set(prev).add(cartItemId));
+
     try {
+      // Gọi API để update database
       await updateCartItemQuantity(cartItemId, newQuantity);
-      loadCart();
     } catch (error) {
       console.error("Error updating quantity:", error);
+      // Nếu lỗi, reload lại cart để đồng bộ
+      loadCart();
+    } finally {
+      setUpdatingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(cartItemId);
+        return newSet;
+      });
     }
   };
 
   const handleRemoveItem = async (cartItemId) => {
+    // Optimistic update - xóa khỏi UI ngay
+    setCartData(prevData => ({
+      ...prevData,
+      items: prevData.items.filter(item => item.id !== cartItemId)
+    }));
+
+    // Xóa khỏi selected items nếu có
+    setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(cartItemId);
+      return newSet;
+    });
+
+    setUpdatingItems(prev => new Set(prev).add(cartItemId));
+
     try {
       await removeCartItem(cartItemId);
-      loadCart();
     } catch (error) {
       console.error("Error removing item:", error);
+      // Nếu lỗi, reload lại cart
+      loadCart();
+    } finally {
+      setUpdatingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(cartItemId);
+        return newSet;
+      });
     }
   };
 
@@ -75,6 +122,29 @@ export default function CartPage() {
   // Get selected items data for checkout
   const getSelectedItemsData = () => {
     return cartData.items.filter((item) => selectedItems.has(item.id));
+  };
+
+  // Calculate totals for selected items only
+  const calculateSelectedTotals = () => {
+    if (selectedItems.size === 0) {
+      return {
+        subtotal: 0,
+        shippingFee: 0,
+        total: 0
+      };
+    }
+
+    const selected = getSelectedItemsData();
+    const subtotal = selected.reduce(
+      (sum, item) =>
+        sum + (item.salePrice || item.originalPrice) * item.quantity,
+      0
+    );
+
+    const shippingFee = cartData.shippingFee || 0;
+    const total = subtotal + shippingFee;
+
+    return { subtotal, shippingFee, total };
   };
 
   // Handle checkout with selected items
@@ -184,6 +254,7 @@ export default function CartPage() {
                     item={item}
                     onQuantityChange={handleQuantityChange}
                     onRemove={handleRemoveItem}
+                    isUpdating={updatingItems.has(item.id)}
                   />
                 </div>
               </div>
@@ -203,7 +274,10 @@ export default function CartPage() {
               )}
 
               <CartSummary
-                cartData={cartData}
+                cartData={{
+                  ...cartData,
+                  ...calculateSelectedTotals()
+                }}
                 selectedCount={selectedItems.size}
                 onCheckout={handleCheckoutSelected}
                 isCheckoutDisabled={selectedItems.size === 0}

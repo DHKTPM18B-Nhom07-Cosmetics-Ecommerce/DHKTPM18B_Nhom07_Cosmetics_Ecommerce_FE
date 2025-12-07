@@ -14,3 +14,9 @@ export const getMinMaxPrice = (product) => {
     max: Math.max(...prices),
   };
 };
+
+// Format tiền Việt với dấu chấm phân cách hàng nghìn
+export const formatVND = (price) => {
+  if (!price && price !== 0) return '0đ';
+  return new Intl.NumberFormat('vi-VN').format(price) + 'đ';
+};
