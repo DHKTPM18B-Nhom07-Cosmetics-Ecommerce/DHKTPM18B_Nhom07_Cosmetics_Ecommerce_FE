@@ -31,6 +31,12 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('userName', fullName);
     localStorage.setItem('userRole', role);
     setUser({ name: fullName, token: token, role: role });
+    
+    //Xóa session storage (guest cart) khi đăng nhập
+    sessionStorage.removeItem('guest_cart');
+    
+    // Bắn tín hiệu để Header cập nhật
+    window.dispatchEvent(new Event('cart-updated'));
   };
 
   // Hàm Đăng xuất
@@ -38,7 +44,18 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('jwtToken');
     localStorage.removeItem('userName');
     localStorage.removeItem('userRole');
+
+    // 2. [QUAN TRỌNG] Xóa key 'user' mà CartService đang dùng để check ID
+    localStorage.removeItem('user');
+
+    // 3. Tạo session storage cho guest cart khi logout
+    // Khởi tạo session cart trống
+    sessionStorage.setItem('guest_cart', JSON.stringify([]));
+
     setUser(null);
+
+    // 5. [QUAN TRỌNG] Bắn tín hiệu để Header cập nhật số lượng về 0 ngay lập tức
+    window.dispatchEvent(new Event('cart-updated'));
   };
   
   // Giá trị Context cung cấp

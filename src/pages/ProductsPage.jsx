@@ -46,6 +46,8 @@ export default function ProductsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
   const [page, setPage] = useState(0);
+  // keep in sync with the `size` sent to the API (12)
+  const itemsPerPage = 12;
 
   // SEARCH
   const [search, setSearch] = useState(initialSearch);
@@ -174,7 +176,7 @@ export default function ProductsPage() {
                 onClick={resetFilter}
                 className="text-xs text-teal-600 hover:underline"
               >
-                Xóa tất cả
+                Đặt lại
               </button>
             </div>
 
@@ -424,10 +426,13 @@ export default function ProductsPage() {
                 ))}
               </div>
 
+              {/* Phân trang */}
               <Pagination
                 currentPage={page}
                 totalPages={totalPages}
                 onPageChange={setPage}
+                itemsPerPage={itemsPerPage}
+                totalItems={totalElements}
               />
             </>
           )}

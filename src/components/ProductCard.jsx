@@ -43,40 +43,61 @@ export default function ProductCard({ product }) {
   };
 
   // ---- ADD TO CART ----
-  const handleAddToCart = async (e) => {
-    e.stopPropagation();
-    e.preventDefault();
+const handleAddToCart = async (e) => {
+        e.stopPropagation(); 
+        e.preventDefault();
 
-    const userStored = localStorage.getItem("user");
-    if (!userStored) {
-      if (
-        window.confirm("Bạn cần đăng nhập để mua hàng. Chuyển đến trang đăng nhập?")
-      ) {
-        navigate("/login");
-      }
-      return;
-    }
+        // 1. Lấy thông tin User (để kiểm tra xem là Khách hay User)
+        const userStored = localStorage.getItem('user');
+        
+        // --- Xac nhan user ---
+        /*
+        if (!userStored) {
+            if (window.confirm("Bạn cần đăng nhập để mua hàng. Chuyển đến trang đăng nhập ngay?")) {
+                navigate('/login');
+            }
+            return; 
+        }
+        */
+        // ---------------------------------------------
 
-    const user = JSON.parse(userStored);
-    const accountId = user.id;
+        // 2. Xác định Account ID (Nếu khách vãng lai thì là null)
+        let accountId = null;
+        if (userStored) {
+            const user = JSON.parse(userStored);
+            accountId = user.id;
+        }
 
-    if (!product.variants?.length) {
-      alert("Sản phẩm chưa có phân loại hoặc hết hàng.");
-      return;
-    }
+        // 3. Kiểm tra biến thể 
+        if (!product.variants || product.variants.length === 0) {
+            alert("Sản phẩm này tạm hết hàng hoặc chưa có phân loại!");
+            return;
+        }
+        const defaultVariantId = product.variants[0].id;
 
-    const variantId = product.variants[0].id;
+        // Chuẩn bị thông tin phụ trợ cho Khách Vãng Lai (để lưu vào SessionStorage)
+        const productInfoForGuest = {
+             productId: product.id,
+             productName: product.name,
+             sizeName: product.variants[0].variantName,
+             price: product.variants[0].price,
+             image: (product.images && product.images[0]) || "/placeholder.svg"
+        };
 
-    try {
-      setAdding(true);
-      await addToCart(accountId, variantId, 1);
-      alert("Đã thêm vào giỏ!");
-    } catch (err) {
-      alert("Không thể thêm vào giỏ. Thử lại.");
-    } finally {
-      setAdding(false);
-    }
-  };
+        // 4. GỌI API (Truyền đủ tham số)
+        try {
+            setAdding(true);
+            // Truyền thêm productInfoForGuest vào tham số cuối
+            await addToCart(accountId, defaultVariantId, 1, productInfoForGuest);
+            
+            alert("Đã thêm vào giỏ hàng thành công!");
+        } catch (error) {
+            console.error(error);
+            alert("Lỗi: Không thể thêm vào giỏ hàng.");
+        } finally {
+            setAdding(false);
+        }
+    };
 
     
 

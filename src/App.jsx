@@ -10,6 +10,7 @@ import CartPage from "./pages/CartPage";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import CheckoutPage from "./pages/CheckoutPage";
+import AddAddressPage from "./pages/AddAddressPage";
 import ProductReviewPage from "./pages/ProductReviewPage";
 import OrderPage from "./pages/OrderPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
@@ -25,6 +26,7 @@ import AddEmployee from "./pages/admin/AddEmployee";
 import UserDetail from "./pages/admin/UserDetail";
 import ScrollToTop from "./components/ScrollToTop";
 import NotFound from "./pages/NotFound";
+import OrderDetailManagement from "./pages/admin/OrderDetailManagement";
 import "react-datepicker/dist/react-datepicker.css";
 
 import { ToastContainer } from "react-toastify";
@@ -53,6 +55,8 @@ export default function App() {
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/products/:id" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/add-address" element={<AddAddressPage />} />
           <Route path="/order" element={<OrderPage />} />
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />
           <Route path="/review-product" element={<ProductReviewPage />} />
@@ -66,6 +70,7 @@ export default function App() {
             <Route path="categories" element={<CategoryManagement />} />
             <Route path="products" element={<ProductManagement />} />
             <Route path="orders" element={<OrderManagement />} />
+            <Route path="orders/:orderId" element={<OrderDetailManagement />} />
             <Route path="vouchers" element={<VoucherManagement />} />
             <Route path="vouchers/create" element={<VoucherCreatePage />} />
             <Route path="vouchers/:id/edit" element={<VoucherEditPage />} />

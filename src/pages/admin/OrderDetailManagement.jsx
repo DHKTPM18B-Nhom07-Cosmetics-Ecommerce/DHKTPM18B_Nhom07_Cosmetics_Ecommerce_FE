@@ -15,10 +15,11 @@ import {
     ShoppingBag,
     CheckCircle,
     AlertTriangle,
-    Info
+    Info,
+    CheckSquare
 } from 'lucide-react';
 // SỬ DỤNG AUTH CONTEXT
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 // Định nghĩa URL cơ sở của API
 const API_BASE_URL = 'http://localhost:8080/api/orders';
@@ -29,7 +30,7 @@ const TEAL_BG = 'bg-[#2B6377]';
 const TEAL_HOVER_BG = 'hover:bg-[#E6F3F5]';
 const TEAL_ACTIVE_BG = 'bg-[#CCDFE3]';
 
-// --- HÀM TIỆN ÍCH CHUNG ---
+// --- HÀM TIỆN ÍCH CHUNG (Giữ nguyên) ---
 
 const formatCurrency = (amount) => {
     if (amount === null || amount === undefined) return 'N/A';
@@ -60,47 +61,18 @@ const translateStatus = (status) => {
         default: return status;
     }
 };
-
-const AccountSidebar = () => (
-    <div className="w-64 flex-shrink-0 bg-white p-4 rounded-lg shadow-sm font-sans sticky top-20 h-fit">
-        <h3 className="font-semibold text-lg text-gray-800 mb-4 border-b pb-2">Tài khoản</h3>
-        <nav className="space-y-2">
-            <Link to="/order" className={`flex items-center p-2 ${TEAL_TEXT} ${TEAL_ACTIVE_BG} rounded-md font-medium transition`}>
-                <Package className="w-4 h-4 mr-2" /> Quản lý đơn hàng
-            </Link>
-            <Link to="/profile" className={`flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition`}>
-                <User className="w-4 h-4 mr-2" /> Thông tin cá nhân
-            </Link>
-            <Link to="/addresses" className={`flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition`}>
-                <MapPin className="w-4 h-4 mr-2" /> Địa chỉ giao hàng
-            </Link>
-            <Link to="/logout" className={`flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition mt-4 border-t pt-2`}>
-                <LogOut className="w-4 h-4 mr-2" /> Thoát
-            </Link>
-        </nav>
-    </div>
-);
-
 /**
  * Hiển thị thông tin sản phẩm (tên, biến thể, ảnh)
- * Đã sửa logic hiển thị để TÊN SẢN PHẨM và BIẾN THỂ được hiển thị cùng nhau.
  */
 const ProductItemDisplay = ({ item }) => {
 
     const product = item.productVariant?.product;
-    // Lấy tên sản phẩm, nếu thiếu thì dùng tên biến thể (variantName), nếu vẫn thiếu thì dùng tên mặc định.
-    // Điều này đảm bảo dòng chính không bao giờ trống.
-    const productName = product?.name || item.productVariant?.variantName || 'Sản phẩm không rõ tên';
-
+    const productName = product?.name;
     const variantName = item.productVariant?.variantName;
-
-    // Tạo chuỗi hiển thị chính: Tên Sản phẩm (Tên Biến thể)
-    // Chỉ thêm biến thể vào nếu nó khác với tên sản phẩm chính.
-    const variantSuffix = (variantName && productName !== variantName) ? ` (${variantName})` : '';
-    const primaryDisplay = productName + variantSuffix;
-
-    // Xóa dòng phụ để không bị trùng lặp, chỉ giữ lại mã variant
-    const secondaryInfo = ''; // Giữ trống để không hiển thị dòng phụ
+    const primaryDisplay = productName || variantName || 'Sản phẩm không rõ';
+    const secondaryInfo = (productName && variantName && productName !== variantName) ?
+        `(${variantName})` :
+        '';
 
     const placeholderImage = 'https://placehold.co/50x50/f5f5f5/f5f5f5.png?text=SP';
 
@@ -128,12 +100,15 @@ const ProductItemDisplay = ({ item }) => {
             />
 
             <div className="flex-grow min-w-0 pt-1">
-                {/* Tên sản phẩm chính (có thể bao gồm biến thể trong ngoặc) */}
                 <p className="font-bold text-gray-800 leading-tight text-sm truncate" title={primaryDisplay}>
                     {primaryDisplay}
                 </p>
 
-                {/* Dòng phụ đã bị xóa (secondaryInfo) */}
+                {secondaryInfo && (
+                    <p className="text-xs text-gray-600 leading-snug truncate" title={secondaryInfo}>
+                        {secondaryInfo}
+                    </p>
+                )}
 
                 <p className="text-xs text-gray-500 mt-1">
                     Mã Variant: #{item.productVariant?.id || 'N/A'}
@@ -185,107 +160,29 @@ const OrderItemRow = ({ item }) => {
 };
 
 
-// --- UTILITY COMPONENTS (Modal & Message Box) ---
-
-// Message Display
-const MessageDisplay = ({ message, onClose }) => {
-    if (!message) return null;
-
-    const { type, text } = message;
-    const baseClass = 'fixed top-4 right-4 z-50 p-4 rounded-lg shadow-xl flex items-center max-w-sm transition-opacity duration-300';
-    let style = {};
-    let Icon = Info;
-
-    switch (type) {
-        case 'success':
-            style = { backgroundColor: '#D4EDDA', color: '#155724', border: '1px solid #C3E6CB' };
-            Icon = CheckCircle;
-            break;
-        case 'error':
-            style = { backgroundColor: '#F8D7DA', color: '#721C24', border: '1px solid #F5C6CB' };
-            Icon = XCircle;
-            break;
-        case 'info':
-        default:
-            style = { backgroundColor: '#CCE5FF', color: '#004085', border: '1px solid #B8DAFF' };
-            Icon = Info;
-            break;
-    }
-
-    return (
-        <div className={baseClass} style={style}>
-            <Icon className="w-5 h-5 mr-3 flex-shrink-0" />
-            <span className="text-sm font-medium flex-1">{text}</span>
-            <button
-                onClick={onClose}
-                className="ml-4 p-1 rounded-full hover:bg-black/10"
-                style={{ color: style.color }}
-            >
-                <XCircle className="w-4 h-4" />
-            </button>
-        </div>
-    );
-};
-
-// Confirmation Modal
-const ConfirmModal = ({ isOpen, title, children, onConfirm, onCancel }) => {
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 font-sans">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 m-4">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2 flex items-center">
-                    <AlertTriangle className="w-5 h-5 mr-2 text-red-500" /> {title}
-                </h3>
-                <div className="text-gray-700 mb-6">
-                    {children}
-                </div>
-                <div className="flex justify-end space-x-3">
-                    <button
-                        onClick={onCancel}
-                        className="py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition duration-150 text-sm font-medium"
-                    >
-                        Không
-                    </button>
-                    <button
-                        onClick={onConfirm}
-                        className="py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-150 text-sm font-medium"
-                    >
-                        Xác nhận Hủy
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-
-// --- COMPONENT CHÍNH: OrderDetailPage ---
-const OrderDetailPage = () => {
+// --- COMPONENT CHÍNH: OrderDetailManagement ---
+const OrderDetailManagement = () => {
     const { orderId } = useParams();
 
     // SỬ DỤNG AUTH CONTEXT
-    const { user, isLoading: authLoading, isLoggedIn } = useAuth();
-    const userToken = user?.token;
+    const { user, isLoggedIn, isLoading: authLoading } = useAuth();
+    const adminToken = user?.token;
+    const isAdminOrEmployee = user && (user.role === 'ADMIN' || user.role === 'EMPLOYEE');
 
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // State cho thông báo và modal
-    const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
-    const [message, setMessage] = useState(null); // { type: 'success' | 'error', text: '...' }
 
-
-    // --- HÀM GỌI API LẤY CHI TIẾT ĐƠN HÀNG ---
+    // --- HÀM GỌI API LẤY CHI TIẾT ĐƠN HÀNG ADMIN ---
     const fetchOrderDetail = useCallback(async (id) => {
 
-        // Logic ánh xạ dữ liệu địa chỉ và tên khách hàng từ cấu trúc Customer -> Account
+        // 🚨 LOGIC ĐÃ SỬA: Ánh xạ dữ liệu địa chỉ và tên khách hàng từ cấu trúc Backend
         const mapApiData = (data) => {
             const address = data.address;
             const customer = data.customer;
 
-            // Lấy Tên Khách hàng từ cấu trúc Customer -> Account (Backend trả về)
+            // Lấy Tên Khách hàng từ cấu trúc Customer -> Account
             const customerFullName = customer?.account?.fullName;
 
             if (address) {
@@ -303,14 +200,15 @@ const OrderDetailPage = () => {
                 data.shippingAddress = null;
             }
 
-            // Thêm trường hiển thị tên khách hàng cho giao diện
+            // Thêm trường hiển thị tên khách hàng cho giao diện (tên tài khoản)
             data.displayCustomerName = customerFullName || 'Khách hàng không rõ';
 
             return data;
         };
 
-        if (!isLoggedIn || !userToken) {
-            setError('Vui lòng đăng nhập để xem chi tiết đơn hàng này.');
+
+        if (!isLoggedIn || !isAdminOrEmployee || !adminToken) {
+            setError('Lỗi phân quyền: Yêu cầu tài khoản quản lý.');
             setLoading(false);
             return;
         }
@@ -326,12 +224,13 @@ const OrderDetailPage = () => {
         try {
             const config = {
                 headers: {
-                    Authorization: `Bearer ${userToken}`,
+                    Authorization: `Bearer ${adminToken}`,
                 },
             };
 
-            // Gọi API Customer /api/orders/{id}
-            const response = await axios.get(`${API_BASE_URL}/${id}`, config);
+            // 🚨 GỌI ENDPOINT ADMIN MỚI ĐÃ THÊM VÀO CONTROLLER
+            // API VÍ DỤ: http://localhost:8080/api/orders/admin/12
+            const response = await axios.get(`${API_BASE_URL}/admin/${id}`, config);
             const finalData = mapApiData(response.data);
 
             setOrder(finalData);
@@ -339,17 +238,15 @@ const OrderDetailPage = () => {
         } catch (err) {
             console.error('Lỗi khi tải chi tiết đơn hàng:', err);
             const status = err.response?.status;
-
-            // Lỗi 404/403 ở đây thường do đơn hàng không tồn tại hoặc không thuộc về người dùng
-            if (status === 401 || status === 403 || status === 404) {
-                setError('Không tìm thấy đơn hàng hoặc bạn không có quyền sở hữu đơn hàng này. Vui lòng kiểm tra lại.');
+            if (status === 401 || status === 403) {
+                setError('Lỗi phân quyền: Token không hợp lệ hoặc không phải Admin/Employee.');
             } else {
-                setError(`Không thể tải chi tiết đơn hàng #${id}. Lỗi HTTP: ${status || 'Không rõ'}.`);
+                setError(`Không thể tải chi tiết đơn hàng #${id}. Lỗi HTTP: ${status || 'Không rõ'}. Vui lòng kiểm tra ID hoặc trạng thái tồn tại của đơn hàng.`);
             }
         } finally {
             setLoading(false);
         }
-    }, [isLoggedIn, userToken]);
+    }, [isLoggedIn, isAdminOrEmployee, adminToken]);
 
     useEffect(() => {
         if (!authLoading) {
@@ -357,128 +254,17 @@ const OrderDetailPage = () => {
         }
     }, [orderId, authLoading, fetchOrderDetail]);
 
-    // --- Các hàm nghiệp vụ (được giữ nguyên) ---
-    const updateOrderStatus = (newStatus) => {
-        setOrder(prevOrder => ({
-            ...prevOrder,
-            status: newStatus
-        }));
+    // --- LOGIC HIỂN THỊ NÚT HÀNH ĐỘNG (BỊ LOẠI BỎ THEO YÊU CẦU) ---
+    const renderActionButtons = () => {
+        // Trả về null hoặc component chỉ hiển thị thông tin
+        return (
+            <span className="text-sm text-gray-500 italic">
+                (Không có thao tác nào trong chế độ quản lý)
+            </span>
+        );
     };
 
-    const handleCancelOrder = () => {
-        // Chỉ cho phép hủy khi là PENDING
-        if (order.status !== 'PENDING') {
-            setMessage({ type: 'error', text: 'Chỉ đơn hàng đang ở trạng thái "Chờ xử lý" mới có thể hủy.' });
-            return;
-        }
-
-        if (!userToken) {
-            setMessage({ type: 'error', text: 'Lỗi xác thực. Vui lòng đăng nhập lại.' });
-            return;
-        }
-
-        setIsCancelConfirmOpen(true);
-    };
-
-    const confirmCancelOrder = async () => {
-        setIsCancelConfirmOpen(false);
-
-        const CANCEL_URL = `${API_BASE_URL}/${orderId}/cancel`;
-
-        try {
-            const config = {
-                headers: {
-                    Authorization: `Bearer ${userToken}`,
-                },
-            };
-
-            await axios.put(CANCEL_URL, {}, config);
-
-            updateOrderStatus('CANCELLED');
-            setMessage({ type: 'success', text: `Đơn hàng #${orderId} đã được hủy thành công.` });
-            fetchOrderDetail(orderId);
-
-        } catch (err) {
-            console.error('Lỗi khi hủy đơn hàng:', err);
-            const errorMessage = err.response?.data?.message || 'Không thể hủy đơn hàng. Vui lòng kiểm tra lại quyền hạn.';
-            setMessage({ type: 'error', text: `Lỗi hủy đơn hàng: ${errorMessage}` });
-        }
-    };
-
-
-    const handleReorder = () => {
-        setMessage({ type: 'info', text: 'Chức năng đặt lại đang được phát triển.' });
-    };
-
-    const handleReturn = () => {
-        setMessage({ type: 'info', text: 'Chức năng yêu cầu trả hàng đang được phát triển.' });
-    };
-
-    const handleRate = () => {
-        setMessage({ type: 'info', text: 'Chức năng đánh giá sản phẩm đang được phát triển.' });
-    };
-
-
-    const renderActionButtons = (status) => {
-        const baseClass = 'font-semibold py-2 px-4 rounded-md transition duration-200 shadow-sm text-sm flex items-center justify-center';
-
-        switch (status) {
-            case 'PENDING':
-                // Nút Hủy khi là PENDING
-                return (
-                    <button
-                        onClick={handleCancelOrder}
-                        className={`${baseClass} bg-red-600 text-white hover:bg-red-700`}
-                    >
-                        Hủy Đơn Hàng
-                    </button>
-                );
-            case 'CONFIRMED':
-            case 'PROCESSING':
-            case 'SHIPPING':
-                // KHÔNG CÓ NÚT HỦY/MUA LẠI/TRẢ HÀNG khi đang trong quá trình vận chuyển
-                return <span className="text-gray-500 text-sm">Đang trong quy trình</span>;
-
-            case 'DELIVERED':
-                return (
-                    <div className="flex flex-wrap gap-3">
-                        <button
-                            onClick={handleReorder}
-                            className={`${baseClass} ${TEAL_BG} text-white hover:opacity-90`}
-                        >
-                            <ShoppingBag className="w-4 h-4 mr-2" /> Mua Lại
-                        </button>
-                        <button
-                            onClick={handleReturn}
-                            className={`${baseClass} bg-white border border-gray-300 text-gray-700 hover:bg-gray-100`}
-                        >
-                            <Repeat2 className="w-4 h-4 mr-2" /> Trả Hàng
-                        </button>
-                        <button
-                            onClick={handleRate}
-                            className={`${baseClass} bg-white border border-gray-300 text-gray-700 hover:bg-gray-100`}
-                        >
-                            <Star className="w-4 h-4 mr-2" /> Đánh Giá
-                        </button>
-                    </div>
-                );
-            case 'CANCELLED':
-            case 'RETURNED':
-            case 'REFUNDED':
-                return (
-                    <button
-                        onClick={handleReorder}
-                        className={`${baseClass} ${TEAL_BG} text-white hover:opacity-90`}
-                    >
-                        <ShoppingBag className="w-4 h-4 mr-2" /> Mua Lại
-                    </button>
-                );
-            default:
-                return <span className="text-gray-500 text-sm">Không có thao tác khả dụng</span>;
-        }
-    };
-
-    // --- Xử lý tải dữ liệu và lỗi (được giữ nguyên) ---
+    // --- Xử lý tải dữ liệu và lỗi ---
     if (authLoading || loading) {
         return (
             <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
@@ -489,17 +275,29 @@ const OrderDetailPage = () => {
         );
     }
 
-    if (error || !order) {
+    // Kiểm tra quyền truy cập lần cuối
+    if (!isLoggedIn || !isAdminOrEmployee || error) {
         return (
             <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
                 <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16 text-center text-lg text-red-500">
-                    {error || 'Không tìm thấy đơn hàng.'}
+                    {error || 'Bạn không có quyền truy cập trang này.'}
                 </div>
             </div>
         );
     }
 
-    // --- LOGIC TÍNH TOÁN TỔNG KẾT (được giữ nguyên) ---
+    if (!order) {
+        return (
+            <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
+                <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16 text-center text-lg text-red-500">
+                    Không tìm thấy đơn hàng.
+                </div>
+            </div>
+        );
+    }
+
+
+    // --- LOGIC TÍNH TOÁN TỔNG KẾT ---
     const orderItems = order.orderDetails ?? [];
 
     const { subTotal, productDiscountTotal } = orderItems.reduce((acc, item) => {
@@ -515,11 +313,12 @@ const OrderDetailPage = () => {
 
     const orderDiscountAmount = parseFloat(order.orderDiscountAmount ?? 0);
     const shippingFee = parseFloat(order.shippingFee ?? 0);
+
     const grandDiscountTotal = productDiscountTotal + orderDiscountAmount;
     const finalTotal = subTotal - grandDiscountTotal + shippingFee;
 
 
-    // Format ngày giờ (được giữ nguyên)
+    // Format ngày giờ
     const orderDate = order.orderDate
         ? new Date(order.orderDate).toLocaleDateString('vi-VN', {
         day: '2-digit',
@@ -531,45 +330,24 @@ const OrderDetailPage = () => {
     })
         : 'N/A';
 
-    // Lấy thông tin giao hàng đã được ánh xạ (shippingInfo)
+    // Lấy thông tin giao hàng đã được ánh xạ
     const shippingInfo = order.shippingAddress;
 
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
 
-            {/* MESSAGE BOX */}
-            <MessageDisplay
-                message={message}
-                onClose={() => setMessage(null)}
-            />
-
-            {/* CONFIRMATION MODAL */}
-            <ConfirmModal
-                isOpen={isCancelConfirmOpen}
-                title="Xác nhận Hủy Đơn Hàng"
-                onConfirm={confirmCancelOrder}
-                onCancel={() => setIsCancelConfirmOpen(false)}
-            >
-                <p>Bạn có chắc chắn muốn hủy đơn hàng <span className="font-bold">#{order.id}</span> này không?</p>
-                <p className="text-sm mt-2 text-red-500">Thao tác này không thể hoàn tác.</p>
-            </ConfirmModal>
-
             <div className="flex-1 w-full mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
                 {/* Breadcrumbs */}
                 <div className="text-sm text-gray-500 mb-6 flex items-center">
                     <Link to="/" className="cursor-pointer hover:text-[#2B6377]">Home</Link>
                     <span className="mx-2">/</span>
-                    <Link to="/account" className="cursor-pointer hover:text-[#2B6377]">Tài khoản</Link>
-                    <span className="mx-2">/</span>
-                    <Link to="/order" className="cursor-pointer hover:text-[#2B6377]">Quản lý đơn hàng</Link>
+                    <Link to="/admin/orders" className="cursor-pointer hover:text-[#2B6377]">Quản lý đơn hàng</Link>
                     <span className="mx-2">/</span>
                     <span className="font-medium text-[#2B6377]">Chi tiết đơn hàng</span>
                 </div>
 
                 <div className="flex gap-8">
-                    {/* Sidebar */}
-                    <AccountSidebar />
 
                     {/* Main Content */}
                     <main className="flex-1">
@@ -583,7 +361,8 @@ const OrderDetailPage = () => {
                                 <p className="text-sm text-gray-500">
                                     Ngày đặt: <span className="font-medium text-gray-700">{orderDate}</span>
                                 </p>
-                                {renderActionButtons(order.status)}
+                                {/* KHÔNG CÓ NÚT THAO TÁC */}
+                                {renderActionButtons()}
                             </div>
 
                             {/* Trạng thái hiện tại */}
@@ -627,7 +406,7 @@ const OrderDetailPage = () => {
                                 </h3>
                                 <div className="space-y-3 text-gray-700">
                                     <p className="flex flex-col">
-                                        <span className="text-sm text-gray-500">Họ tên:</span>
+                                        <span className="text-sm text-gray-500">Họ tên người nhận:</span>
                                         <span className="font-semibold text-gray-800">{shippingInfo?.recipientName || 'N/A'}</span>
                                     </p>
                                     <p className="flex flex-col">
@@ -635,9 +414,18 @@ const OrderDetailPage = () => {
                                         <span className="font-semibold text-gray-800">{shippingInfo?.phone || 'N/A'}</span>
                                     </p>
                                     <p className="flex flex-col">
-                                        <span className="text-sm text-gray-500">Địa chỉ giao hàng:</span>
+                                        <span className="text-sm text-gray-500">Địa chỉ:</span>
                                         <span className="font-semibold text-gray-800">{shippingInfo?.addressLine || 'N/A'}</span>
                                     </p>
+                                </div>
+                                <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-2 border-t pt-2">
+                                    Nhân viên xử lý
+                                </h3>
+                                {/* Thông tin Employee (Mock) */}
+                                <div className="text-sm text-gray-700">
+                                    {/* Trong thực tế, bạn sẽ dùng order.employee.account.fullName */}
+                                    <p>Tên: Lê Minh Tuấn (ID: 1)</p>
+                                    <p>Thời gian xử lý: 2025-03-21</p>
                                 </div>
                             </div>
 
@@ -666,6 +454,14 @@ const OrderDetailPage = () => {
                                             {formatCurrency(finalTotal)}
                                         </span>
                                     </div>
+
+                                    {/* Lý do hủy/Trả hàng (Nếu có) */}
+                                    {order.status === 'CANCELLED' && order.cancelReason && (
+                                        <div className="mt-4 p-3 bg-red-50 rounded-lg text-red-700 text-sm border border-red-200">
+                                            <p className="font-semibold">Lý do Hủy:</p>
+                                            <p>{order.cancelReason}</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -676,4 +472,4 @@ const OrderDetailPage = () => {
     );
 };
 
-export default OrderDetailPage;
+export default OrderDetailManagement;

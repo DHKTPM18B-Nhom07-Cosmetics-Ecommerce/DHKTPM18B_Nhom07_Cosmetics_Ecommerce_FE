@@ -19,7 +19,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 import { getAllProducts } from "../services/productService";
-import { getCartData } from "../services/cartService";
+import { getCartData, getCartData as getCartDataService } from "../services/cartService";
+import { getAddressesByCustomerId, getCustomerIdByAccountId } from "../services/checkout";
 export default function Header() {
   const { user, logout, isLoggedIn } = useAuth();
   const navigate = useNavigate();
@@ -140,6 +141,40 @@ export default function Header() {
   const handleGoToOrders = () => {
     setIsUserMenuOpen(false);
     navigate("/order");
+  };
+
+  // Handle shipping address click
+  const handleShippingAddressClick = async () => {
+    setIsUserMenuOpen(false);
+    
+    try {
+      const userStored = localStorage.getItem("user");
+      if (!userStored) {
+        navigate("/login");
+        return;
+      }
+
+      const user = JSON.parse(userStored);
+      const customerId = await getCustomerIdByAccountId(user.id);
+      
+      if (!customerId) {
+        navigate("/login");
+        return;
+      }
+
+      const addresses = await getAddressesByCustomerId(customerId);
+      
+      // If no addresses, go to add address page
+      if (!addresses || addresses.length === 0) {
+        navigate("/add-address");
+      } else {
+        // Otherwise stay on current page or show modal (future enhancement)
+        navigate("/checkout");
+      }
+    } catch (error) {
+      console.error("Error checking addresses:", error);
+      navigate("/add-address");
+    }
   };
   // ==============================
   // HIGHLIGHT MATCHES
@@ -413,7 +448,10 @@ export default function Header() {
                     <Heart className="w-4 h-4" /> Sản phẩm yêu thích
                   </button>
 
-                  <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
+                  <button
+                    onClick={handleShippingAddressClick}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3"
+                  >
                     <MapPin className="w-4 h-4" /> Địa chỉ giao hàng
                   </button>
 

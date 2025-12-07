@@ -1,0 +1,155 @@
+/* Carousel/Slider Styles */
+
+/* Container chứa tất cả slides */
+.carousel-slider {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+/* Mỗi slide */
+.carousel-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* Zoom overlay - Loại bỏ hiệu ứng zoom */
+.carousel-zoom-overlay {
+  display: none;
+}
+
+/* Nút điều hướng (Prev / Next) */
+.carousel-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(43, 99, 119, 0.5);
+  color: white;
+  border: none;
+  width: 30px;
+  height: 48px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: background-color 200ms ease;
+}
+
+.carousel-nav-btn:hover {
+  background-color: #2b6377;
+}
+
+.carousel-nav-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.carousel-nav-btn-prev {
+  left: 12px;
+}
+
+.carousel-nav-btn-next {
+  right: 12px;
+}
+
+/* Nút điều hướng overlay (trên thumbnails) */
+
+.carousel-nav-btn-overlay {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(56, 129, 156, 0.25); /* trong suốt 25% */
+  color: white;
+  border: none;
+
+  width: 30px;
+  height: 50px;
+  border-radius: 6px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+  z-index: 20;
+  backdrop-filter: blur(4px);
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.carousel-nav-btn-overlay:hover {
+  background: rgba(56, 129, 156); /* hover rõ hơn */
+}
+
+.carousel-nav-btn-overlay:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.carousel-nav-btn-overlay-prev {
+  left: 0;
+}
+
+.carousel-nav-btn-overlay-next {
+  right: 0;
+}
+
+/* Thumbnails wrapper & thumb sizing - make thumbnails larger so not all fit at once
+   and require scrolling; scrollIntoView will bring a selected thumb into center. */
+
+.thumbnails-wrapper {
+  scroll-behavior: smooth;
+  padding-left: 4px; /* space for left overlay button */
+  padding-right: 4px; /* space for right overlay button */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.thumbnails-wrapper .thumb {
+  width: 76px;
+  height: 76px;
+  min-width: 76px;
+  min-height: 76px;
+  overflow: hidden;
+  border-radius: 6px;
+  scroll-snap-align: center;
+  cursor: pointer;
+}
+
+/* Enable scroll snap for nicer centering */
+.thumbnails-wrapper {
+  scroll-snap-type: x mandatory;
+}
+
+/* Responsive - ẩn nút trên mobile nếu muốn */
+@media (max-width: 768px) {
+  .carousel-nav-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .carousel-nav-btn-prev {
+    left: 8px;
+  }
+
+  .carousel-nav-btn-next {
+    right: 8px;
+  }
+}
+
+/* Thumbnail container scrollbar hide (đã có trong index.css) */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Để disable animation khi đang reset position */
+.carousel-slider.no-transition {
+  transition: none !important;
+}
