@@ -4,15 +4,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { getSystemAlerts } from '../../services/api';
 
-const navItems = [
-  { name: 'Dashboard', path: '/admin' },
-  { name: 'Danh mục', path: '/admin/categories' },
-  { name: 'Sản phẩm', path: '/admin/products' },
-  { name: 'Đơn hàng', path: '/admin/orders' },
-  { name: 'Mã giảm giá', path: '/admin/vouchers' },
-  { name: 'Tài khoản', path: '/admin/users' },
-];
-
 export default function HeaderNavbar() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -27,6 +18,23 @@ export default function HeaderNavbar() {
 
   const notifRef = useRef(null);
   const userRef = useRef(null);
+
+  // Danh sách nav items đầy đủ
+  const allNavItems = [
+    { name: 'Dashboard', path: '/admin' },
+    { name: 'Danh mục', path: '/admin/categories' },
+    { name: 'Sản phẩm', path: '/admin/products' },
+    { name: 'Đơn hàng', path: '/admin/orders' },
+    { name: 'Mã giảm giá', path: '/admin/vouchers' },
+    { name: 'Tài khoản', path: '/admin/users' },
+  ];
+
+  // Lọc nav items dựa trên role
+  const navItems = currentUser?.role === 'EMPLOYEE' 
+    ? allNavItems.filter(item => 
+        item.name !== 'Mã giảm giá' && item.name !== 'Tài khoản'
+      )
+    : allNavItems;
 
   // --- 1. LẤY THÔNG TIN USER TỪ LOCAL STORAGE (Dữ liệu thật) ---
   useEffect(() => {
