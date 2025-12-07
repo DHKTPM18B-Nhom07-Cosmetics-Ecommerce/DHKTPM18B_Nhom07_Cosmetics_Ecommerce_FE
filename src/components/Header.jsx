@@ -249,7 +249,7 @@ export default function Header() {
   const handleLogout = () => {
     logout();
     setIsUserMenuOpen(false);
-    navigate("/");
+    navigate("/products");
   };
 
   // ==============================
