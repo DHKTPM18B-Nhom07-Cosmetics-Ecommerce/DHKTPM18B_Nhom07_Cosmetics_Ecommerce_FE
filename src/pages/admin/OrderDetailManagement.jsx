@@ -61,32 +61,34 @@ const translateStatus = (status) => {
         default: return status;
     }
 };
+
 /**
  * Hiển thị thông tin sản phẩm (tên, biến thể, ảnh)
+ * ĐÃ SỬA: Lấy Tên Sản phẩm gốc làm tiêu đề chính.
  */
 const ProductItemDisplay = ({ item }) => {
 
     const product = item.productVariant?.product;
-    const productName = product?.name;
     const variantName = item.productVariant?.variantName;
-    const primaryDisplay = productName || variantName || 'Sản phẩm không rõ';
-    const secondaryInfo = (productName && variantName && productName !== variantName) ?
-        `(${variantName})` :
-        '';
-
     const placeholderImage = 'https://placehold.co/50x50/f5f5f5/f5f5f5.png?text=SP';
 
-    let imageUrl = null;
-    const productImages = product?.images;
+    // 1. TÊN SẢN PHẨM CHÍNH (LẤY TỪ PRODUCT.NAME)
+    const productName = product?.name || 'Sản phẩm không rõ tên';
 
-    if (productImages && productImages.length > 0) {
-        const firstImage = productImages[0];
-        if (typeof firstImage === 'string') {
-            imageUrl = firstImage;
-        } else if (typeof firstImage === 'object' && firstImage !== null) {
-            imageUrl = firstImage.image_url || firstImage.imageUrl;
-        }
+    // 2. TẠO CHUỖI HIỂN THỊ CHÍNH: Tên Sản phẩm [ + (Tên Biến thể) ]
+    // Ví dụ: "Sữa Rửa Mặt CeraVe (473ml)"
+    const primaryDisplay = (productName === variantName) ?
+        productName :
+        (variantName ? `${productName} (${variantName})` : productName);
+
+    // 3. LẤY URL ẢNH (Ưu tiên từ Variant.imageUrls)
+    let imageUrl = null;
+    const variantImages = item.productVariant?.imageUrls;
+
+    if (variantImages && variantImages.length > 0) {
+        imageUrl = variantImages[0]; // Ưu tiên ảnh của Variant (index 0)
     }
+    // Logic dự phòng (nếu cần) có thể được thêm ở đây, nhưng tạm thời dùng placeholder
     imageUrl = imageUrl || placeholderImage;
 
 
@@ -100,15 +102,18 @@ const ProductItemDisplay = ({ item }) => {
             />
 
             <div className="flex-grow min-w-0 pt-1">
+                {/* Tên sản phẩm chính (đã kết hợp tên biến thể) */}
                 <p className="font-bold text-gray-800 leading-tight text-sm truncate" title={primaryDisplay}>
                     {primaryDisplay}
                 </p>
 
-                {secondaryInfo && (
-                    <p className="text-xs text-gray-600 leading-snug truncate" title={secondaryInfo}>
-                        {secondaryInfo}
+                {/* Dòng phụ: Chỉ hiển thị tên biến thể nếu nó khác với tên chính */}
+                {variantName && variantName !== productName && (
+                    <p className="text-xs text-gray-600 leading-snug truncate" title={`Biến thể: ${variantName}`}>
+                        Biến thể: {variantName}
                     </p>
                 )}
+
 
                 <p className="text-xs text-gray-500 mt-1">
                     Mã Variant: #{item.productVariant?.id || 'N/A'}
@@ -160,6 +165,49 @@ const OrderItemRow = ({ item }) => {
 };
 
 
+// --- UTILITY COMPONENTS (Message Box) ---
+
+// Message Display
+const MessageDisplay = ({ message, onClose }) => {
+    if (!message) return null;
+
+    const { type, text } = message;
+    const baseClass = 'fixed top-4 right-4 z-50 p-4 rounded-lg shadow-xl flex items-center max-w-sm transition-opacity duration-300';
+    let style = {};
+    let Icon = Info;
+
+    switch (type) {
+        case 'success':
+            style = { backgroundColor: '#D4EDDA', color: '#155724', border: '1px solid #C3E6CB' };
+            Icon = CheckCircle;
+            break;
+        case 'error':
+            style = { backgroundColor: '#F8D7DA', color: '#721C24', border: '1px solid #F5C6CB' };
+            Icon = XCircle;
+            break;
+        case 'info':
+        default:
+            style = { backgroundColor: '#CCE5FF', color: '#004085', border: '1px solid #B8DAFF' };
+            Icon = Info;
+            break;
+    }
+
+    return (
+        <div className={baseClass} style={style}>
+            <Icon className="w-5 h-5 mr-3 flex-shrink-0" />
+            <span className="text-sm font-medium flex-1">{text}</span>
+            <button
+                onClick={onClose}
+                className="ml-4 p-1 rounded-full hover:bg-black/10"
+                style={{ color: style.color }}
+            >
+                <XCircle className="w-4 h-4" />
+            </button>
+        </div>
+    );
+};
+
+
 // --- COMPONENT CHÍNH: OrderDetailManagement ---
 const OrderDetailManagement = () => {
     const { orderId } = useParams();
@@ -172,12 +220,13 @@ const OrderDetailManagement = () => {
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [message, setMessage] = useState(null); // { type: 'success' | 'error', text: '...' }
 
 
     // --- HÀM GỌI API LẤY CHI TIẾT ĐƠN HÀNG ADMIN ---
     const fetchOrderDetail = useCallback(async (id) => {
 
-        // 🚨 LOGIC ĐÃ SỬA: Ánh xạ dữ liệu địa chỉ và tên khách hàng từ cấu trúc Backend
+        // Logic ánh xạ dữ liệu địa chỉ và tên khách hàng từ cấu trúc Backend
         const mapApiData = (data) => {
             const address = data.address;
             const customer = data.customer;
@@ -188,7 +237,7 @@ const OrderDetailManagement = () => {
             if (address) {
                 data.shippingAddress = {
                     // Ưu tiên tên trong Address, sau đó là tên từ Customer Account
-                    recipientName: address.fullName || customerFullName || 'N/A',
+                    recipientName: address.fullName || customerFullName || 'Khách vãng lai', // SỬA N/A thành Khách vãng lai
                     phone: address.phone || 'N/A',
                     addressLine: [
                         address.address,
@@ -201,7 +250,8 @@ const OrderDetailManagement = () => {
             }
 
             // Thêm trường hiển thị tên khách hàng cho giao diện (tên tài khoản)
-            data.displayCustomerName = customerFullName || 'Khách hàng không rõ';
+            // SỬA N/A thành Khách vãng lai
+            data.displayCustomerName = customerFullName || 'Khách vãng lai';
 
             return data;
         };
@@ -228,8 +278,6 @@ const OrderDetailManagement = () => {
                 },
             };
 
-            // 🚨 GỌI ENDPOINT ADMIN MỚI ĐÃ THÊM VÀO CONTROLLER
-            // API VÍ DỤ: http://localhost:8080/api/orders/admin/12
             const response = await axios.get(`${API_BASE_URL}/admin/${id}`, config);
             const finalData = mapApiData(response.data);
 
@@ -254,9 +302,8 @@ const OrderDetailManagement = () => {
         }
     }, [orderId, authLoading, fetchOrderDetail]);
 
-    // --- LOGIC HIỂN THỊ NÚT HÀNH ĐỘNG (BỊ LOẠI BỎ THEO YÊU CẦU) ---
+    // --- LOGIC HIỂN THỊ NÚT HÀNH ĐỘNG (Được giữ nguyên) ---
     const renderActionButtons = () => {
-        // Trả về null hoặc component chỉ hiển thị thông tin
         return (
             <span className="text-sm text-gray-500 italic">
                 (Không có thao tác nào trong chế độ quản lý)
@@ -337,6 +384,12 @@ const OrderDetailManagement = () => {
     return (
         <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
 
+            {/* MESSAGE BOX */}
+            <MessageDisplay
+                message={message}
+                onClose={() => setMessage(null)}
+            />
+
             <div className="flex-1 w-full mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
                 {/* Breadcrumbs */}
                 <div className="text-sm text-gray-500 mb-6 flex items-center">
@@ -355,7 +408,7 @@ const OrderDetailManagement = () => {
                         {/* HEADER CHI TIẾT ĐƠN HÀNG */}
                         <div className="bg-white p-6 rounded-lg shadow-md mb-8">
                             <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                                CHI TIẾT ĐƠN HÀNG #{order.id} (KH: {order.displayCustomerName || 'N/A'})
+                                CHI TIẾT ĐƠN HÀNG #{order.id} (KH: {order.displayCustomerName || 'Khách vãng lai'})
                             </h2>
                             <div className="flex justify-between items-center border-b pb-4 mb-4">
                                 <p className="text-sm text-gray-500">
@@ -407,7 +460,7 @@ const OrderDetailManagement = () => {
                                 <div className="space-y-3 text-gray-700">
                                     <p className="flex flex-col">
                                         <span className="text-sm text-gray-500">Họ tên người nhận:</span>
-                                        <span className="font-semibold text-gray-800">{shippingInfo?.recipientName || 'N/A'}</span>
+                                        <span className="font-semibold text-gray-800">{shippingInfo?.recipientName || 'Khách vãng lai'}</span>
                                     </p>
                                     <p className="flex flex-col">
                                         <span className="text-sm text-gray-500">Số điện thoại:</span>
