@@ -35,6 +35,8 @@ import "react-toastify/dist/ReactToastify.css";
 import VoucherCreatePage from "./pages/admin/VoucherCreatePage";
 import VoucherEditPage from "./pages/admin/VoucherEditPage";
 
+import OrderSuccessPage from "./pages/OrderSuccessPage";
+
 export default function App() {
   return (
     <AuthProvider>
@@ -56,6 +58,7 @@ export default function App() {
           <Route path="/products/:id" element={<ProductDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/order-success" element={<OrderSuccessPage />} />
           <Route path="/add-address" element={<AddAddressPage />} />
           <Route path="/order" element={<OrderPage />} />
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />

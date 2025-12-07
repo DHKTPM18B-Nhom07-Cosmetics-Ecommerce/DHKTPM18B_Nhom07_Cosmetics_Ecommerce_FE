@@ -1,10 +1,14 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { getCartData, updateCartItemQuantity, removeCartItem } from '../services/cartService';
-import CartItem from '../components/CartItem';
-import CartSummary from '../components/CartSummary';
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ShoppingBag } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import {
+  getCartData,
+  updateCartItemQuantity,
+  removeCartItem,
+} from "../services/cartService";
+import CartItem from "../components/CartItem";
+import CartSummary from "../components/CartSummary";
 
 export default function CartPage() {
   const navigate = useNavigate();
@@ -23,7 +27,7 @@ export default function CartPage() {
       const data = await getCartData();
       setCartData(data);
     } catch (error) {
-      console.error('Error loading cart:', error);
+      console.error("Error loading cart:", error);
     } finally {
       setLoading(false);
     }
@@ -35,7 +39,7 @@ export default function CartPage() {
       await updateCartItemQuantity(cartItemId, newQuantity);
       loadCart();
     } catch (error) {
-      console.error('Error updating quantity:', error);
+      console.error("Error updating quantity:", error);
     }
   };
 
@@ -44,7 +48,7 @@ export default function CartPage() {
       await removeCartItem(cartItemId);
       loadCart();
     } catch (error) {
-      console.error('Error removing item:', error);
+      console.error("Error removing item:", error);
     }
   };
 
@@ -64,19 +68,19 @@ export default function CartPage() {
     if (selectedItems.size === cartData.items.length) {
       setSelectedItems(new Set());
     } else {
-      setSelectedItems(new Set(cartData.items.map(item => item.id)));
+      setSelectedItems(new Set(cartData.items.map((item) => item.id)));
     }
   };
 
   // Get selected items data for checkout
   const getSelectedItemsData = () => {
-    return cartData.items.filter(item => selectedItems.has(item.id));
+    return cartData.items.filter((item) => selectedItems.has(item.id));
   };
 
   // Handle checkout with selected items
   const handleCheckoutSelected = () => {
     if (selectedItems.size === 0) {
-      alert('Vui lòng chọn ít nhất một sản phẩm để thanh toán!');
+      alert("Vui lòng chọn ít nhất một sản phẩm để thanh toán!");
       return;
     }
 
@@ -84,22 +88,37 @@ export default function CartPage() {
     const selectedCartData = {
       ...cartData,
       items: selected,
-      subtotal: selected.reduce((sum, item) => sum + (item.salePrice || item.originalPrice) * item.quantity, 0)
+      subtotal: selected.reduce(
+        (sum, item) =>
+          sum + (item.salePrice || item.originalPrice) * item.quantity,
+        0
+      ),
     };
 
     // Navigate to checkout with selected items
-    navigate('/checkout', { state: { selectedItems: selectedCartData, selectedItemIds: Array.from(selectedItems) } });
+    navigate("/checkout", {
+      state: {
+        selectedItems: selectedCartData,
+        selectedItemIds: Array.from(selectedItems),
+      },
+    });
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-lg">Đang tải...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center text-lg">
+        Đang tải...
+      </div>
+    );
   }
 
   if (!cartData || cartData.items.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
         <ShoppingBag className="w-20 h-20 text-gray-300 mb-4" />
-        <h2 className="text-2xl font-semibold text-gray-600 mb-3">Giỏ hàng trống</h2>
+        <h2 className="text-2xl font-semibold text-gray-600 mb-3">
+          Giỏ hàng trống
+        </h2>
         <Link to="/products" className="text-teal-600 hover:underline">
           Tiếp tục mua hàng
         </Link>
@@ -112,7 +131,9 @@ export default function CartPage() {
       {/* Breadcrumb */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 py-3 text-sm text-gray-600">
-          <Link to="/" className="hover:text-teal-600">Trang chủ</Link>
+          <Link to="/" className="hover:text-teal-600">
+            Trang chủ
+          </Link>
           <span className="mx-2">›</span>
           <span className="text-gray-900 font-medium">Giỏ hàng</span>
         </div>
@@ -129,7 +150,10 @@ export default function CartPage() {
             <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center gap-3">
               <input
                 type="checkbox"
-                checked={selectedItems.size === cartData.items.length && cartData.items.length > 0}
+                checked={
+                  selectedItems.size === cartData.items.length &&
+                  cartData.items.length > 0
+                }
                 onChange={handleSelectAll}
                 className="w-5 h-5 text-teal-600 rounded cursor-pointer"
               />
@@ -140,7 +164,10 @@ export default function CartPage() {
 
             {/* Cart Items */}
             {cartData.items.map((item) => (
-              <div key={item.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition">
+              <div
+                key={item.id}
+                className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition"
+              >
                 <div className="flex gap-4 p-4">
                   {/* Checkbox */}
                   <div className="flex items-start pt-1">
@@ -175,7 +202,7 @@ export default function CartPage() {
                 </div>
               )}
 
-              <CartSummary 
+              <CartSummary
                 cartData={cartData}
                 selectedCount={selectedItems.size}
                 onCheckout={handleCheckoutSelected}
@@ -186,8 +213,8 @@ export default function CartPage() {
         </div>
 
         <div className="mt-6">
-          <Link 
-            to="/products" 
+          <Link
+            to="/products"
             className="text-teal-600 hover:text-teal-700 flex items-center gap-2 font-medium"
           >
             ← Tiếp tục mua hàng
