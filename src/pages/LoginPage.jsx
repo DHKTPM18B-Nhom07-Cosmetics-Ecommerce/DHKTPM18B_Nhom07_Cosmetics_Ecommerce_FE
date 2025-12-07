@@ -42,7 +42,7 @@ const LoginPage = () => {
             login(token, fullName, role);
 
             // 4. Điều hướng người dùng dựa trên Vai trò (ROLE)
-            let redirectTo = '/';
+            let redirectTo = '/products';
             // Vai trò 'ADMIN' sẽ được chuyển đến trang /admin
             if (role === 'ADMIN') {
                 redirectTo = '/admin'; 
@@ -84,7 +84,7 @@ const LoginPage = () => {
 
                         {/* Nhập Email */}
                         <div className={styles.inputGroup}>
-                            <label htmlFor="email" className={styles.label}>Email / Tên đăng nhập</label>
+                            <label htmlFor="email" className={styles.label}>Email</label>
                             <input
                                 type="text"
                                 id="email"

@@ -24,6 +24,24 @@ const SignupPage = () => {
         setError('');
         setSuccess('');
 
+        const phoneRegex = /^0\d{9}$/;
+        if (!phoneRegex.test(phone)) {
+            setError('Số điện thoại phải gồm 10 chữ số và bắt đầu bằng số 0.');
+            return;
+        }
+
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
+        if (!passwordRegex.test(password)) {
+            setError('Mật khẩu phải có tối thiểu 8 ký tự, bao gồm ít nhất 1 chữ hoa và 1 chữ số.');
+            return;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            setError('Email không hợp lệ.');
+            return;
+        }
+
         if (password !== confirmPassword) {
             setError('Mật khẩu và Xác nhận mật khẩu không khớp!');
             return;
@@ -98,7 +116,7 @@ const SignupPage = () => {
                                 <label htmlFor="phone" className={styles.label}>Số điện thoại</label>
                                 <input
                                     id="phone"
-                                    type="tel"
+                                    type="text"
                                     placeholder="0901234567"
                                     value={phone}
                                     onChange={(e) => setPhone(e.target.value)}
@@ -113,7 +131,7 @@ const SignupPage = () => {
                             <label htmlFor="email" className={styles.label}>Email</label>
                             <input
                                 id="email"
-                                type="email"
+                                type="text"
                                 placeholder="example@email.com"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}

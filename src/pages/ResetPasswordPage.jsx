@@ -21,9 +21,9 @@ const ResetPasswordPage = () => {
         setStatus({ message: '', type: '' });
         setIsLoading(true);
 
-        if (newPassword.length < 6) {
-            setStatus({ message: 'Mật khẩu phải có ít nhất 6 ký tự.', type: 'error' });
-            setIsLoading(false);
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
+        if (!passwordRegex.test(newPassword)) {
+            setError('Mật khẩu phải có tối thiểu 8 ký tự, bao gồm ít nhất 1 chữ hoa và 1 chữ số.');
             return;
         }
 
