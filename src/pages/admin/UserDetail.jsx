@@ -34,6 +34,21 @@ export default function UserDetail() {
     totalSpent: 0, completedOrders: 0, processedOrders: 0, totalRevenueManaged: 0
   });
 
+  useEffect(() => {
+  const token = localStorage.getItem('token');
+  console.log('🔑 Current Token:', token);
+  
+  if (token) {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(window.atob(base64));
+      console.log('📦 JWT Payload:', payload);
+    } catch (e) {
+      console.error('Cannot decode token:', e);
+    }
+  }
+}, []);
   const calculateStats = (role, orderList) => {
     if (!Array.isArray(orderList)) return;
 
