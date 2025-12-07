@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Heart, ShoppingCart } from "lucide-react";
 import { getProductById, getProductVariants } from "../services/productService";
 import { addToCart } from "../services/cartService"; // Import service Cart
+import { addToWishlist, removeFromWishlist, checkInWishlist } from "../services/wishlistService"; // Import wishlist service
+import { toast } from "react-toastify";
 import Breadcrumb from "../components/Breadcrumb";
 import ProductImageCarousel from "../components/ProductImageCarousel";
 
@@ -17,6 +19,7 @@ const formatPrice = (price) => {
 export default function ProductDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [quantity, setQuantity] = useState(1);
   const [selectedSize, setSelectedSize] = useState(null); // Đây chính là selectedVariant
   // Mặc định dùng key ASCII không dấu (mo-ta)
@@ -26,6 +29,21 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [productCategory, setProductCategory] = useState(null);
   const [adding, setAdding] = useState(false); // Thêm state loading cho nút Add
+  const [isInWishlist, setIsInWishlist] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+
+  const getAccountId = () => {
+    const userStored = localStorage.getItem("user");
+    if (!userStored) return null;
+    try {
+      const user = JSON.parse(userStored);
+      return user.id;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const accountId = getAccountId();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -41,6 +59,19 @@ export default function ProductDetailPage() {
 
         if (productData.category) {
           setProductCategory(productData.category.name || productData.category);
+        }
+
+        // Tự động chọn variant từ wishlist
+        const selectedVariantIdFromLocation = location.state?.selectedVariantId;
+        if (selectedVariantIdFromLocation && variantsData.length > 0) {
+          const variantToSelect = variantsData.find(v => v.id === selectedVariantIdFromLocation);
+          if (variantToSelect) {
+            handleSelectVariant(variantToSelect);
+          }
+        }
+
+        if (accountId && selectedSize) {
+          checkWishlistStatus(selectedSize.id);
         }
       } catch (error) {
         console.error("Error fetching product details:", error);
@@ -165,6 +196,63 @@ export default function ProductDetailPage() {
     }
   };
 
+  // Kiểm tra variant có trong wishlist không
+  const checkWishlistStatus = async (variantId) => {
+    if (!accountId || !variantId) return;
+    try {
+      const inWishlist = await checkInWishlist(accountId, variantId);
+      setIsInWishlist(inWishlist);
+    } catch (error) {
+      console.error("Lỗi kiểm tra wishlist:", error);
+    }
+  };
+
+  // Chọn variant và kiểm tra wishlist
+  const handleSelectVariant = (variant) => {
+    setSelectedSize(variant);
+    if (accountId) {
+      checkWishlistStatus(variant.id);
+    }
+  };
+
+  // Thêm/xóa sản phẩm khỏi wishlist
+  const handleToggleWishlist = async () => {
+    if (!accountId) {
+      toast.error("Vui lòng đăng nhập để sử dụng tính năng này");
+      navigate("/login");
+      return;
+    }
+
+    if (!selectedSize) {
+      toast.warning("Vui lòng chọn phân loại sản phẩm trước");
+      return;
+    }
+
+    try {
+      setWishlistLoading(true);
+      
+      if (isInWishlist) {
+        const confirmDelete = window.confirm("Bạn có muốn xóa sản phẩm này khỏi danh sách yêu thích?");
+        if (!confirmDelete) {
+          setWishlistLoading(false);
+          return;
+        }
+        await removeFromWishlist(accountId, selectedSize.id);
+        setIsInWishlist(false);
+        toast.success("Đã xóa khỏi danh sách yêu thích");
+      } else {
+        await addToWishlist(accountId, selectedSize.id);
+        setIsInWishlist(true);
+        toast.success("Đã thêm vào danh sách yêu thích");
+      }
+    } catch (error) {
+      console.error("Lỗi wishlist:", error);
+      toast.error(error.response?.data?.message || "Có lỗi xảy ra");
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex justify-center items-center bg-gray-50">
@@ -188,10 +276,6 @@ export default function ProductDetailPage() {
     ? variants[0].price
     : 0;
   const currentStock = selectedSize ? selectedSize.quantity : 0;
-
-  const handleSelectVariant = (variant) => {
-    setSelectedSize(variant);
-  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 gap-4">
@@ -223,8 +307,20 @@ export default function ProductDetailPage() {
                   </span>
                   <span className="text-gray-600">1,6k Đã bán</span>
                 </div>
-                <button className="text-gray-400 hover:text-red-500 transition">
-                  <Heart className="w-6 h-6" />
+                <button 
+                  onClick={handleToggleWishlist}
+                  disabled={wishlistLoading}
+                  className={`transition ${
+                    isInWishlist 
+                      ? "text-red-500" 
+                      : "text-gray-400 hover:text-red-500"
+                  } ${wishlistLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                  title={isInWishlist ? "Bỏ yêu thích" : "Thêm vào yêu thích"}
+                >
+                  <Heart 
+                    className="w-6 h-6" 
+                    fill={isInWishlist ? "currentColor" : "none"}
+                  />
                 </button>
               </div>
 

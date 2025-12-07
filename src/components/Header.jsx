@@ -397,7 +397,11 @@ export default function Header() {
             </div>
 
             {/* WISHLIST */}
-            <Heart className="w-6 h-6 cursor-pointer hover:text-teal-100 transition" />
+            <Heart 
+              onClick={() => navigate("/wishlist")}
+              className="w-6 h-6 cursor-pointer hover:text-teal-100 transition" 
+              title="Sản phẩm yêu thích"
+            />
 
             {/* CART ICON */}
             <div className="relative">
@@ -444,7 +448,9 @@ export default function Header() {
                     <FaStore className="w-4 h-4" /> Quản lý cửa hàng
                   </button>
 
-                  <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
+                  <button 
+                    onClick={() => navigate("/wishlist")}
+                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
                     <Heart className="w-4 h-4" /> Sản phẩm yêu thích
                   </button>
 
