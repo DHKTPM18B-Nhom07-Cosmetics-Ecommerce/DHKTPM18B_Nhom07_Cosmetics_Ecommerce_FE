@@ -47,6 +47,11 @@ const ProductDetailModal = ({ isOpen, onClose, product, variants = [] }) => {
 
     const currentStock = selectedVariant ? selectedVariant.quantity : totalStock;
 
+    // Current Sold Logic
+    const currentSold = selectedVariant
+        ? (selectedVariant.sold || 0)
+        : (product.totalSold || 0);
+
     // Status Logic (Handle both 'isActive' and 'active' just in case)
     const isProductActive = product.isActive !== undefined ? product.isActive : product.active;
 
@@ -160,6 +165,10 @@ const ProductDetailModal = ({ isOpen, onClose, product, variants = [] }) => {
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-gray-600">Tồn kho hiện tại:</span>
                                     <span className="font-bold text-gray-900">{currentStock}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm mt-2">
+                                    <span className="text-gray-600">Đã bán:</span>
+                                    <span className="font-bold text-gray-900">{currentSold}</span>
                                 </div>
                             </div>
 

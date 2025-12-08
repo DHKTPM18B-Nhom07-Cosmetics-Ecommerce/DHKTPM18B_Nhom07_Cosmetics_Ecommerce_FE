@@ -73,6 +73,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                         variantName: v.variantName,
                         price: v.price,
                         quantity: v.quantity,
+                        sold: v.sold || 0,
                         imageUrls: v.imageUrls || []
                     })) : []
                 });
@@ -147,7 +148,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
         const newIndex = formData.variants.length;
         setFormData(prev => ({
             ...prev,
-            variants: [...prev.variants, { variantName: '', price: 0, quantity: '', imageUrls: [] }]
+            variants: [...prev.variants, { variantName: '', price: 0, quantity: '', sold: 0, imageUrls: [] }]
         }));
 
         // Clear errors for the new index to prevent ghost errors
@@ -250,6 +251,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
             if (!v.variantName.trim()) newErrors[`variant_${idx}_variantName`] = "Tên không được để trống";
             if (v.price <= 0) newErrors[`variant_${idx}_price`] = "Giá phải lớn hơn 0";
             if (v.quantity <= 0) newErrors[`variant_${idx}_quantity`] = "Số lượng phải lớn hơn 0";
+            if (v.sold === '' || v.sold === null || v.sold < 0) newErrors[`variant_${idx}_sold`] = "Đã bán phải >= 0";
         });
 
         if (Object.keys(newErrors).length > 0) {
@@ -544,6 +546,17 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                                                 <span className="text-sm font-medium text-gray-700">Đang hoạt động</span>
                                             </div>
                                         </div>
+
+                                        {/* Total Sold (Read Only) */}
+                                        <div className="md:col-span-1">
+                                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tổng đã bán</label>
+                                            <input
+                                                type="text"
+                                                value={product ? product.totalSold || 0 : 0}
+                                                disabled
+                                                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-100 text-gray-500 font-medium cursor-not-allowed"
+                                            />
+                                        </div>
                                     </div>
 
                                     <ImageUploader
@@ -655,6 +668,26 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                                                                     </p>
                                                                 )}
                                                             </div>
+                                                            <div>
+                                                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                                                                    Đã bán <span className="text-red-500">*</span>
+                                                                </label>
+                                                                <input
+                                                                    type="number"
+                                                                    value={variant.sold}
+                                                                    onChange={(e) => handleVariantChange(idx, 'sold', e.target.value === '' ? '' : parseInt(e.target.value))}
+                                                                    onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()}
+                                                                    disabled={formDisabled}
+                                                                    className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-[#10b981] outline-none text-sm font-medium ${errors[`variant_${idx}_sold`] ? 'border-red-500' : 'border-gray-300'} ${formDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
+                                                                    min="0"
+                                                                    required
+                                                                />
+                                                                {errors[`variant_${idx}_sold`] && (
+                                                                    <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                                                                        <AlertCircle size={12} /> {errors[`variant_${idx}_sold`]}
+                                                                    </p>
+                                                                )}
+                                                            </div>
                                                         </div>
 
                                                         {/* Variant Image Uploader */}
@@ -716,7 +749,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                         </button>
                     )}
                 </div>
-            </div>
+            </div >
 
             <ConfirmationModal
                 isOpen={confirmModal.isOpen}

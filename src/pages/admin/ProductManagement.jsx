@@ -448,6 +448,7 @@ const ProductManagement = () => {
           category: p.categoryName || "",
           brand: p.brandName || "",
           description: p.description || "",
+          total_sold: p.totalSold || 0,
         };
         if (!p.variants || p.variants.length === 0) {
           return [{ ...common, variant: "Gốc", price: p.minPrice || 0, quantity: p.quantity || 0, image: "" }];
@@ -781,6 +782,7 @@ const ProductManagement = () => {
             >
               <option value="newest">Mới nhất</option>
               <option value="oldest">Cũ nhất</option>
+              <option value="bestSelling">Bán chạy</option>
               <option value="priceAsc">Giá: Thấp &rarr; Cao</option>
               <option value="priceDesc">Giá: Cao &rarr; Thấp</option>
               <option value="az">Tên: A &rarr; Z</option>
@@ -851,6 +853,7 @@ const ProductManagement = () => {
                 <th className="p-4 font-bold tracking-wider">Danh mục</th>
                 <th className="p-4 font-bold tracking-wider">Giá</th>
                 <th className="p-4 font-bold tracking-wider">Số lượng</th>
+                <th className="p-4 font-bold tracking-wider">Đã bán</th>
                 <th className="p-4 font-bold tracking-wider text-center">Trạng thái</th>
                 <th className="p-4 font-bold tracking-wider">Ngày tạo</th>
                 <th className="p-4 font-bold tracking-wider text-right">Thao tác</th>
@@ -901,6 +904,7 @@ const ProductManagement = () => {
                       </div>
                     </td>
                     <td className={`p-4 font-medium ${isInactive ? "line-through text-gray-400" : (product.quantity === 0 ? "text-red-600" : "text-gray-900")}`}>{product.quantity}</td>
+                    <td className={`p-4 font-medium ${isInactive ? "line-through text-gray-400" : "text-gray-900"}`}>{product.totalSold || 0}</td>
                     <td className="p-4 text-center">
                       <span className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${isInactive ? "bg-gray-300 text-gray-700" : product.quantity > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
                         }`}>
