@@ -27,6 +27,7 @@ export default function HeaderNavbar() {
     { name: 'Đơn hàng', path: '/admin/orders' },
     { name: 'Mã giảm giá', path: '/admin/vouchers' },
     { name: 'Tài khoản', path: '/admin/users' },
+    { name: 'Thống kê', path: '/admin/stats' },
   ];
 
   // Lọc nav items dựa trên role
