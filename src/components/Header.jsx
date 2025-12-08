@@ -264,9 +264,9 @@ export default function Header() {
             className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition"
           >
             <img 
-              src="/Logo.png" 
+              src="/logo.png" 
               alt="Logo" 
-              className="h-12 w-12 object-contain bg-white rounded-full p-1.5"
+              className="h-16 w-16 object-contain"
             />
             <span className="text-2xl font-bold">EMBROSIA</span>
           </div>
