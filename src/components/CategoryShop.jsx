@@ -1,18 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Leaf, Heart } from 'lucide-react';
-import { MdWaterDrop, MdSunny } from 'react-icons/md';
-import { GiLipstick } from 'react-icons/gi';
-import { FaGift } from 'react-icons/fa6';
+
+import { Sparkles, Sun, Eraser } from 'lucide-react';
+import { MdWaterDrop, MdOutlineCleanHands, MdFaceRetouchingNatural } from 'react-icons/md';
+import { GiMedicinePills } from 'react-icons/gi';
+
 import { getAllCategories } from '../services/categoryService';
 
+
 const categoryIcons = {
-    Skincare: MdWaterDrop,
-    Makeup: GiLipstick,
-    Haircare: Leaf,
-    'Body Care': Heart,
-    'Sun Care': MdSunny,
-    'Gift Sets': FaGift,
+    "Sữa Rửa Mặt": MdOutlineCleanHands,
+    "Tẩy Trang": Eraser,
+    "Toner": MdWaterDrop,
+    "Mặt nạ": MdFaceRetouchingNatural,
+    "Serum": GiMedicinePills,
+    "Kem chống nắng": Sun,
+
+    "Trang điểm": Sparkles,
+    "Son môi": Sparkles,
 };
 
 export default function CategoryShop() {
@@ -27,7 +32,7 @@ export default function CategoryShop() {
                 const categoriesWithIcons = data.map((cat) => ({
                     id: cat.id,
                     name: cat.name,
-                    icon: categoryIcons[cat.name] || MdWaterDrop,
+                    icon: categoryIcons[cat.name] || Sparkles,
                 }));
                 setCategories(categoriesWithIcons);
                 setLoading(false);
@@ -46,7 +51,6 @@ export default function CategoryShop() {
 
     return (
         <section className="max-w-7xl mx-auto px-4">
-            {/* --- THANH TIÊU ĐỀ XANH --- */}
             <div className="bg-gradient-to-br from-[#E8F0F4] to-[#D4E5ED] rounded-2xl py-4 mb-8 text-center shadow-sm">
                 <h2 className="text-xl md:text-2xl font-medium text-[#2E5F6D] uppercase tracking-wide">
                     Danh mục sản phẩm
@@ -63,7 +67,7 @@ export default function CategoryShop() {
                             className="flex flex-col items-center gap-4 p-6 rounded-xl hover:shadow-lg transition cursor-pointer group bg-gray-50 hover:bg-white border border-transparent hover:border-gray-100"
                         >
                             <div className="bg-[#D4E5ED] h-16 w-16 rounded-full group-hover:bg-[#A8C9D8] transition flex items-center justify-center">
-                                <Icon size={24} className="text-[#2B6377] h-8 w-8 group-hover:scale-110 transition duration-300" />
+                                <Icon size={28} className="text-[#2B6377] group-hover:scale-110 transition duration-300" />
                             </div>
                             <span className="text-sm font-medium text-[#2B6377] text-center group-hover:text-[#234852]">
                                 {category.name}

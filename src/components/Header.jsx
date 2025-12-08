@@ -263,11 +263,7 @@ export default function Header() {
             onClick={() => navigate("/")}
             className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition"
           >
-            <img 
-              src="/logo.png" 
-              alt="Logo" 
-              className="h-16 w-16 object-contain"
-            />
+
             <span className="text-2xl font-bold">EMBROSIA</span>
           </div>
 
