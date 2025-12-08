@@ -76,3 +76,6 @@ export const checkAccountRisk = (id) => {
 export const getSystemAlerts = () => {
   return api.get('/api/accounts/alerts');
 };
+export const sendContact = (data) => {
+  return api.post('/api/contact/send', data);
+};
