@@ -19,6 +19,7 @@ import {
 } from '../../services/api'; 
 import DisableAccountModal from '../../components/admin/DisableReason_Modal';
 import EditRoleModal from '../../components/admin/EditRoleModal';
+import { notifySuccess, notifyError } from '../../utils/toast.js';
 
 export default function UserDetail() {
   const { id } = useParams();
@@ -247,16 +248,19 @@ export default function UserDetail() {
     fetchData();
   }, [id]);
 
- const handleUpdateRole = async (id, newRole) => {
-      try {
-          const payload = { ...user, role: newRole };
-          await updateAccount(id, payload);
-          alert('Cập nhật vai trò thành công!');
-          window.location.reload(); 
-      } catch (err) {
-          alert('Lỗi: ' + (err.response?.data?.message || err.message));
-      }
-  };
+    const handleUpdateRole = async (id, newRole) => {
+        try {
+            const payload = { ...user, role: newRole };
+            await updateAccount(id, payload);
+
+            notifySuccess('Cập nhật vai trò thành công!');
+
+            setTimeout(() => window.location.reload(), 1500);
+        } catch (err) {
+
+            notifyError('Lỗi: ' + (err.response?.data?.message || err.message));
+        }
+    };
 
   if (loading) return <div className="p-10 text-center text-gray-500">Đang tải thông tin...</div>;
   if (!user) return <div className="p-10 text-center text-red-500">Không tìm thấy người dùng</div>;
@@ -548,12 +552,17 @@ export default function UserDetail() {
         onClose={() => setIsDisableModalOpen(false)}
         onConfirm={async (reason, customReason) => {
             try {
-                // Logic ghép reason nếu cần
                 const finalReason = reason === 'OTHER' ? customReason : (customReason ? `${reason}: ${customReason}` : reason);
                 await disableAccount(user.id, finalReason);
-                alert('Thành công! Email thông báo đã được gửi.');
-                window.location.reload();
-            } catch(e) { alert('Lỗi: ' + e.message); }
+
+
+                notifySuccess('Thành công! Email thông báo đã được gửi.');
+
+                setTimeout(() => window.location.reload(), 1500);
+            } catch(e) {
+
+                notifyError('Lỗi: ' + e.message);
+            }
         }}
         user={user} 
         riskData={riskData} 

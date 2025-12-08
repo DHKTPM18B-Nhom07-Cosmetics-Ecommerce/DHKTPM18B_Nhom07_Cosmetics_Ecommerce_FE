@@ -8,10 +8,13 @@ import {
   getOrdersByEmployeeId
 } from '../../services/api';
 
+
+
 import { Plus, Search, Filter, RefreshCw } from 'lucide-react';
 import DisableAccountModal from '../../components/admin/DisableReason_Modal';
 import UserTable from '../../components/admin/UserTable';
 import { useNavigate } from 'react-router-dom';
+import { notifySuccess, notifyError } from '../../utils/toast.js';
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]); // Danh sách trang hiện tại
@@ -97,11 +100,11 @@ const [orderCounts, setOrderCounts] = useState({});
   const confirmDisable = async (id, reason) => {
     try {
       await disableAccount(id, reason);
-      alert('Tài khoản đã bị vô hiệu hóa');
+      notifySuccess('Tài khoản đã bị vô hiệu hóa');
       fetchUsers();
       fetchAllUsersForStats(); // ← Refresh stats sau disable
     } catch (err) {
-      alert('Lỗi khi vô hiệu hóa');
+      notifyError('Lỗi khi vô hiệu hóa');
     }
   };
 useEffect(() => {
