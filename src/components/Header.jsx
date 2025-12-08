@@ -259,12 +259,16 @@ export default function Header() {
     <>
       <header className="bg-[#2B6377] text-white sticky top-0 z-50">
         <div className="flex items-center justify-between px-8 py-4">
-          {/* LOGO */}
           <div
             onClick={() => navigate("/")}
-            className="text-2xl font-bold cursor-pointer hover:text-teal-100 transition"
+            className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition"
           >
-            EMBROSIA
+            <img 
+              src="/Logo.png" 
+              alt="Logo" 
+              className="h-12 w-12 object-contain bg-white rounded-full p-1.5"
+            />
+            <span className="text-2xl font-bold">EMBROSIA</span>
           </div>
 
           {/* NAV */}
