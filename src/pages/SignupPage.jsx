@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios'; // Cần import axios
 import styles from '../../styles/Signup.module.css';
 import { FaEye, FaEyeSlash } from 'react-icons/fa'; 
+import { set } from 'date-fns';
 
 const API_BASE_URL = 'http://localhost:8080/api/auth'; 
 
@@ -12,42 +13,54 @@ const SignupPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [agreed, setAgreed] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [error, setError] = useState(''); // Thêm state cho lỗi
+
+    // Thêm state cho lỗi
+    const [error, setError] = useState('');
+    const [telError, setTelError] = useState(''); 
+    const [emailError, setEmailError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+    const [confirmPasswordError, setConfirmPasswordError] = useState('');
+
     const [success, setSuccess] = useState(''); // Thêm state cho thành công
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setTelError('');
+        setEmailError('');
+        setPasswordError('');
+        setConfirmPasswordError('');
         setError('');
         setSuccess('');
 
+        let isValid = true;
+        
         const phoneRegex = /^0\d{9}$/;
         if (!phoneRegex.test(phone)) {
-            setError('Số điện thoại phải gồm 10 chữ số và bắt đầu bằng số 0.');
-            return;
+            setTelError('Số điện thoại phải gồm 10 chữ số và bắt đầu bằng số 0.');
+            isValid = false;
         }
 
         const passwordRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
         if (!passwordRegex.test(password)) {
-            setError('Mật khẩu phải có tối thiểu 8 ký tự, bao gồm ít nhất 1 chữ hoa và 1 chữ số.');
-            return;
+            setPasswordError('Mật khẩu phải có tối thiểu 8 ký tự, bao gồm ít nhất 1 chữ hoa và 1 chữ số.');
+            isValid = false;
         }
-
+        
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-            setError('Email không hợp lệ.');
-            return;
+            setEmailError('Email không hợp lệ.');
+            isValid = false;
         }
 
         if (password !== confirmPassword) {
-            setError('Mật khẩu và Xác nhận mật khẩu không khớp!');
-            return;
+            setConfirmPasswordError('Mật khẩu và Xác nhận mật khẩu không khớp!');
+            isValid = false;
         }
-        if (!agreed) {
-            setError('Vui lòng đồng ý với Điều khoản và Chính sách bảo mật.');
+
+        if (!isValid) {
             return;
         }
         
@@ -70,7 +83,7 @@ const SignupPage = () => {
             if (err.response && err.response.data && err.response.data.message) {
                 setError(err.response.data.message); // Hiển thị lỗi từ Service (ví dụ: Email đã tồn tại)
             } else {
-                setError('Đăng ký thất bại do lỗi không xác định.');
+                setError('Đăng ký thất bại do không thể kết nối server.');
             }
             console.error('Signup error:', err);
         }
@@ -123,6 +136,7 @@ const SignupPage = () => {
                                     required
                                     className={styles.input}
                                 />
+                                {telError && <p className={styles.errorText}>{telError}</p>}
                             </div>
                         </div>
 
@@ -138,6 +152,7 @@ const SignupPage = () => {
                                 required
                                 className={styles.input}
                             />
+                            {emailError && <p className={styles.errorText}>{emailError}</p>}
                         </div>
 
                         {/* Hàng 3: Mật khẩu & Xác nhận mật khẩu */}
@@ -161,6 +176,7 @@ const SignupPage = () => {
                                         {showPassword ? <FaEyeSlash /> : <FaEye />}
                                     </span>
                                 </div>
+                                {passwordError && <p className={styles.errorText}>{passwordError}</p>}
                             </div>
 
                             <div className={styles.inputGroup}>
@@ -182,22 +198,8 @@ const SignupPage = () => {
                                         {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                                     </span>
                                 </div>
+                                {confirmPasswordError && <p className={styles.errorText}>{confirmPasswordError}</p>}
                             </div>
-                        </div>
-
-                        {/* Điều khoản sử dụng */}
-                        <div className={styles.termsContainer}>
-                            <input
-                                type="checkbox"
-                                id="agreed"
-                                checked={agreed}
-                                onChange={(e) => setAgreed(e.target.checked)}
-                                required
-                                className={styles.checkbox}
-                            />
-                            <label htmlFor="agreed" className={styles.termsLabel}>
-                                Tôi đồng ý với <a href="#" className={styles.termsLink}>Điều khoản sử dụng</a> và <a href="#" className={styles.termsLink}>Chính sách bảo mật</a> của Embrosia
-                            </label>
                         </div>
 
                         {/* Nút Đăng ký */}
