@@ -273,16 +273,20 @@ export default function Header() {
               onClick={() => navigate("/products")}
               className="hover:text-teal-100 transition font-medium"
             >
-              Product
+              Sản phẩm
+            </button>
+            <button
+                onClick={() => navigate("/brands")}
+                className="hover:text-teal-100 transition font-medium">
+              Thương hiệu
             </button>
             <button className="hover:text-teal-100 transition font-medium">
-              Brands
+              Khuyến mãi
             </button>
-            <button className="hover:text-teal-100 transition font-medium">
-              Sale
-            </button>
-            <button className="hover:text-teal-100 transition font-medium">
-              About
+            <button
+                onClick={() => navigate("/about")}
+                className="hover:text-teal-100 transition font-medium">
+              Về chúng tôi
             </button>
           </nav>
 

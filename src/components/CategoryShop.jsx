@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Leaf, Heart } from 'lucide-react';
 import { MdWaterDrop, MdSunny } from 'react-icons/md';
 import { GiLipstick } from 'react-icons/gi';
 import { FaGift } from 'react-icons/fa6';
 import { getAllCategories } from '../services/categoryService';
 
-// Mapping tên category với icon
 const categoryIcons = {
     Skincare: MdWaterDrop,
     Makeup: GiLipstick,
@@ -16,78 +16,61 @@ const categoryIcons = {
 };
 
 export default function CategoryShop() {
+    const navigate = useNavigate();
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
 
     useEffect(() => {
         const fetchCategories = async () => {
             try {
                 const data = await getAllCategories();
-                // Map data từ API với icon
                 const categoriesWithIcons = data.map((cat) => ({
                     id: cat.id,
                     name: cat.name,
-                    icon: categoryIcons[cat.name] || MdWaterDrop, // Icon mặc định nếu không tìm thấy
+                    icon: categoryIcons[cat.name] || MdWaterDrop,
                 }));
                 setCategories(categoriesWithIcons);
                 setLoading(false);
             } catch (err) {
-                setError(err.message);
                 setLoading(false);
             }
         };
-
         fetchCategories();
     }, []);
 
-    if (loading) {
-        return (
-            <section className="bg-light py-20">
-                <div className="max-w-7xl mx-auto px-4 text-center">
-                    <p className="text-primary">Loading categories...</p>
-                </div>
-            </section>
-        );
-    }
+    const handleCategoryClick = (categoryName) => {
+        navigate(`/products?search=${encodeURIComponent(categoryName)}`);
+    };
 
-    if (error) {
-        return (
-            <section className="bg-light py-20">
-                <div className="max-w-7xl mx-auto px-4 text-center">
-                    <p className="text-red-500">Error: {error}</p>
-                </div>
-            </section>
-        );
-    }
+    if (loading) return null;
 
     return (
-        <section className="bg-light py-20">
-            <div className="max-w-7xl mx-auto px-4">
-                <h2 className="text-3xl font-light text-primary text-center mb-10">
-                    CATEGORY
+        <section className="max-w-7xl mx-auto px-4">
+            {/* --- THANH TIÊU ĐỀ XANH --- */}
+            <div className="bg-gradient-to-br from-[#E8F0F4] to-[#D4E5ED] rounded-2xl py-4 mb-8 text-center shadow-sm">
+                <h2 className="text-xl md:text-2xl font-medium text-[#2E5F6D] uppercase tracking-wide">
+                    Danh mục sản phẩm
                 </h2>
+            </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 p-5">
-                    {categories.map((category) => {
-                        const Icon = category.icon;
-                        return (
-                            <div
-                                key={category.id}
-                                className="flex flex-col items-center gap-4 p-6 rounded-lg hover:shadow-lg transition cursor-pointer group">
-                                <div className="bg-[#D4E5ED] h-16 w-16 rounded-full group-hover:bg-[#A8C9D8] transition flex items-center justify-center">
-                                    <Icon
-                                        size={24}
-                                        className="text-primary h-10 w-10"
-                                    />
-                                </div>
-                                <span className="text-sm font-medium text-primary text-center">
-                                    {category.name}
-                                </span>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+                {categories.map((category) => {
+                    const Icon = category.icon;
+                    return (
+                        <div
+                            key={category.id}
+                            onClick={() => handleCategoryClick(category.name)}
+                            className="flex flex-col items-center gap-4 p-6 rounded-xl hover:shadow-lg transition cursor-pointer group bg-gray-50 hover:bg-white border border-transparent hover:border-gray-100"
+                        >
+                            <div className="bg-[#D4E5ED] h-16 w-16 rounded-full group-hover:bg-[#A8C9D8] transition flex items-center justify-center">
+                                <Icon size={24} className="text-[#2B6377] h-8 w-8 group-hover:scale-110 transition duration-300" />
                             </div>
-                        );
-                    })}
-                </div>
+                            <span className="text-sm font-medium text-[#2B6377] text-center group-hover:text-[#234852]">
+                                {category.name}
+                            </span>
+                        </div>
+                    );
+                })}
             </div>
         </section>
     );

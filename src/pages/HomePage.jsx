@@ -7,11 +7,13 @@ import Footer from '../components/Footer'
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="flex flex-col gap-16 pb-20">
       <Hero />
+        <NewArrivals />
       <CategoryShop />
-      <NewArrivals />
-      <PartnerBrands />
+        <PartnerBrands />
+
+
     </div>
   )
 }
