@@ -103,21 +103,21 @@ const ProductItemDisplay = ({ item }) => {
 
             <div className="flex-grow min-w-0 pt-1">
                 {/* Tên sản phẩm chính (đã kết hợp tên biến thể) */}
-                <p className="font-bold text-gray-800 leading-tight text-sm truncate" title={primaryDisplay}>
+                <p className="font-bold text-gray-800 leading-tight text-sm" title={primaryDisplay}>
                     {primaryDisplay}
                 </p>
 
                 {/* Dòng phụ: Chỉ hiển thị tên biến thể nếu nó khác với tên chính */}
                 {variantName && variantName !== productName && (
                     <p className="text-xs text-gray-600 leading-snug truncate" title={`Biến thể: ${variantName}`}>
-                        Biến thể: {variantName}
+                        loại: {variantName}
                     </p>
                 )}
 
 
-                <p className="text-xs text-gray-500 mt-1">
-                    Mã Variant: #{item.productVariant?.id || 'N/A'}
-                </p>
+                {/*<p className="text-xs text-gray-500 mt-1">*/}
+                {/*    Mã Variant: #{item.productVariant?.id || 'N/A'}*/}
+                {/*</p>*/}
             </div>
         </div>
     );

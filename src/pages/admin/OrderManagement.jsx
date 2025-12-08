@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import {
     ChevronLeft,
@@ -11,37 +11,234 @@ import {
     DollarSign,
     Users,
     CheckSquare,
+    Zap,
+    XCircle,
+    AlertTriangle,
+    CheckCircle,
+    Info
 } from 'lucide-react';
 import { Link } from "react-router-dom";
-// SỬA LỖI: Import useAuth từ Context
 import { useAuth } from "../../context/AuthContext";
 
 // Định nghĩa trạng thái đơn hàng
 const ORDER_STATUSES = [
     'Tất cả',
-    'DELIVERED',
-    'SHIPPING',
-    'PROCESSING',
-    'CONFIRMED',
     'PENDING',
+    'CONFIRMED',
+    'PROCESSING',
+    'SHIPPING',
+    'DELIVERED',
     'CANCELLED',
+    'RETURNED',
+    'REFUNDED',
 ];
 
 const API_BASE_URL = 'http://localhost:8080/api/orders';
 const ORDERS_PER_PAGE = 10;
+const TEAL_COLOR = '#2B6377';
+const TEAL_BG = 'bg-[#2B6377]';
 
+// Map trạng thái tiếp theo cho Modal
+const NEXT_STATUS_MAP = {
+    PENDING: ['CONFIRMED', 'CANCELLED'],
+    CONFIRMED: ['PROCESSING', 'CANCELLED'],
+    PROCESSING: ['SHIPPING', 'CANCELLED'],
+    SHIPPING: ['DELIVERED', 'CANCELLED'],
+    DELIVERED: ['RETURNED'],
+    RETURNED: ['REFUNDED', 'CANCELLED'],
+    REFUNDED: [],
+    CANCELLED: [],
+};
+
+// --- HÀM TIỆN ÍCH CHUNG ---
+
+const formatCurrency = (amount) => {
+    if (amount === null || amount === undefined) return 'N/A';
+    const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(numericAmount);
+};
+
+const formatNumber = (num) => {
+    if (num === null || num === undefined) return '0';
+    return num.toLocaleString('vi-VN');
+};
+
+const getStatusStyle = (status) => {
+    switch (status) {
+        case 'DELIVERED': return 'bg-green-100 text-green-700 border-green-500';
+        case 'SHIPPING': return 'bg-blue-100 text-blue-700 border-blue-500';
+        case 'PROCESSING': return 'bg-yellow-100 text-yellow-700 border-yellow-500';
+        case 'CONFIRMED':
+        case 'PENDING': return 'bg-purple-100 text-purple-700 border-purple-500';
+        case 'CANCELLED':
+        case 'RETURNED':
+        case 'REFUNDED': return 'bg-red-100 text-red-700 border-red-500';
+        default: return 'bg-gray-100 text-gray-700 border-gray-400';
+    }
+};
+
+const translateStatus = (status) => {
+    switch (status) {
+        case 'DELIVERED': return 'Hoàn thành';
+        case 'SHIPPING': return 'Đang giao';
+        case 'PROCESSING': return 'Đang xử lý';
+        case 'CONFIRMED': return 'Đã xác nhận';
+        case 'PENDING': return 'Chờ xử lý';
+        case 'CANCELLED': return 'Đã hủy';
+        case 'RETURNED': return 'Yêu cầu trả hàng';
+        case 'REFUNDED': return 'Đã hoàn tiền';
+        case 'Tất cả': return 'Tất cả';
+        default: return status;
+    }
+};
+
+// --- UTILITY COMPONENTS (Message Display) ---
+
+const MessageDisplay = ({ message, onClose }) => {
+    if (!message) return null;
+
+    const { type, text } = message;
+    const baseClass = 'fixed top-4 right-4 z-50 p-4 rounded-lg shadow-xl flex items-center max-w-sm transition-opacity duration-300';
+    let style = {};
+    let Icon = Info;
+
+    switch (type) {
+        case 'success':
+            style = { backgroundColor: '#D4EDDA', color: '#155724', border: '1px solid #C3E6CB' };
+            Icon = CheckCircle;
+            break;
+        case 'error':
+            style = { backgroundColor: '#F8D7DA', color: '#721C24', border: '1px solid #F5C6CB' };
+            Icon = XCircle;
+            break;
+        case 'info':
+        default:
+            style = { backgroundColor: '#CCE5FF', color: '#004085', border: '1px solid #B8DAFF' };
+            Icon = Info;
+            break;
+    }
+
+    return (
+        <div className={baseClass} style={style}>
+            <Icon className="w-5 h-5 mr-3 flex-shrink-0" />
+            <span className="text-sm font-medium flex-1">{text}</span>
+            <button
+                onClick={onClose}
+                className="ml-4 p-1 rounded-full hover:bg-black/10"
+                style={{ color: style.color }}
+            >
+                <XCircle className="w-4 h-4" />
+            </button>
+        </div>
+    );
+};
+
+// --- UTILITY COMPONENTS (Status Update Modal) ---
+
+const StatusUpdateModal = ({ isOpen, currentOrder, onUpdate, onCancel }) => {
+    if (!isOpen || !currentOrder) return null;
+
+    const currentStatus = currentOrder.status;
+    const possibleNextStatus = NEXT_STATUS_MAP[currentStatus] || [];
+    const [selectedStatus, setSelectedStatus] = useState(possibleNextStatus.length > 0 ? possibleNextStatus[0] : currentStatus);
+    const [cancelReason, setCancelReason] = useState(currentOrder.cancelReason || '');
+
+    const requiresReason = selectedStatus === 'CANCELLED' || selectedStatus === 'RETURNED';
+
+    const handleConfirm = () => {
+        if (requiresReason && !cancelReason.trim()) {
+            alert('Vui lòng nhập lý do hủy/trả hàng.');
+            return;
+        }
+        onUpdate(currentOrder.id, selectedStatus, cancelReason);
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 font-sans">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 m-4">
+                <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2 flex items-center">
+                    <Zap className="w-5 h-5 mr-2 text-[#2B6377]" /> Cập nhật Đơn hàng #{currentOrder.id}
+                </h3>
+                <div className="text-gray-700 mb-6 space-y-4">
+                    <p>Trạng thái hiện tại: <span className={`px-2 py-1 rounded text-white text-xs ${getStatusStyle(currentStatus)}`}>{translateStatus(currentStatus)}</span></p>
+
+                    <div className="flex flex-col">
+                        <label className="text-sm font-medium mb-1">Chọn trạng thái mới:</label>
+                        <select
+                            value={selectedStatus}
+                            onChange={(e) => {
+                                setSelectedStatus(e.target.value);
+                                setCancelReason('');
+                            }}
+                            className="px-3 py-2 border rounded-lg focus:ring-[#2B6377] focus:border-[#2B6377]"
+                            disabled={possibleNextStatus.length === 0}
+                        >
+                            {possibleNextStatus.length === 0 ? (
+                                <option>Đơn hàng đã kết thúc</option>
+                            ) : (
+                                possibleNextStatus.map(s => (
+                                    <option key={s} value={s}>{translateStatus(s)}</option>
+                                ))
+                            )}
+                        </select>
+                    </div>
+
+                    {requiresReason && (
+                        <div className="flex flex-col">
+                            <label className="text-sm font-medium mb-1 text-red-600">Lý do Hủy/Trả hàng:</label>
+                            <textarea
+                                value={cancelReason}
+                                onChange={(e) => setCancelReason(e.target.value)}
+                                rows="3"
+                                className="px-3 py-2 border rounded-lg focus:ring-red-500 focus:border-red-500 resize-none"
+                                placeholder="Nhập lý do chi tiết..."
+                            />
+                        </div>
+                    )}
+
+                </div>
+                <div className="flex justify-end space-x-3">
+                    <button
+                        onClick={onCancel}
+                        className="py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition duration-150 text-sm font-medium"
+                    >
+                        Hủy
+                    </button>
+                    <button
+                        onClick={handleConfirm}
+                        disabled={possibleNextStatus.length === 0}
+                        className={`py-2 px-4 ${TEAL_BG} text-white rounded-lg hover:opacity-90 transition duration-150 text-sm font-medium disabled:opacity-50`}
+                    >
+                        Áp dụng
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+// --- COMPONENT CHÍNH: OrderManagement ---
 const OrderManagement = () => {
     // --- SỬ DỤNG AUTH CONTEXT ĐỂ LẤY TRẠNG THÁI ---
     const { user, isLoggedIn, isLoading: authLoading } = useAuth();
-    // Token được lưu trong user.token của Context
     const adminToken = user?.token;
+
+    // Kiểm tra quyền hạn
     const isAdminOrEmployee = user && (user.role === 'ADMIN' || user.role === 'EMPLOYEE');
+    const isEmployeeRole = user?.role === 'EMPLOYEE';
+    const isAdminRole = user?.role === 'ADMIN';
 
     // --- State Quản lý Dữ liệu ---
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(0);
     const [error, setError] = useState(null);
+
+    // --- State Cập nhật Trạng thái ---
+    const [message, setMessage] = useState(null);
+    const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+    const [selectedOrder, setSelectedOrder] = useState(null);
 
     // --- State Chính thức để gọi API ---
     const [filters, setFilters] = useState({
@@ -51,54 +248,15 @@ const OrderManagement = () => {
         endDate: ''
     });
 
-    // --- State Tạm thời cho các ô input ---
+    // --- State Tạm thời cho các ô input (giữ nguyên) ---
     const [tempSearch, setTempSearch] = useState('');
     const [tempStatus, setTempStatus] = useState('');
     const [tempStartDate, setTempStartDate] = useState('');
     const [tempEndDate, setTempEndDate] = useState('');
 
 
-    // --- Helper Functions (Định dạng & Dịch) ---
-    const TEAL_COLOR = '#2B6377';
-
-    const formatCurrency = (amount) => {
-        if (amount === null || amount === undefined) return 'N/A';
-        const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(numericAmount);
-    };
-
-    const formatNumber = (num) => {
-        if (num === null || num === undefined) return '0';
-        return num.toLocaleString('vi-VN');
-    };
-
-    const getStatusStyle = (status) => {
-        switch (status) {
-            case 'DELIVERED': return 'bg-green-100 text-green-700 border-green-500';
-            case 'SHIPPING': return 'bg-blue-100 text-blue-700 border-blue-500';
-            case 'PROCESSING': return 'bg-yellow-100 text-yellow-700 border-yellow-500';
-            case 'CONFIRMED':
-            case 'PENDING': return 'bg-purple-100 text-purple-700 border-purple-500';
-            case 'CANCELLED': return 'bg-red-100 text-red-700 border-red-500';
-            default: return 'bg-gray-100 text-gray-700 border-gray-400';
-        }
-    };
-
-    const translateStatus = (status) => {
-        switch (status) {
-            case 'DELIVERED': return 'Hoàn thành';
-            case 'SHIPPING': return 'Đang giao';
-            case 'PROCESSING': return 'Đang xử lý';
-            case 'CONFIRMED': return 'Đã xác nhận';
-            case 'PENDING': return 'Chờ xử lý';
-            case 'CANCELLED': return 'Đã hủy';
-            case 'Tất cả': return 'Tất cả';
-            default: return status;
-        }
-    };
-
-    // --- Logic Lấy Dữ liệu (Sửa để gọi đúng Endpoint) ---
-    const fetchOrders = async () => {
+    // --- Logic Lấy Dữ liệu ---
+    const fetchOrders = useCallback(async () => {
 
         if (authLoading) return;
 
@@ -122,14 +280,12 @@ const OrderManagement = () => {
             params.start = `${filters.startDate}T00:00:00`;
             params.end = `${filters.endDate}T23:59:59`;
 
-            // Thêm Status nếu có (sẽ được Controller xử lý)
             if (filters.status) {
                 params.status = filters.status;
             }
         }
         // 2. CHỈ LỌC THEO STATUS (Nếu không có Ngày)
         else if (filters.status) {
-            // Gọi endpoint /admin/status/{status}
             url = `${API_BASE_URL}/admin/status/${filters.status}`;
         }
         // 3. MẶC ĐỊNH (Không có lọc Status hay Ngày)
@@ -137,7 +293,6 @@ const OrderManagement = () => {
             url = `${API_BASE_URL}/admin/all`;
         }
 
-        // Gửi token xác thực Admin
         const config = {
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -147,12 +302,7 @@ const OrderManagement = () => {
 
         try {
             const response = await axios.get(url, config);
-
-            let fetchedOrders = Array.isArray(response.data)
-                ? response.data
-                : response.data?.content ||
-                response.data?.orders ||
-                [];
+            let fetchedOrders = Array.isArray(response.data) ? response.data : response.data?.content || response.data?.orders || [];
 
             setOrders(fetchedOrders);
         } catch (err) {
@@ -167,14 +317,49 @@ const OrderManagement = () => {
         } finally {
             setLoading(false);
         }
+    }, [authLoading, adminToken, isLoggedIn, isAdminOrEmployee, filters]);
+
+    // --- Hàm GỌI API CẬP NHẬT TRẠNG THÁI (Bỏ empId khỏi tham số) ---
+    const handleUpdateStatus = async (orderId, newStatus, cancelReason) => {
+        setIsStatusModalOpen(false);
+
+        let updateUrl = `${API_BASE_URL}/${orderId}/status`;
+        let params = {
+            newStatus: newStatus,
+        };
+
+        if (cancelReason) {
+            params.cancelReason = cancelReason;
+        }
+
+        try {
+            const config = {
+                headers: {
+                    Authorization: `Bearer ${adminToken}`,
+                },
+                params: params
+            };
+
+            // Backend sẽ tự động lấy Employee ID qua Principal (username) từ token
+            await axios.post(updateUrl, null, config);
+
+            setMessage({ type: 'success', text: `Đã cập nhật trạng thái đơn hàng #${orderId} sang ${translateStatus(newStatus)}.` });
+            fetchOrders();
+
+        } catch (err) {
+            console.error('Lỗi khi cập nhật trạng thái:', err);
+            const errorMessage = err.response?.data?.message || 'Lỗi cập nhật trạng thái đơn hàng.';
+            setMessage({ type: 'error', text: errorMessage });
+        }
     };
 
-    // --- Effect và Hàm Xử lý Lọc ---
+
+    // --- Effect và Hàm Xử lý Lọc (giữ nguyên) ---
     useEffect(() => {
         if (!authLoading) {
             fetchOrders();
         }
-    }, [filters, authLoading]);
+    }, [filters, authLoading, fetchOrders]);
 
     const handleApplyFilters = () => {
         if ((tempStartDate && !tempEndDate) || (!tempStartDate && tempEndDate)) {
@@ -187,17 +372,15 @@ const OrderManagement = () => {
             startDate: tempStartDate,
             endDate: tempEndDate
         });
-        setPage(0); // Reset phân trang khi áp dụng bộ lọc mới
+        setPage(0);
     };
 
     // --- Lọc dữ liệu trên Frontend (Lọc theo Tên/Search) ---
     const filteredOrdersByCustomer = useMemo(() => {
         let result = orders;
 
-        // Lọc theo Tên/ID khách hàng (filters.search)
         if (filters.search) {
             result = result.filter(order => {
-                // Truy cập an toàn qua customer -> account -> fullName
                 const customerFullName = order.customer?.account?.fullName || '';
                 const orderId = String(order.id);
                 const searchLower = filters.search.toLowerCase();
@@ -210,26 +393,23 @@ const OrderManagement = () => {
         return result;
     }, [orders, filters.search]);
 
-    // --- Tính toán Thống kê ---
+    // --- Tính toán Thống kê (giữ nguyên) ---
     const stats = useMemo(() => {
         const ordersData = filteredOrdersByCustomer;
 
         const totalOrdersCount = ordersData.length;
 
-        // Tính Tổng Doanh Thu (chỉ đơn đã DELIVERED)
         const totalRevenueAmount = ordersData.reduce((sum, order) => {
             const amount = (order.status === 'DELIVERED' && order.total) ? order.total : 0;
             const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
             return sum + numericAmount;
         }, 0);
 
-        // Đếm Tổng Khách hàng Duy nhất
         const uniqueCustomerIds = new Set(
             ordersData.map(order => order.customer?.id).filter(id => id != null)
         );
         const totalCustomersCount = uniqueCustomerIds.size;
 
-        // Đếm đơn đã hoàn thành
         const deliveredCount = ordersData.filter(o => o.status === 'DELIVERED').length;
 
         return {
@@ -242,11 +422,45 @@ const OrderManagement = () => {
 
     const { totalOrdersCount, totalRevenueAmount, totalCustomersCount, deliveredCount } = stats;
 
-    // --- Logic Phân trang Frontend ---
+    // --- Logic Phân trang Frontend (giữ nguyên) ---
     const totalOrders = filteredOrdersByCustomer.length;
     const totalPagesFE = Math.ceil(totalOrders / ORDERS_PER_PAGE);
     const startIndex = page * ORDERS_PER_PAGE;
     const currentOrders = filteredOrdersByCustomer.slice(startIndex, startIndex + ORDERS_PER_PAGE);
+
+    // --- RENDER ACTION BUTTONS TRONG BẢNG (MỚI) ---
+    const renderActionButton = (order) => {
+        const isCompleted = order.status === 'DELIVERED' || order.status === 'CANCELLED' || order.status === 'REFUNDED';
+
+        return (
+            <div className="flex justify-center gap-2">
+                {/* 1. Nút Chi tiết (Admin/Employee luôn có) */}
+                <Link
+                    to={`/admin/orders/${order.id}`}
+                    title="Xem Chi Tiết Đơn Hàng"
+                    className={`px-3 py-1 text-xs rounded-lg font-medium transition 
+                                text-blue-600 border border-gray-300 bg-white 
+                                hover:bg-blue-50 hover:text-blue-800`}>
+                    <Eye className="w-4 h-4 inline mr-1" /> Chi Tiết
+                </Link>
+
+                {/* 2. Nút Cập nhật Trạng thái (CHỈ HIỂN THỊ NẾU LÀ EMPLOYEE VÀ ĐƠN CHƯA KẾT THÚC) */}
+                {isEmployeeRole && !isCompleted && (
+                    <button
+                        onClick={() => {
+                            setSelectedOrder(order);
+                            setIsStatusModalOpen(true);
+                        }}
+                        title="Cập nhật Trạng thái"
+                        className={`px-3 py-1 text-xs rounded-lg font-medium transition 
+                                    text-yellow-600 border border-gray-300 bg-white 
+                                    hover:bg-yellow-50 hover:text-yellow-800`}>
+                        <Zap className="w-4 h-4 inline mr-1" /> Cập nhật
+                    </button>
+                )}
+            </div>
+        );
+    };
 
 
     if (authLoading) {
@@ -265,7 +479,20 @@ const OrderManagement = () => {
 
     return (
         <div className="p-8 bg-gray-50 min-h-screen">
-            {/* Tiêu đề */}
+
+            {/* MODAL CẬP NHẬT TRẠNG THÁI */}
+            <StatusUpdateModal
+                isOpen={isStatusModalOpen}
+                currentOrder={selectedOrder}
+                onUpdate={handleUpdateStatus}
+                onCancel={() => setIsStatusModalOpen(false)}
+            />
+
+            {/* MESSAGE BOX */}
+            <MessageDisplay message={message} onClose={() => setMessage(null)} />
+
+
+            {/* Tiêu đề (giữ nguyên) */}
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-900">Quản lý Đơn hàng</h1>
                 <p className="text-gray-600 mt-1">Tổng quan và quản lý tất cả đơn hàng </p>
@@ -459,7 +686,6 @@ const OrderManagement = () => {
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                             {currentOrders.map((order) => {
-                                // SỬA ĐỔI HIỂN THỊ TÊN KHÁCH HÀNG: Thay N/A bằng Khách vãng lai nếu không có tên
                                 const customerName = order.customer?.account?.fullName || 'Khách vãng lai';
 
                                 return (
@@ -476,16 +702,7 @@ const OrderManagement = () => {
                                                 </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                                            <Link
-                                                to={`/admin/orders/${order.id}`}
-                                                title="Xem Chi Tiết Đơn Hàng"
-                                                className={`
-                                                            px-3 py-1 text-xs rounded-lg font-medium transition 
-                                                            text-blue-600 border border-gray-300 bg-white 
-                                                            hover:bg-blue-50 hover:text-blue-800
-                                                        `}>
-                                                <Eye className="w-4 h-4 inline mr-1" /> Chi Tiết
-                                            </Link>
+                                            {renderActionButton(order)}
                                         </td>
                                     </tr>
                                 );
