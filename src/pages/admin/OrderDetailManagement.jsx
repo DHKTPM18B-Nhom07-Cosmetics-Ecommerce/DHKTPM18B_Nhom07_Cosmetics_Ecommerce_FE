@@ -30,7 +30,7 @@ const TEAL_BG = 'bg-[#2B6377]';
 const TEAL_HOVER_BG = 'hover:bg-[#E6F3F5]';
 const TEAL_ACTIVE_BG = 'bg-[#CCDFE3]';
 
-// --- HÀM TIỆN ÍCH CHUNG (Giữ nguyên) ---
+// --- HÀM TIỆN ÍCH CHUNG ---
 
 const formatCurrency = (amount) => {
     if (amount === null || amount === undefined) return 'N/A';
@@ -55,16 +55,36 @@ const translateStatus = (status) => {
         case 'DELIVERED': return 'Hoàn thành';
         case 'SHIPPING': return 'Đang giao';
         case 'PROCESSING': return 'Đang xử lý';
-        case 'CONFIRMED': return 'Chờ xác nhận';
+        case 'CONFIRMED': return 'Đã xác nhận';
         case 'PENDING': return 'Chờ xử lý';
         case 'CANCELLED': return 'Đã hủy';
         default: return status;
     }
 };
 
+const AccountSidebar = () => (
+    <div className="w-64 flex-shrink-0 bg-white p-4 rounded-lg shadow-sm font-sans sticky top-20 h-fit">
+        <h3 className="font-semibold text-lg text-gray-800 mb-4 border-b pb-2">Tài khoản</h3>
+        <nav className="space-y-2">
+            <Link to="/order" className={`flex items-center p-2 ${TEAL_TEXT} ${TEAL_ACTIVE_BG} rounded-md font-medium transition`}>
+                <Package className="w-4 h-4 mr-2" /> Quản lý đơn hàng
+            </Link>
+            <Link to="/profile" className={`flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition`}>
+                <User className="w-4 h-4 mr-2" /> Thông tin cá nhân
+            </Link>
+            <Link to="/addresses" className={`flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition`}>
+                <MapPin className="w-4 h-4 mr-2" /> Địa chỉ giao hàng
+            </Link>
+            <a href="/logout" className={`flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition mt-4 border-t pt-2`}>
+                <LogOut className="w-4 h-4 mr-2" /> Thoát
+            </a>
+        </nav>
+    </div>
+);
+
 /**
  * Hiển thị thông tin sản phẩm (tên, biến thể, ảnh)
- * ĐÃ SỬA: Lấy Tên Sản phẩm gốc làm tiêu đề chính.
+ * ĐÃ SỬA: BỎ truncate để cho phép xuống dòng.
  */
 const ProductItemDisplay = ({ item }) => {
 
@@ -76,7 +96,6 @@ const ProductItemDisplay = ({ item }) => {
     const productName = product?.name || 'Sản phẩm không rõ tên';
 
     // 2. TẠO CHUỖI HIỂN THỊ CHÍNH: Tên Sản phẩm [ + (Tên Biến thể) ]
-    // Ví dụ: "Sữa Rửa Mặt CeraVe (473ml)"
     const primaryDisplay = (productName === variantName) ?
         productName :
         (variantName ? `${productName} (${variantName})` : productName);
@@ -102,22 +121,17 @@ const ProductItemDisplay = ({ item }) => {
             />
 
             <div className="flex-grow min-w-0 pt-1">
-                {/* Tên sản phẩm chính (đã kết hợp tên biến thể) */}
-                <p className="font-bold text-gray-800 leading-tight text-sm" title={primaryDisplay}>
+                {/* Tên sản phẩm chính (đã kết hợp tên biến thể) - Đã bỏ truncate */}
+                <p className="font-bold text-gray-800 leading-snug text-sm" title={primaryDisplay}>
                     {primaryDisplay}
                 </p>
 
                 {/* Dòng phụ: Chỉ hiển thị tên biến thể nếu nó khác với tên chính */}
                 {variantName && variantName !== productName && (
-                    <p className="text-xs text-gray-600 leading-snug truncate" title={`Biến thể: ${variantName}`}>
+                    <p className="text-xs text-gray-600 leading-snug" title={`Biến thể: ${variantName}`}>
                         loại: {variantName}
                     </p>
                 )}
-
-
-                {/*<p className="text-xs text-gray-500 mt-1">*/}
-                {/*    Mã Variant: #{item.productVariant?.id || 'N/A'}*/}
-                {/*</p>*/}
             </div>
         </div>
     );
@@ -140,7 +154,6 @@ const OrderItemRow = ({ item }) => {
             <div className="w-2/5 pr-4 flex items-center justify-start">
                 <ProductItemDisplay item={item} />
             </div>
-
             {/* CỘT SỐ LƯỢNG */}
             <div className="text-center w-1/5 text-sm text-gray-700">
                 {quantity}
@@ -237,7 +250,7 @@ const OrderDetailManagement = () => {
             if (address) {
                 data.shippingAddress = {
                     // Ưu tiên tên trong Address, sau đó là tên từ Customer Account
-                    recipientName: address.fullName || customerFullName || 'Khách vãng lai', // SỬA N/A thành Khách vãng lai
+                    recipientName: address.fullName || customerFullName || 'Khách vãng lai',
                     phone: address.phone || 'N/A',
                     addressLine: [
                         address.address,
@@ -250,8 +263,13 @@ const OrderDetailManagement = () => {
             }
 
             // Thêm trường hiển thị tên khách hàng cho giao diện (tên tài khoản)
-            // SỬA N/A thành Khách vãng lai
             data.displayCustomerName = customerFullName || 'Khách vãng lai';
+
+            // ÁNH XẠ THÔNG TIN NHÂN VIÊN XỬ LÝ
+            data.employeeInfo = {
+                id: data.employee?.id || 'N/A',
+                fullName: data.employee?.account?.fullName || 'Chưa phân công',
+            };
 
             return data;
         };
@@ -306,7 +324,7 @@ const OrderDetailManagement = () => {
     const renderActionButtons = () => {
         return (
             <span className="text-sm text-gray-500 italic">
-                (Không có thao tác nào trong chế độ quản lý)
+                {/*(Không có thao tác nào trong chế độ quản lý)*/}
             </span>
         );
     };
@@ -380,6 +398,9 @@ const OrderDetailManagement = () => {
     // Lấy thông tin giao hàng đã được ánh xạ
     const shippingInfo = order.shippingAddress;
 
+    // LOGIC HIỂN THỊ LÝ DO HỦY KHÁCH HÀNG
+    const isCustomerCancelRequest = order.cancelReason && order.cancelReason.startsWith('Yêu cầu hủy từ KH:');
+
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
@@ -427,6 +448,31 @@ const OrderDetailManagement = () => {
                                     {translateStatus(order.status)}
                                 </span>
                             </div>
+
+                            {/* Lý do hủy/Trả hàng (Nếu có) */}
+                            {order.cancelReason && (
+                                <div className="mt-4 p-3 rounded-lg text-sm border
+                                                {/* Đổi màu sắc cảnh báo nếu đang PENDING chờ xử lý */}
+                                                {isCustomerCancelRequest
+                                                    ? 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                                                    : 'bg-red-50 border-red-200 text-red-700'
+                                                }
+                                            ">
+                                    <p className="font-semibold flex items-center">
+                                        <AlertTriangle className="w-4 h-4 mr-1"/>
+                                        {isCustomerCancelRequest
+                                            ? 'YÊU CẦU HỦY TỪ KHÁCH HÀNG'
+                                            : `Lý do ${translateStatus(order.status)}`}:
+                                    </p>
+                                    {/* Hiển thị lý do, loại bỏ prefix nếu là Yêu cầu KH */}
+                                    <p className="mt-1">
+                                        {isCustomerCancelRequest
+                                            ? order.cancelReason.replace('Yêu cầu hủy từ KH: ', '')
+                                            : order.cancelReason
+                                        }
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         {/* DANH SÁCH SẢN PHẨM ĐÃ ĐẶT */}
@@ -460,7 +506,7 @@ const OrderDetailManagement = () => {
                                 <div className="space-y-3 text-gray-700">
                                     <p className="flex flex-col">
                                         <span className="text-sm text-gray-500">Họ tên người nhận:</span>
-                                        <span className="font-semibold text-gray-800">{shippingInfo?.recipientName || 'Khách vãng lai'}</span>
+                                        <span className="font-semibold text-gray-800">{shippingInfo?.recipientName || 'N/A'}</span>
                                     </p>
                                     <p className="flex flex-col">
                                         <span className="text-sm text-gray-500">Số điện thoại:</span>
@@ -474,11 +520,11 @@ const OrderDetailManagement = () => {
                                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-2 border-t pt-2">
                                     Nhân viên xử lý
                                 </h3>
-                                {/* Thông tin Employee (Mock) */}
+                                {/* THAY ĐỔI: Hiển thị thông tin Employee thực tế */}
                                 <div className="text-sm text-gray-700">
-                                    {/* Trong thực tế, bạn sẽ dùng order.employee.account.fullName */}
-                                    <p>Tên: Lê Minh Tuấn (ID: 1)</p>
-                                    <p>Thời gian xử lý: 2025-03-21</p>
+                                    <p>Tên: <span className="font-semibold text-gray-800">{order.employeeInfo?.fullName || 'Chưa phân công'}</span></p>
+                                    <p>ID: {order.employeeInfo?.id || 'N/A'}</p>
+
                                 </div>
                             </div>
 

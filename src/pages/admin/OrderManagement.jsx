@@ -140,16 +140,25 @@ const StatusUpdateModal = ({ isOpen, currentOrder, onUpdate, onCancel }) => {
 
     const currentStatus = currentOrder.status;
     const possibleNextStatus = NEXT_STATUS_MAP[currentStatus] || [];
+
+    // 1. Logic để kiểm tra lý do hủy từ KH
+    const isCustomerCancelRequest = currentOrder.cancelReason && currentOrder.cancelReason.startsWith('Yêu cầu hủy từ KH:');
+    const customerReasonText = isCustomerCancelRequest ? currentOrder.cancelReason : '';
+
     const [selectedStatus, setSelectedStatus] = useState(possibleNextStatus.length > 0 ? possibleNextStatus[0] : currentStatus);
-    const [cancelReason, setCancelReason] = useState(currentOrder.cancelReason || '');
+    // 2. Thiết lập lý do mặc định: Lý do KH nếu tồn tại, ngược lại là rỗng.
+    const [cancelReason, setCancelReason] = useState(customerReasonText);
 
     const requiresReason = selectedStatus === 'CANCELLED' || selectedStatus === 'RETURNED';
 
     const handleConfirm = () => {
+        // Nếu chuyển sang CANCELLED/RETURNED VÀ lý do là rỗng, yêu cầu nhập
         if (requiresReason && !cancelReason.trim()) {
-            alert('Vui lòng nhập lý do hủy/trả hàng.');
+            alert('Vui lòng nhập hoặc xác nhận lý do hủy/trả hàng.');
             return;
         }
+
+        // Khi Nhân viên nhấn "Áp dụng", họ gửi lý do đang hiển thị (có thể là lý do của KH hoặc lý do mới)
         onUpdate(currentOrder.id, selectedStatus, cancelReason);
     };
 
@@ -162,13 +171,26 @@ const StatusUpdateModal = ({ isOpen, currentOrder, onUpdate, onCancel }) => {
                 <div className="text-gray-700 mb-6 space-y-4">
                     <p>Trạng thái hiện tại: <span className={`px-2 py-1 rounded text-white text-xs ${getStatusStyle(currentStatus)}`}>{translateStatus(currentStatus)}</span></p>
 
+                    {/* THAY ĐỔI: HIỂN THỊ CẢNH BÁO YÊU CẦU HỦY CỦA KHÁCH HÀNG */}
+                    {isCustomerCancelRequest && currentStatus === 'PENDING' && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-start">
+                            <AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0" />
+                            <div>
+                                <span className="font-bold">YÊU CẦU HỦY TỪ KHÁCH HÀNG:</span>
+                                <p className="mt-1">{customerReasonText.replace('Yêu cầu hủy từ KH: ', '')}</p>
+                            </div>
+                        </div>
+                    )}
+                    {/* KẾT THÚC THAY ĐỔI */}
+
                     <div className="flex flex-col">
                         <label className="text-sm font-medium mb-1">Chọn trạng thái mới:</label>
                         <select
                             value={selectedStatus}
                             onChange={(e) => {
                                 setSelectedStatus(e.target.value);
-                                setCancelReason('');
+                                // Khi đổi trạng thái, reset reason, trừ khi lý do đã được điền tự động
+                                if (!customerReasonText) setCancelReason('');
                             }}
                             className="px-3 py-2 border rounded-lg focus:ring-[#2B6377] focus:border-[#2B6377]"
                             disabled={possibleNextStatus.length === 0}
@@ -185,13 +207,15 @@ const StatusUpdateModal = ({ isOpen, currentOrder, onUpdate, onCancel }) => {
 
                     {requiresReason && (
                         <div className="flex flex-col">
-                            <label className="text-sm font-medium mb-1 text-red-600">Lý do Hủy/Trả hàng:</label>
+                            <label className="text-sm font-medium mb-1 text-red-600">
+                                Lý do Hủy/Trả hàng: {isCustomerCancelRequest && currentStatus === 'PENDING' && "(Ghi đè nếu cần)"}
+                            </label>
                             <textarea
                                 value={cancelReason}
                                 onChange={(e) => setCancelReason(e.target.value)}
                                 rows="3"
                                 className="px-3 py-2 border rounded-lg focus:ring-red-500 focus:border-red-500 resize-none"
-                                placeholder="Nhập lý do chi tiết..."
+                                placeholder="Xác nhận hoặc nhập lý do của nhân viên..."
                             />
                         </div>
                     )}
@@ -431,6 +455,7 @@ const OrderManagement = () => {
     // --- RENDER ACTION BUTTONS TRONG BẢNG (MỚI) ---
     const renderActionButton = (order) => {
         const isCompleted = order.status === 'DELIVERED' || order.status === 'CANCELLED' || order.status === 'REFUNDED';
+        const hasCancelRequest = order.status === 'PENDING' && order.cancelReason && order.cancelReason.startsWith('Yêu cầu hủy từ KH:'); // Phân biệt dựa vào prefix
 
         return (
             <div className="flex justify-center gap-2">
@@ -451,11 +476,11 @@ const OrderManagement = () => {
                             setSelectedOrder(order);
                             setIsStatusModalOpen(true);
                         }}
-                        title="Cập nhật Trạng thái"
+                        title={hasCancelRequest ? "Xác nhận Hủy" : "Cập nhật Trạng thái"}
                         className={`px-3 py-1 text-xs rounded-lg font-medium transition 
-                                    text-yellow-600 border border-gray-300 bg-white 
-                                    hover:bg-yellow-50 hover:text-yellow-800`}>
-                        <Zap className="w-4 h-4 inline mr-1" /> Cập nhật
+                                    ${hasCancelRequest ? 'bg-red-500 text-white hover:bg-red-600' : 'text-yellow-600 border border-gray-300 bg-white hover:bg-yellow-50'}`}>
+                        <Zap className="w-4 h-4 inline mr-1" />
+                        {hasCancelRequest ? 'Xác nhận Hủy' : 'Cập nhật'}
                     </button>
                 )}
             </div>
@@ -697,9 +722,14 @@ const OrderManagement = () => {
                                             {formatCurrency(order.total)}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-center">
-                                                <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full border ${getStatusStyle(order.status)}`}>
-                                                    {translateStatus(order.status)}
-                                                </span>
+                                            <span
+                                                className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full border ${getStatusStyle(order.status)}`}>
+                                                {/* Thêm biểu tượng Cảnh báo nếu có yêu cầu hủy */}
+                                                {order.status === 'PENDING' && order.cancelReason && order.cancelReason.startsWith('Yêu cầu hủy từ KH:') && (
+                                                    <AlertTriangle className="w-3 h-3 inline mr-1 text-red-500"/>
+                                                )}
+                                                {translateStatus(order.status)}
+                                            </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                                             {renderActionButton(order)}
