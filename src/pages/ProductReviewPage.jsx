@@ -1,36 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Star, Upload, Video, X, ChevronLeft } from 'lucide-react';
+import { Star, ChevronLeft } from 'lucide-react';
+import { createReview } from '../services/reviewService';
+import { toast } from 'react-toastify';
+import axios from 'axios';
 
 const ProductReviewPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     
-    // Lấy thông tin sản phẩm từ navigation state (hoặc dùng mặc định)
-    const product = location.state?.product || {
-        id: 1,
-        name: 'Serum Dưỡng Ẩm Biển Sâu',
-        category: 'Skin - Dưỡng da',
-        price: 430000,
-        image: 'https://via.placeholder.com/100'
-    };
-
+    const orderId = location.state?.orderId;
+    
     // States
     const [rating, setRating] = useState(0);
     const [hoverRating, setHoverRating] = useState(0);
     const [review, setReview] = useState('');
-    const [images, setImages] = useState([]);
-    const [videos, setVideos] = useState([]);
-    const [selectedTags, setSelectedTags] = useState([]);
+    const [orderDetails, setOrderDetails] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [selectedProduct, setSelectedProduct] = useState(null);
 
-    // Danh sách các tag đánh giá nhanh
-    const quickTags = [
-        'Chất lượng tốt',
-        'Đóng gói cẩn thận',
-        'Giao hàng nhanh',
-        'Đúng mô tả',
-        'Sẽ mua lại'
-    ];
+    // Lấy thông tin đơn hàng từ API
+    useEffect(() => {
+        const fetchOrderDetails = async () => {
+            if (!orderId) {
+                toast.error('Không tìm thấy thông tin đơn hàng');
+                navigate('/orders');
+                return;
+            }
+
+            try {
+                const user = JSON.parse(localStorage.getItem('user'));
+                const response = await axios.get(`http://localhost:8080/api/orders/${orderId}`, {
+                    headers: { Authorization: `Bearer ${user?.token}` }
+                });
+                setOrderDetails(response.data);
+                console.log('Order Details:', response.data);
+                // Tự động chọn sản phẩm đầu tiên nếu chỉ có 1 sản phẩm
+                if (response.data.orderDetails?.length === 1) {
+                    setSelectedProduct(response.data.orderDetails[0]);
+                    console.log('Selected Product:', response.data.orderDetails[0]);
+                }
+                setLoading(false);
+            } catch (error) {
+                console.error('Lỗi khi tải đơn hàng:', error);
+                toast.error('Không thể tải thông tin đơn hàng');
+                navigate('/orders');
+            }
+        };
+
+        fetchOrderDetails();
+    }, [orderId, navigate]);
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('vi-VN', {
@@ -39,88 +58,60 @@ const ProductReviewPage = () => {
         }).format(amount);
     };
 
-    const handleImageUpload = (e) => {
-        const files = Array.from(e.target.files);
-        const newImages = files.map(file => ({
-            file,
-            preview: URL.createObjectURL(file)
-        }));
-        setImages([...images, ...newImages]);
-    };
-
-    const handleVideoUpload = (e) => {
-        const files = Array.from(e.target.files);
-        const newVideos = files.map(file => ({
-            file,
-            preview: URL.createObjectURL(file)
-        }));
-        setVideos([...videos, ...newVideos]);
-    };
-
-    const removeImage = (index) => {
-        const newImages = images.filter((_, i) => i !== index);
-        setImages(newImages);
-    };
-
-    const removeVideo = (index) => {
-        const newVideos = videos.filter((_, i) => i !== index);
-        setVideos(newVideos);
-    };
-
-    const toggleTag = (tag) => {
-        if (selectedTags.includes(tag)) {
-            setSelectedTags(selectedTags.filter(t => t !== tag));
-        } else {
-            setSelectedTags([...selectedTags, tag]);
-        }
-    };
-
     const handleSubmit = async () => {
         if (rating === 0) {
-            alert('Vui lòng chọn số sao đánh giá!');
+            toast.warning('Vui lòng chọn số sao đánh giá!');
             return;
         }
 
-        // Tạo FormData để gửi kèm file
-        const formData = new FormData();
-        formData.append('productId', product.id);
-        formData.append('rating', rating);
-        formData.append('review', review);
-        formData.append('tags', JSON.stringify(selectedTags));
-        
-        // Thêm images
-        images.forEach((img, index) => {
-            formData.append('images', img.file);
-        });
-        
-        // Thêm videos
-        videos.forEach((vid, index) => {
-            formData.append('videos', vid.file);
-        });
+        if (!selectedProduct) {
+            toast.warning('Vui lòng chọn sản phẩm để đánh giá!');
+            return;
+        }
 
+        // Lấy thông tin customer từ localStorage
+        const userStored = localStorage.getItem('user');
+        if (!userStored) {
+            toast.error('Vui lòng đăng nhập để đánh giá sản phẩm');
+            navigate('/login');
+            return;
+        }
+
+        const user = JSON.parse(userStored);
+        
         try {
-            // TODO: Gọi API gửi đánh giá
-            // await axios.post('/api/reviews', formData);
-            
-            console.log('Đánh giá:', {
-                productId: product.id,
+            // Lấy customer ID từ account ID
+            const customerResponse = await axios.get(
+                `http://localhost:8080/api/customers/account/${user.id}`, 
+                { headers: { Authorization: `Bearer ${user.token}` } }
+            );
+            const customerId = customerResponse.data.id;
+
+            // Lấy product ID từ selected product
+            const productId = selectedProduct.productVariant?.product?.id;
+            if (!productId) {
+                toast.error('Không tìm thấy thông tin sản phẩm');
+                return;
+            }
+
+            // Gửi review
+            await createReview({
+                customerId,
+                productId,
                 rating,
-                review,
-                tags: selectedTags,
-                imageCount: images.length,
-                videoCount: videos.length
+                comment: review.trim(),
+                active: true
             });
             
-            alert('Gửi đánh giá thành công!');
-            navigate('/order'); // Quay về trang đơn hàng
+            toast.success('Gửi đánh giá thành công!');
+            navigate('/order');
         } catch (error) {
-            console.error('Lỗi khi gửi đánh giá:', error);
-            alert('Có lỗi xảy ra, vui lòng thử lại!');
+            toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi gửi đánh giá');
         }
     };
 
     const handleCancel = () => {
-        if (rating > 0 || review.trim() || images.length > 0 || videos.length > 0) {
+        if (rating > 0 || review.trim()) {
             if (window.confirm('Bạn có chắc muốn hủy? Các thông tin đã nhập sẽ bị mất.')) {
                 navigate(-1);
             }
@@ -128,6 +119,20 @@ const ProductReviewPage = () => {
             navigate(-1);
         }
     };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="text-xl text-gray-600">Đang tải thông tin đơn hàng...</div>
+                </div>
+            </div>
+        );
+    }
+
+    if (!orderDetails) {
+        return null;
+    }
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -164,28 +169,75 @@ const ProductReviewPage = () => {
 
                 <div className="bg-white rounded-lg shadow-md p-6">
                     <h2 className="text-2xl font-bold text-[#2C6B6E] mb-6">ĐÁNH GIÁ SẢN PHẨM</h2>
-                    <p className="text-gray-600 mb-6">Chỉ sẽ trải nghiệm của bạn về sản phẩm</p>
+                    <p className="text-gray-600 mb-6">Chia sẻ trải nghiệm của bạn về sản phẩm</p>
 
-                    {/* Thông tin sản phẩm */}
-                    <div className="bg-blue-50 rounded-lg p-4 mb-6 flex w-full items-center" style={{minHeight: '120px'}}>
-                        <div className="flex-shrink-0">
-                            <img 
-                                src={product.image} 
-                                alt={product.name}
-                                className="w-24 h-24 object-cover rounded-lg bg-white"
-                            />
+                    {/* Danh sách sản phẩm trong đơn hàng */}
+                    {orderDetails.orderDetails && orderDetails.orderDetails.length > 1 && (
+                        <div className="mb-6">
+                            <h3 className="font-semibold mb-3">Chọn sản phẩm để đánh giá</h3>
+                            <div className="space-y-2">
+                                {orderDetails.orderDetails.map((item) => (
+                                    <div
+                                        key={item.id}
+                                        onClick={() => setSelectedProduct(item)}
+                                        className={`bg-blue-50 rounded-lg p-4 flex items-center cursor-pointer border-2 transition ${
+                                            selectedProduct?.id === item.id 
+                                                ? 'border-[#2C6B6E] bg-blue-100' 
+                                                : 'border-transparent hover:border-gray-300'
+                                        }`}
+                                    >
+                                        <div className="flex-shrink-0">
+                                            <img 
+                                                src={item.productVariant?.imageUrls?.[0] || item.productVariant?.product?.images?.[0] || 'https://via.placeholder.com/100'} 
+                                                alt={item.productVariant?.product?.name || 'Sản phẩm'}
+                                                className="w-20 h-20 object-cover rounded-lg bg-white"
+                                            />
+                                        </div>
+                                        <div className="flex-1 ml-4">
+                                            <h4 className="font-semibold text-base">{item.productVariant?.product?.name || 'Sản phẩm'}</h4>
+                                            <p className="text-sm text-gray-600">
+                                                Phân loại: {item.productVariant?.variantName || 'Không xác định'}
+                                            </p>
+                                            <p className="text-teal-700 font-medium">
+                                                Giá: {formatCurrency(item.unitPrice || 0)}
+                                            </p>
+                                            <p className="text-sm text-gray-500">Số lượng: {item.quantity}</p>
+                                        </div>
+                                        {selectedProduct?.id === item.id && (
+                                            <div className="flex-shrink-0 text-[#2C6B6E]">
+                                                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                </svg>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                        <div className="flex-1 ml-6 flex flex-col justify-center text-left">
-                            <h3 className="font-semibold text-lg mb-1">{product.name}</h3>
-                            <p className="text-sm text-gray-600 mb-1">
-                                Phân loại: {product.category}
-                            </p>
-                            <p className="text-teal-700 font-medium">
-                                Giá: {formatCurrency(product.price)}
-                            </p>
-                            <p className="text-sm text-gray-500 mt-1">Số lượng: 1</p>
+                    )}
+
+                    {/* Thông tin sản phẩm được chọn */}
+                    {selectedProduct && (
+                        <div className="bg-blue-50 rounded-lg p-4 mb-6 flex w-full items-center border-2 border-[#2C6B6E]" style={{minHeight: '120px'}}>
+                            <div className="flex-shrink-0">
+                                <img 
+                                    src={selectedProduct.productVariant?.imageUrls?.[0] || selectedProduct.productVariant?.product?.images?.[0] || 'https://via.placeholder.com/100'} 
+                                    alt={selectedProduct.productVariant?.product?.name || 'Sản phẩm'}
+                                    className="w-24 h-24 object-cover rounded-lg bg-white"
+                                />
+                            </div>
+                            <div className="flex-1 ml-6 flex flex-col justify-center text-left">
+                                <h3 className="font-semibold text-lg mb-1">{selectedProduct.productVariant?.product?.name || 'Sản phẩm'}</h3>
+                                <p className="text-sm text-gray-600 mb-1">
+                                    Phân loại: {selectedProduct.productVariant?.variantName || 'Không xác định'}
+                                </p>
+                                <p className="text-teal-700 font-medium">
+                                    Giá: {formatCurrency(selectedProduct.unitPrice || 0)}
+                                </p>
+                                <p className="text-sm text-gray-500 mt-1">Số lượng: {selectedProduct.quantity}</p>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Đánh giá sao */}
                     <div className="mb-6">
@@ -209,14 +261,15 @@ const ProductReviewPage = () => {
                                     />
                                 </button>
                             ))}
-                            <span className="ml-4 text-gray-600">
-                                {rating === 0 ? 'Rất tệ' : 
-                                 rating === 1 ? 'Tệ' :
-                                 rating === 2 ? 'Bình thường' :
-                                 rating === 3 ? 'Tốt' :
-                                 rating === 4 ? 'Tuyệt vời' :
-                                 'Tuyệt vời'}
-                            </span>
+                            {rating > 0 && (
+                                <span className="ml-4 text-gray-600">
+                                    {rating === 1 ? 'Tệ' :
+                                     rating === 2 ? 'Bình thường' :
+                                     rating === 3 ? 'Tốt' :
+                                     rating === 4 ? 'Rất tốt' :
+                                     'Tuyệt vời'}
+                                </span>
+                            )}
                         </div>
                     </div>
 
@@ -232,105 +285,6 @@ const ProductReviewPage = () => {
                         />
                         <div className="text-right text-sm text-gray-500 mt-1">
                             {review.length}/500 ký tự
-                        </div>
-                    </div>
-
-                    {/* Upload hình ảnh/video */}
-                    <div className="mb-6">
-                        <h3 className="font-semibold mb-3">
-                            Thêm hình ảnh/video (tùy chọn)
-                        </h3>
-                        <p className="text-sm text-gray-600 mb-3">
-                            Tối đa 5 hình ảnh và 1 video
-                            <br />
-                            Định dạng: JPG, PNG, MP4. Kích thước tối đa: 10MB
-                        </p>
-                        
-                        <div className="flex gap-4 flex-wrap">
-                            {/* Hiển thị ảnh đã upload */}
-                            {images.map((img, index) => (
-                                <div key={index} className="relative w-24 h-24">
-                                    <img
-                                        src={img.preview}
-                                        alt={`Preview ${index}`}
-                                        className="w-full h-full object-cover rounded-lg border-2 border-gray-200"
-                                    />
-                                    <button
-                                        onClick={() => removeImage(index)}
-                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                                    >
-                                        <X size={16} />
-                                    </button>
-                                </div>
-                            ))}
-
-                            {/* Hiển thị video đã upload */}
-                            {videos.map((vid, index) => (
-                                <div key={index} className="relative w-24 h-24">
-                                    <video
-                                        src={vid.preview}
-                                        className="w-full h-full object-cover rounded-lg border-2 border-gray-200"
-                                    />
-                                    <button
-                                        onClick={() => removeVideo(index)}
-                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                                    >
-                                        <X size={16} />
-                                    </button>
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <Video className="text-white opacity-80" size={32} />
-                                    </div>
-                                </div>
-                            ))}
-
-                            {/* Button upload ảnh */}
-                            {images.length < 5 && (
-                                <label className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[#2C6B6E] hover:bg-gray-50 transition">
-                                    <Upload size={24} className="text-gray-400 mb-1" />
-                                    <span className="text-xs text-gray-500">Ảnh</span>
-                                    <input
-                                        type="file"
-                                        accept="image/jpeg,image/png,image/jpg"
-                                        multiple
-                                        onChange={handleImageUpload}
-                                        className="hidden"
-                                    />
-                                </label>
-                            )}
-
-                            {/* Button upload video */}
-                            {videos.length < 1 && (
-                                <label className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[#2C6B6E] hover:bg-gray-50 transition">
-                                    <Video size={24} className="text-gray-400 mb-1" />
-                                    <span className="text-xs text-gray-500">Video</span>
-                                    <input
-                                        type="file"
-                                        accept="video/mp4"
-                                        onChange={handleVideoUpload}
-                                        className="hidden"
-                                    />
-                                </label>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Tag đánh giá nhanh */}
-                    <div className="mb-8">
-                        <h3 className="font-semibold mb-3">Đánh giá nhanh</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {quickTags.map((tag) => (
-                                <button
-                                    key={tag}
-                                    onClick={() => toggleTag(tag)}
-                                    className={`px-4 py-2 rounded-full text-sm transition ${
-                                        selectedTags.includes(tag)
-                                            ? 'bg-[#2C6B6E] text-white'
-                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    }`}
-                                >
-                                    {tag}
-                                </button>
-                            ))}
                         </div>
                     </div>
 
