@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import {
     ChevronLeft,
@@ -7,10 +7,14 @@ import {
     Package,
     MapPin,
     LogOut,
+    // Import icon cho Modal hủy
+    XCircle,
+    AlertTriangle,
 } from 'lucide-react';
-import { Link, useNavigate } from "react-router-dom"; // Thêm useNavigate
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
 
+// Định nghĩa trạng thái đơn hàng (Mở rộng nếu Backend có RETURNED/REFUNDED)
 const ORDER_STATUSES = [
     'Tất cả',
     'DELIVERED',
@@ -22,14 +26,146 @@ const ORDER_STATUSES = [
 ];
 
 const API_BASE_URL = 'http://localhost:8080/api/orders';
+const ORDERS_PER_PAGE = 5;
+
+// Tùy chọn lý do hủy (Options)
+const CANCEL_REASONS = [
+    { value: 'CHANGE_PRODUCT', label: 'Thay đổi sản phẩm/kích cỡ' },
+    { value: 'CHANGE_ADDRESS', label: 'Thay đổi địa chỉ giao hàng' },
+    { value: 'PRICE_ISSUE', label: 'Tìm được giá tốt hơn' },
+    { value: 'NOT_NEEDED', label: 'Không còn nhu cầu' },
+    { value: 'OTHER', label: 'Lý do khác' }
+];
+
+// --- HÀM TIỆN ÍCH CHUNG VÀ CÁC COMPONENT PHỤ ---
+
+const TEAL_TEXT = 'text-[#2B6377]';
+const TEAL_ACTIVE_BG = 'bg-[#CCDFE3]';
+const TEAL_HOVER_BG = 'hover:bg-[#E6F3F5]';
+
+
+const formatCurrency = (amount) => {
+    if (amount === null || amount === undefined) return 'N/A';
+    const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(numericAmount);
+};
+
+const getStatusStyle = (status) => {
+    switch (status) {
+        case 'DELIVERED': return 'bg-green-100 text-green-700 border-green-500';
+        case 'SHIPPING': return 'bg-blue-100 text-blue-700 border-blue-500';
+        case 'PROCESSING': return 'bg-yellow-100 text-yellow-700 border-yellow-500';
+        case 'CONFIRMED':
+        case 'PENDING': return 'bg-purple-100 text-purple-700 border-purple-500';
+        case 'CANCELLED': return 'bg-red-100 text-red-700 border-red-500';
+        default: return 'bg-gray-100 text-gray-700 border-gray-400';
+    }
+};
+
+const translateStatus = (status) => {
+    switch (status) {
+        case 'DELIVERED': return 'Hoàn thành';
+        case 'SHIPPING': return 'Đang giao';
+        case 'PROCESSING': return 'Đang xử lý';
+        case 'CONFIRMED': return 'Đã xác nhận';
+        case 'PENDING': return 'Chờ xử lý';
+        case 'CANCELLED': return 'Đã hủy';
+        default: return status;
+    }
+};
+
+
+// --- MODAL YÊU CẦU HỦY ĐƠN HÀNG ---
+const CancelConfirmationModal = ({ isOpen, orderId, onConfirmCancel, onCancel }) => {
+    if (!isOpen) return null;
+
+    const [selectedReason, setSelectedReason] = useState(CANCEL_REASONS[0].value);
+    const [otherReason, setOtherReason] = useState('');
+
+    const isOtherReason = selectedReason === 'OTHER';
+
+    const handleConfirm = () => {
+        let finalReason = selectedReason;
+        if (isOtherReason) {
+            finalReason = otherReason.trim();
+            if (!finalReason) {
+                alert('Vui lòng nhập chi tiết lý do khác.');
+                return;
+            }
+        } else {
+            // Lấy nhãn của lý do đã chọn
+            finalReason = CANCEL_REASONS.find(r => r.value === selectedReason)?.label || 'Lý do không xác định';
+        }
+
+        onConfirmCancel(orderId, finalReason);
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 font-sans">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 m-4">
+                <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2 flex items-center">
+                    <AlertTriangle className="w-5 h-5 mr-2 text-red-500" /> Yêu cầu Hủy Đơn hàng #{orderId}
+                </h3>
+                <div className="text-gray-700 mb-6 space-y-4">
+                    <p className="text-sm">Vui lòng chọn lý do hủy để gửi yêu cầu đến nhân viên. Đơn hàng chỉ bị hủy khi nhân viên xác nhận.</p>
+
+                    {/* Chọn Lý do */}
+                    <div className="flex flex-col">
+                        <label className="text-sm font-medium mb-1">Lý do hủy:</label>
+                        <select
+                            value={selectedReason}
+                            onChange={(e) => {
+                                setSelectedReason(e.target.value);
+                                setOtherReason('');
+                            }}
+                            className="px-3 py-2 border rounded-lg focus:ring-red-500 focus:border-red-500"
+                        >
+                            {CANCEL_REASONS.map(r => (
+                                <option key={r.value} value={r.value}>{r.label}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Lý do khác (nếu chọn "OTHER") */}
+                    {isOtherReason && (
+                        <div className="flex flex-col">
+                            <label className="text-sm font-medium mb-1">Chi tiết lý do khác:</label>
+                            <textarea
+                                value={otherReason}
+                                onChange={(e) => setOtherReason(e.target.value)}
+                                rows="3"
+                                className="px-3 py-2 border rounded-lg focus:ring-red-500 focus:border-red-500 resize-none"
+                                placeholder="Nhập lý do chi tiết..."
+                            />
+                        </div>
+                    )}
+                </div>
+                <div className="flex justify-end space-x-3">
+                    <button
+                        onClick={onCancel}
+                        className="py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition duration-150 text-sm font-medium"
+                    >
+                        Đóng
+                    </button>
+                    <button
+                        onClick={handleConfirm}
+                        className="py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-150 text-sm font-medium"
+                    >
+                        Gửi Yêu cầu Hủy
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+// --- COMPONENT CHÍNH ---
 
 const OrderPage = () => {
 
-    // Sử dụng useNavigate để điều hướng
     const navigate = useNavigate();
-
-    // SỬ DỤNG HOOK ĐỂ LẤY THÔNG TIN TỪ AuthProvider
-    const { user, isLoading: authLoading, isLoggedIn, logout } = useAuth(); // Thêm logout
+    const { user, isLoading: authLoading, isLoggedIn, logout } = useAuth();
     const userToken = user?.token;
 
     const [orders, setOrders] = useState([]);
@@ -42,44 +178,13 @@ const OrderPage = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const ordersPerPage = 5;
 
-    const TEAL_TEXT = 'text-[#2B6377]';
-    const TEAL_ACTIVE_BG = 'bg-[#CCDFE3]';
-    const TEAL_HOVER_BG = 'hover:bg-[#E6F3F5]';
+    // State cho Modal hủy
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [orderToCancelId, setOrderToCancelId] = useState(null);
 
-    const formatCurrency = (amount) => {
-        if (amount === null || amount === undefined) return 'N/A';
-        const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(numericAmount);
-    };
-
-    const getStatusStyle = (status) => {
-        switch (status) {
-            case 'DELIVERED': return 'bg-green-100 text-green-700 border-green-500';
-            case 'SHIPPING': return 'bg-blue-100 text-blue-700 border-blue-500';
-            case 'PROCESSING': return 'bg-yellow-100 text-yellow-700 border-yellow-500';
-            case 'CONFIRMED':
-            case 'PENDING': return 'bg-purple-100 text-purple-700 border-purple-500';
-            case 'CANCELLED': return 'bg-red-100 text-red-700 border-red-500';
-            default: return 'bg-gray-100 text-gray-700 border-gray-400';
-        }
-    };
-
-    const translateStatus = (status) => {
-        switch (status) {
-            case 'DELIVERED': return 'Hoàn thành';
-            case 'SHIPPING': return 'Đang giao';
-            case 'PROCESSING': return 'Đang xử lý';
-            case 'CONFIRMED': return 'Đã xác nhận';
-            case 'PENDING': return 'Chờ xử lý';
-            case 'CANCELLED': return 'Đã hủy';
-            default: return status;
-        }
-    };
-
-    // Hàm FETCH ĐƠN HÀNG (QUAN TRỌNG: Thêm Authorization Header)
-    const fetchOrders = async () => {
+    // Hàm FETCH ĐƠN HÀNG (Sử dụng useCallback)
+    const fetchOrders = useCallback(async () => {
         if (!isLoggedIn || !userToken) {
-            // Không fetch nếu không có token
             setOrders([]);
             setLoading(false);
             setError('Vui lòng đăng nhập để xem lịch sử đơn hàng.');
@@ -93,20 +198,21 @@ const OrderPage = () => {
         let url = `${API_BASE_URL}`;
         const params = {};
 
+        // Lọc theo trạng thái
+        if (statusFilter !== 'Tất cả') {
+            params.status = statusFilter;
+        }
         // Lọc theo ngày
         if (startDate && endDate) {
             params.start = `${startDate}T00:00:00`;
             params.end = `${endDate}T23:59:59`;
         }
-        // Lọc theo trạng thái
-        else if (!startDate && !endDate && statusFilter !== 'Tất cả') {
-            params.status = statusFilter;
-        }
 
-        // Cấu hình Authorization Header
+        // Chú ý: Backend hiện tại chỉ hỗ trợ lọc [Status + Customer] HOẶC [Date Range + All Customers] HOẶC [All].
+        // Vì ta đang dùng endpoint /api/orders (Customer), Backend sẽ tự động lọc theo Customer ID.
+
         const config = {
             headers: {
-                // Đảm bảo userToken có giá trị trước khi sử dụng!
                 Authorization: `Bearer ${userToken}`,
             },
             params: params
@@ -114,7 +220,6 @@ const OrderPage = () => {
 
         try {
             const response = await axios.get(url, config);
-
             let fetchedOrders = Array.isArray(response.data)
                 ? response.data
                 : response.data?.orders ||
@@ -127,12 +232,8 @@ const OrderPage = () => {
             console.error('Lỗi khi tải đơn hàng:', err);
             const status = err.response?.status;
 
-            // XỬ LÝ LỖI XÁC THỰC RÕ RÀNG HƠN
             if (status === 401 || status === 403) {
                 setError('Phiên đăng nhập hết hạn hoặc không có quyền. Vui lòng đăng nhập lại.');
-                // Gợi ý đăng xuất và chuyển hướng đến trang đăng nhập
-                // logout(); // Nếu bạn muốn tự động đăng xuất
-                // navigate('/login');
             } else {
                 setError('Không thể tải dữ liệu đơn hàng. Vui lòng kiểm tra kết nối.');
             }
@@ -140,22 +241,13 @@ const OrderPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [isLoggedIn, userToken, statusFilter, startDate, endDate]);
 
-    // Hàm Hủy đơn hàng (Cần Token)
-    const handleCancelOrder = async (orderId) => {
 
-        // 🚨 SỬA LỖI NGHIỆP VỤ: Lấy đơn hàng hiện tại để kiểm tra trạng thái
-        const orderToCancel = orders.find(o => o.id === orderId);
+    // Hàm GỬI YÊU CẦU HỦY ĐƠN HÀNG (Sửa đổi logic)
+    const handleConfirmCancel = async (orderId, cancelReason) => {
+        setIsCancelModalOpen(false);
 
-        if (!orderToCancel || orderToCancel.status !== 'PENDING') {
-            alert('Chỉ đơn hàng ở trạng thái "Chờ xử lý" mới có thể hủy.');
-            return;
-        }
-
-        if (!window.confirm(`Bạn có chắc chắn muốn hủy đơn hàng ${orderId} này không? Hành động này không thể hoàn tác.`)) {
-            return;
-        }
         if (!userToken) {
             alert('Lỗi xác thực. Vui lòng đăng nhập lại.');
             return;
@@ -164,25 +256,42 @@ const OrderPage = () => {
         try {
             setLoading(true);
 
-            // Cấu hình Authorization Header cho hành động Hủy
             const config = {
                 headers: {
                     Authorization: `Bearer ${userToken}`,
                 },
+                params: { // Thêm lý do hủy vào query params
+                    cancelReason: cancelReason
+                }
             };
 
-            await axios.put(`${API_BASE_URL}/${orderId}/cancel`, {}, config);
+            // GỌI API PUT /api/orders/{id}/cancel
+            await axios.put(`${API_BASE_URL}/${orderId}/cancel`, null, config);
 
-            alert(`Đơn hàng ${orderId} đã được hủy thành công.`);
+            alert(`Yêu cầu hủy đơn hàng ${orderId} đã được gửi thành công với lý do: ${cancelReason}. Đơn hàng sẽ được cập nhật sau khi nhân viên xử lý.`);
             fetchOrders();
 
         } catch (err) {
             setLoading(false);
             console.error(`Lỗi khi hủy đơn hàng ${orderId}:`, err);
-            const errorMessage = err.response?.data?.message || 'Không thể hủy đơn hàng. Vui lòng kiểm tra lại quyền hạn.';
+            const errorMessage = err.response?.data?.message || 'Không thể hủy đơn hàng. Vui lòng kiểm tra trạng thái.';
             alert(`Lỗi: ${errorMessage}`);
         }
     };
+
+    // Hàm khởi tạo yêu cầu hủy (gọi Modal)
+    const handleInitiateCancel = (orderId) => {
+        const orderToCancel = orders.find(o => o.id === orderId);
+
+        if (!orderToCancel || orderToCancel.status !== 'PENDING') {
+            alert('Chỉ đơn hàng ở trạng thái "Chờ xử lý" mới có thể hủy.');
+            return;
+        }
+
+        setOrderToCancelId(orderId);
+        setIsCancelModalOpen(true);
+    };
+
 
     // 🚨 LOGIC MỚI: Render các nút thao tác dựa trên trạng thái
     const renderActionButtons = (status, orderId) => {
@@ -192,12 +301,12 @@ const OrderPage = () => {
             case 'PENDING':
                 return (
                     <button
-                        onClick={() => handleCancelOrder(orderId)}
-                        title="Hủy Đơn Hàng"
+                        onClick={() => handleInitiateCancel(orderId)}
+                        title="Yêu cầu Hủy Đơn Hàng"
                         disabled={loading}
                         className={`${baseClass} bg-red-500 text-white hover:bg-red-600 disabled:opacity-50`}
                     >
-                        Hủy Đơn Hàng
+                        Yêu cầu Hủy
                     </button>
                 );
 
@@ -217,14 +326,11 @@ const OrderPage = () => {
                 );
 
             case 'CANCELLED':
-            case 'RETURNED':
-            case 'REFUNDED':
                 return (
                     <button
                         title="Mua Lại"
                         className={`${baseClass} ${TEAL_TEXT} border border-gray-300 hover:bg-gray-100`}
-                        // Giả lập hành động mua lại
-                        onClick={() => alert(`Chuẩn bị mua lại đơn hàng #${orderId}`)}
+                        onClick={() => alert(`Chức năng mua lại đơn hàng #${orderId} đang được phát triển`)}
                     >
                         Mua Lại
                     </button>
@@ -242,16 +348,14 @@ const OrderPage = () => {
 
 
     useEffect(() => {
-        // Chỉ fetch nếu Auth đã tải xong và user đã đăng nhập
         if (!authLoading && isLoggedIn) {
             fetchOrders();
         } else if (!authLoading && !isLoggedIn) {
-            // Chỉ đặt lỗi nếu loading auth đã xong và user chưa đăng nhập
             setError('Vui lòng đăng nhập để xem lịch sử đơn hàng.');
             setLoading(false);
         }
 
-    }, [statusFilter, isLoggedIn, authLoading]); // Chạy lại khi trạng thái đăng nhập hoặc filter thay đổi
+    }, [isLoggedIn, authLoading, fetchOrders]);
 
     const handleApplyFilters = () => {
         if ((startDate && !endDate) || (!startDate && endDate)) {
@@ -265,6 +369,7 @@ const OrderPage = () => {
     const startIndex = (currentPage - 1) * ordersPerPage;
     const currentOrders = orders.slice(startIndex, startIndex + ordersPerPage);
 
+    // Component Sidebar
     const AccountSidebar = () => (
         <div className="w-64 flex-shrink-0 bg-white p-4 rounded-lg shadow-sm font-sans">
             <h3 className="font-semibold text-lg text-gray-800 mb-4 border-b pb-2">Tài khoản</h3>
@@ -279,7 +384,7 @@ const OrderPage = () => {
                     <MapPin className="w-4 h-4 mr-2" /> Địa chỉ giao hàng
                 </a>
                 <a
-                    onClick={logout} // Dùng hàm logout từ context
+                    onClick={logout}
                     className="cursor-pointer flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition mt-4 border-t pt-2"
                 >
                     <LogOut className="w-4 h-4 mr-2" /> Thoát
@@ -291,6 +396,14 @@ const OrderPage = () => {
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
+
+            {/* MODAL YÊU CẦU HỦY */}
+            <CancelConfirmationModal
+                isOpen={isCancelModalOpen}
+                orderId={orderToCancelId}
+                onConfirmCancel={handleConfirmCancel}
+                onCancel={() => setIsCancelModalOpen(false)}
+            />
 
             <div className="flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
 

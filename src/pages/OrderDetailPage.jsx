@@ -29,7 +29,16 @@ const TEAL_BG = 'bg-[#2B6377]';
 const TEAL_HOVER_BG = 'hover:bg-[#E6F3F5]';
 const TEAL_ACTIVE_BG = 'bg-[#CCDFE3]';
 
-// --- HÀM TIỆN ÍCH CHUNG (Giữ nguyên) ---
+// Tùy chọn lý do hủy (Options)
+const CANCEL_REASONS = [
+    { value: 'CHANGE_PRODUCT', label: 'Thay đổi sản phẩm/kích cỡ' },
+    { value: 'CHANGE_ADDRESS', label: 'Thay đổi địa chỉ giao hàng' },
+    { value: 'PRICE_ISSUE', label: 'Tìm được giá tốt hơn' },
+    { value: 'NOT_NEEDED', label: 'Không còn nhu cầu' },
+    { value: 'OTHER', label: 'Lý do khác' }
+];
+
+// --- HÀM TIỆN ÍCH CHUNG VÀ CÁC COMPONENT PHỤ ---
 
 const formatCurrency = (amount) => {
     if (amount === null || amount === undefined) return 'N/A';
@@ -54,7 +63,7 @@ const translateStatus = (status) => {
         case 'DELIVERED': return 'Hoàn thành';
         case 'SHIPPING': return 'Đang giao';
         case 'PROCESSING': return 'Đang xử lý';
-        case 'CONFIRMED': return 'Chờ xác nhận';
+        case 'CONFIRMED': return 'Đã xác nhận';
         case 'PENDING': return 'Chờ xử lý';
         case 'CANCELLED': return 'Đã hủy';
         default: return status;
@@ -74,16 +83,16 @@ const AccountSidebar = () => (
             <Link to="/addresses" className={`flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition`}>
                 <MapPin className="w-4 h-4 mr-2" /> Địa chỉ giao hàng
             </Link>
-            <Link to="/logout" className={`flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition mt-4 border-t pt-2`}>
+            {/* Sử dụng window.location.href để mô phỏng logout nếu bạn chưa có component Logout riêng */}
+            <a href="/logout" className={`flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition mt-4 border-t pt-2`}>
                 <LogOut className="w-4 h-4 mr-2" /> Thoát
-            </Link>
+            </a>
         </nav>
     </div>
 );
 
 /**
  * Hiển thị thông tin sản phẩm (tên, biến thể, ảnh)
- * ĐÃ SỬA: Lấy Tên Sản phẩm gốc làm tiêu đề chính.
  */
 const ProductItemDisplay = ({ item }) => {
 
@@ -106,7 +115,7 @@ const ProductItemDisplay = ({ item }) => {
     if (variantImages && variantImages.length > 0) {
         imageUrl = variantImages[0]; // Ưu tiên ảnh của Variant
     } else if (product?.images && product.images.length > 0) {
-        // Dự phòng: Lấy ảnh từ Product.images (nếu Product có trường images)
+        // Dự phòng: Lấy ảnh từ Product.images
         const firstImage = product.images[0];
         if (typeof firstImage === 'string') {
             imageUrl = firstImage;
@@ -127,22 +136,21 @@ const ProductItemDisplay = ({ item }) => {
             />
 
             <div className="flex-grow min-w-0 pt-1">
-                {/* Tên sản phẩm chính (đã kết hợp tên biến thể) */}
-                <p className="font-bold text-gray-800 leading-tight text-sm truncate" title={primaryDisplay}>
-                    {/* Hiển thị tên sản phẩm gốc + (tên biến thể) */}
+                {/* Tên sản phẩm chính  */}
+                <p className="font-bold text-gray-800 leading-snug text-sm" title={primaryDisplay}>
                     {primaryDisplay}
                 </p>
 
                 {/* Dòng phụ: Chỉ hiển thị tên biến thể nếu nó khác với tên chính */}
                 {variantName && variantName !== productName && (
                     <p className="text-xs text-gray-500">
-                        Biến thể: {variantName}
+                        Loại: {variantName}
                     </p>
                 )}
 
-                <p className="text-xs text-gray-500 mt-1">
-                    Mã Variant: #{item.productVariant?.id || 'N/A'}
-                </p>
+                {/*<p className="text-xs text-gray-500 mt-1">*/}
+                {/*    Mã Variant: #{item.productVariant?.id || 'N/A'}*/}
+                {/*</p>*/}
             </div>
         </div>
     );
@@ -190,9 +198,8 @@ const OrderItemRow = ({ item }) => {
 };
 
 
-// --- UTILITY COMPONENTS (Modal & Message Box) ---
+// --- UTILITY COMPONENTS (Message Display) ---
 
-// Message Display
 const MessageDisplay = ({ message, onClose }) => {
     if (!message) return null;
 
@@ -232,31 +239,83 @@ const MessageDisplay = ({ message, onClose }) => {
     );
 };
 
-// Confirmation Modal
-const ConfirmModal = ({ isOpen, title, children, onConfirm, onCancel }) => {
+// --- MODAL YÊU CẦU HỦY ĐƠN HÀNG (MỚI) ---
+const CancelConfirmationModal = ({ isOpen, orderId, onConfirmCancel, onCancel }) => {
     if (!isOpen) return null;
+
+    const [selectedReason, setSelectedReason] = useState(CANCEL_REASONS[0].value);
+    const [otherReason, setOtherReason] = useState('');
+
+    const isOtherReason = selectedReason === 'OTHER';
+
+    const handleConfirm = () => {
+        let finalReason = selectedReason;
+        if (isOtherReason) {
+            finalReason = otherReason.trim();
+            if (!finalReason) {
+                alert('Vui lòng nhập chi tiết lý do khác.');
+                return;
+            }
+        } else {
+            // Lấy nhãn của lý do đã chọn
+            finalReason = CANCEL_REASONS.find(r => r.value === selectedReason)?.label || 'Lý do không xác định';
+        }
+
+        onConfirmCancel(orderId, finalReason);
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 font-sans">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 m-4">
                 <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2 flex items-center">
-                    <AlertTriangle className="w-5 h-5 mr-2 text-red-500" /> {title}
+                    <AlertTriangle className="w-5 h-5 mr-2 text-red-500" /> Yêu cầu Hủy Đơn hàng #{orderId}
                 </h3>
-                <div className="text-gray-700 mb-6">
-                    {children}
+                <div className="text-gray-700 mb-6 space-y-4">
+                    <p className="text-sm">Vui lòng chọn lý do hủy để gửi yêu cầu đến nhân viên. Đơn hàng chỉ bị hủy khi nhân viên xác nhận.</p>
+
+                    {/* Chọn Lý do */}
+                    <div className="flex flex-col">
+                        <label className="text-sm font-medium mb-1">Lý do hủy:</label>
+                        <select
+                            value={selectedReason}
+                            onChange={(e) => {
+                                setSelectedReason(e.target.value);
+                                setOtherReason('');
+                            }}
+                            className="px-3 py-2 border rounded-lg focus:ring-red-500 focus:border-red-500"
+                        >
+                            {CANCEL_REASONS.map(r => (
+                                <option key={r.value} value={r.value}>{r.label}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Lý do khác (nếu chọn "OTHER") */}
+                    {isOtherReason && (
+                        <div className="flex flex-col">
+                            <label className="text-sm font-medium mb-1">Chi tiết lý do khác:</label>
+                            <textarea
+                                value={otherReason}
+                                onChange={(e) => setOtherReason(e.target.value)}
+                                rows="3"
+                                className="px-3 py-2 border rounded-lg focus:ring-red-500 focus:border-red-500 resize-none"
+                                placeholder="Nhập lý do chi tiết..."
+                            />
+                        </div>
+                    )}
                 </div>
                 <div className="flex justify-end space-x-3">
                     <button
                         onClick={onCancel}
                         className="py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition duration-150 text-sm font-medium"
                     >
-                        Không
+                        Đóng
                     </button>
                     <button
-                        onClick={onConfirm}
+                        onClick={handleConfirm}
                         className="py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-150 text-sm font-medium"
                     >
-                        Xác nhận Hủy
+                        Gửi Yêu cầu Hủy
                     </button>
                 </div>
             </div>
@@ -278,7 +337,7 @@ const OrderDetailPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // State cho thông báo và modal
+    // State cho modal
     const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
     const [message, setMessage] = useState(null); // { type: 'success' | 'error', text: '...' }
 
@@ -291,15 +350,11 @@ const OrderDetailPage = () => {
             const address = data.address;
             const customer = data.customer;
 
-            // Lấy Tên Khách hàng từ cấu trúc Customer -> Account (Backend trả về)
             const customerFullName = customer?.account?.fullName;
-
-            // Xác định tên hiển thị mặc định: "N/A"
             const defaultName = 'N/A';
 
             if (address) {
                 data.shippingAddress = {
-                    // Ưu tiên tên trong Address, sau đó là tên từ Customer Account
                     recipientName: address.fullName || customerFullName || defaultName,
                     phone: address.phone || 'N/A',
                     addressLine: [
@@ -312,8 +367,10 @@ const OrderDetailPage = () => {
                 data.shippingAddress = null;
             }
 
-            // Thêm trường hiển thị tên khách hàng cho giao diện
             data.displayCustomerName = customerFullName || defaultName;
+            // Thêm tên nhân viên nếu có
+            data.displayEmployeeName = data.employee?.account?.fullName || 'Chưa phân công';
+
 
             return data;
         };
@@ -349,7 +406,6 @@ const OrderDetailPage = () => {
             console.error('Lỗi khi tải chi tiết đơn hàng:', err);
             const status = err.response?.status;
 
-            // Lỗi 404/403 ở đây thường do đơn hàng không tồn tại hoặc không thuộc về người dùng
             if (status === 401 || status === 403 || status === 404) {
                 setError('Không tìm thấy đơn hàng hoặc bạn không có quyền sở hữu đơn hàng này. Vui lòng kiểm tra lại.');
             } else {
@@ -366,14 +422,43 @@ const OrderDetailPage = () => {
         }
     }, [orderId, authLoading, fetchOrderDetail]);
 
-    // --- Các hàm nghiệp vụ (được giữ nguyên) ---
-    const updateOrderStatus = (newStatus) => {
-        setOrder(prevOrder => ({
-            ...prevOrder,
-            status: newStatus
-        }));
+
+    // --- HÀM NGHIỆP VỤ HỦY ĐƠN HÀNG ---
+
+    // 1. Gửi yêu cầu hủy với lý do (Được gọi từ Modal)
+    const confirmCancelOrderWithReason = async (orderId, cancelReason) => {
+        setIsCancelConfirmOpen(false);
+
+        const CANCEL_URL = `${API_BASE_URL}/${orderId}/cancel`;
+
+        try {
+            const config = {
+                headers: {
+                    Authorization: `Bearer ${userToken}`,
+                },
+                params: { // Gửi lý do hủy qua query params
+                    cancelReason: cancelReason
+                }
+            };
+
+            // Sử dụng axios.put và truyền null cho body
+            const response = await axios.put(CANCEL_URL, null, config);
+
+            // Cập nhật trạng thái hiển thị bằng dữ liệu trả về từ Backend
+            setOrder(response.data);
+            setMessage({ type: 'success', text: `Yêu cầu hủy đơn hàng #${orderId} đã được gửi thành công. Đơn hàng sẽ được hủy sau khi nhân viên xác nhận.` });
+
+            // Re-fetch để cập nhật trạng thái mới nhất
+            fetchOrderDetail(orderId);
+
+        } catch (err) {
+            console.error('Lỗi khi gửi yêu cầu hủy đơn hàng:', err);
+            const errorMessage = err.response?.data?.message || 'Không thể hủy đơn hàng. Vui lòng kiểm tra trạng thái.';
+            setMessage({ type: 'error', text: `Lỗi: ${errorMessage}` });
+        }
     };
 
+    // 2. Khởi tạo Modal khi nhấn nút Hủy
     const handleCancelOrder = () => {
         // Chỉ cho phép hủy khi là PENDING
         if (order.status !== 'PENDING') {
@@ -388,32 +473,6 @@ const OrderDetailPage = () => {
 
         setIsCancelConfirmOpen(true);
     };
-
-    const confirmCancelOrder = async () => {
-        setIsCancelConfirmOpen(false);
-
-        const CANCEL_URL = `${API_BASE_URL}/${orderId}/cancel`;
-
-        try {
-            const config = {
-                headers: {
-                    Authorization: `Bearer ${userToken}`,
-                },
-            };
-
-            await axios.put(CANCEL_URL, {}, config);
-
-            updateOrderStatus('CANCELLED');
-            setMessage({ type: 'success', text: `Đơn hàng #${orderId} đã được hủy thành công.` });
-            fetchOrderDetail(orderId);
-
-        } catch (err) {
-            console.error('Lỗi khi hủy đơn hàng:', err);
-            const errorMessage = err.response?.data?.message || 'Không thể hủy đơn hàng. Vui lòng kiểm tra lại quyền hạn.';
-            setMessage({ type: 'error', text: `Lỗi hủy đơn hàng: ${errorMessage}` });
-        }
-    };
-
 
     const handleReorder = () => {
         setMessage({ type: 'info', text: 'Chức năng đặt lại đang được phát triển.' });
@@ -440,10 +499,10 @@ const OrderDetailPage = () => {
                 // Nút Hủy khi là PENDING
                 return (
                     <button
-                        onClick={handleCancelOrder}
+                        onClick={handleCancelOrder} // Gọi hàm mở Modal
                         className={`${baseClass} bg-red-600 text-white hover:bg-red-700`}
                     >
-                        Hủy Đơn Hàng
+                        Yêu cầu Hủy
                     </button>
                 );
             case 'CONFIRMED':
@@ -558,15 +617,12 @@ const OrderDetailPage = () => {
             />
 
             {/* CONFIRMATION MODAL */}
-            <ConfirmModal
+            <CancelConfirmationModal
                 isOpen={isCancelConfirmOpen}
-                title="Xác nhận Hủy Đơn Hàng"
-                onConfirm={confirmCancelOrder}
+                orderId={order.id}
+                onConfirmCancel={confirmCancelOrderWithReason}
                 onCancel={() => setIsCancelConfirmOpen(false)}
-            >
-                <p>Bạn có chắc chắn muốn hủy đơn hàng <span className="font-bold">#{order.id}</span> này không?</p>
-                <p className="text-sm mt-2 text-red-500">Thao tác này không thể hoàn tác.</p>
-            </ConfirmModal>
+            />
 
             <div className="flex-1 w-full mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
                 {/* Breadcrumbs */}
@@ -608,6 +664,14 @@ const OrderDetailPage = () => {
                                     {translateStatus(order.status)}
                                 </span>
                             </div>
+
+                            {/* Lý do hủy/Trả hàng (Nếu có) */}
+                            {(order.status === 'CANCELLED' || order.status === 'RETURNED') && order.cancelReason && (
+                                <div className="mt-4 p-3 bg-red-50 rounded-lg text-red-700 text-sm border border-red-200">
+                                    <p className="font-semibold">Lý do Hủy/Trả hàng:</p>
+                                    <p>{order.cancelReason}</p>
+                                </div>
+                            )}
                         </div>
 
                         {/* DANH SÁCH SẢN PHẨM ĐÃ ĐẶT */}
