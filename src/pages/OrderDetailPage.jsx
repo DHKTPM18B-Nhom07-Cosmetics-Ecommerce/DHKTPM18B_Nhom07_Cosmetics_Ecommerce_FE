@@ -149,7 +149,7 @@ const ProductItemDisplay = ({ item }) => {
                 )}
 
                 {/*<p className="text-xs text-gray-500 mt-1">*/}
-                {/*    Mã Variant: #{item.productVariant?.id || 'N/A'}*/}
+                {/* Mã Variant: #{item.productVariant?.id || 'N/A'}*/}
                 {/*</p>*/}
             </div>
         </div>
@@ -239,7 +239,7 @@ const MessageDisplay = ({ message, onClose }) => {
     );
 };
 
-// --- MODAL YÊU CẦU HỦY ĐƠN HÀNG (MỚI) ---
+// --- MODAL YÊU CẦU HỦY ĐƠN HÀNG  ---
 const CancelConfirmationModal = ({ isOpen, orderId, onConfirmCancel, onCancel }) => {
     if (!isOpen) return null;
 
@@ -249,7 +249,8 @@ const CancelConfirmationModal = ({ isOpen, orderId, onConfirmCancel, onCancel })
     const isOtherReason = selectedReason === 'OTHER';
 
     const handleConfirm = () => {
-        let finalReason = selectedReason;
+        let finalReason = ''; // Khởi tạo biến lưu lý do cuối cùng
+
         if (isOtherReason) {
             finalReason = otherReason.trim();
             if (!finalReason) {
@@ -257,10 +258,11 @@ const CancelConfirmationModal = ({ isOpen, orderId, onConfirmCancel, onCancel })
                 return;
             }
         } else {
-            // Lấy nhãn của lý do đã chọn
+            // Lấy nhãn (label) của lý do đã chọn
             finalReason = CANCEL_REASONS.find(r => r.value === selectedReason)?.label || 'Lý do không xác định';
         }
 
+        // GỌI HÀM XÁC NHẬN, TRUYỀN ORDER ID VÀ LÝ DO CUỐI CÙNG
         onConfirmCancel(orderId, finalReason);
     };
 
@@ -435,7 +437,8 @@ const OrderDetailPage = () => {
                 headers: {
                     Authorization: `Bearer ${userToken}`,
                 },
-                params: { // Gửi lý do hủy qua query params
+                // *** THÊM LÝ DO HỦY VÀO QUERY PARAMS ***
+                params: {
                     cancelReason: cancelReason
                 }
             };
@@ -443,9 +446,9 @@ const OrderDetailPage = () => {
             // Sử dụng axios.put và truyền null cho body
             const response = await axios.put(CANCEL_URL, null, config);
 
-            // Cập nhật trạng thái hiển thị bằng dữ liệu trả về từ Backend
+            // Cập nhật trạng thái hiển thị bằng dữ liệu trả về từ Backend (Đơn hàng đã bao gồm cancelReason mới)
             setOrder(response.data);
-            setMessage({ type: 'success', text: `Yêu cầu hủy đơn hàng #${orderId} đã được gửi thành công. Đơn hàng sẽ được hủy sau khi nhân viên xác nhận.` });
+            setMessage({ type: 'success', text: `Yêu cầu hủy đơn hàng #${orderId} đã được gửi thành công. Đơn hàng sẽ được hủy sau khi nhân viên xác nhận. Lý do: ${cancelReason}` });
 
             // Re-fetch để cập nhật trạng thái mới nhất
             fetchOrderDetail(orderId);
