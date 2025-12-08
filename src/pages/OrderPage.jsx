@@ -203,13 +203,17 @@ const OrderPage = () => {
 
             case 'DELIVERED':
                 return (
-                    <Link
-                        to={`/orders/${orderId}/review`}
-                        title="Đánh Giá và Mua Lại"
+                    <button
+                        title="Đánh Giá"
                         className={`${baseClass} bg-green-500 text-white hover:bg-green-600`}
+                        onClick={() => navigate('/review-product', { 
+                            state: { 
+                                orderId: orderId 
+                            } 
+                        })}
                     >
                         Đánh Giá
-                    </Link>
+                    </button>
                 );
 
             case 'CANCELLED':

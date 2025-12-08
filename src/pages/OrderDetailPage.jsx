@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
     ChevronLeft,
     User,
@@ -268,6 +268,7 @@ const ConfirmModal = ({ isOpen, title, children, onConfirm, onCancel }) => {
 // --- COMPONENT CHÍNH: OrderDetailPage ---
 const OrderDetailPage = () => {
     const { orderId } = useParams();
+    const navigate = useNavigate();
 
     // SỬ DỤNG AUTH CONTEXT
     const { user, isLoading: authLoading, isLoggedIn } = useAuth();
@@ -423,7 +424,11 @@ const OrderDetailPage = () => {
     };
 
     const handleRate = () => {
-        setMessage({ type: 'info', text: 'Chức năng đánh giá sản phẩm đang được phát triển.' });
+        navigate('/review-product', { 
+            state: { 
+                orderId: orderId 
+            } 
+        });
     };
 
 
