@@ -108,11 +108,13 @@ const ProductDetailModal = ({ isOpen, onClose, product, variants = [] }) => {
                                     <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md font-medium text-xs">
                                         {product.category?.name || "Chưa phân loại"}
                                     </span>
+                                    <span className="bg-[#2B6377]/10 text-[#2B6377] px-2 py-1 rounded-md font-medium text-xs">
+                                        {product.brand?.name || product.brandName || "Chưa có thương hiệu"}
+                                    </span>
                                     <span className="flex items-center gap-1">
                                         {renderStars(product.averageRating || 5)}
                                         <span>({product.averageRating || 0})</span>
                                     </span>
-                                    <span>ID: {product.id}</span>
                                 </div>
                             </div>
 
@@ -218,7 +220,7 @@ const ProductDetailModal = ({ isOpen, onClose, product, variants = [] }) => {
                     </button>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

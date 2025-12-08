@@ -43,65 +43,65 @@ export default function ProductCard({ product }) {
   };
 
   // ---- ADD TO CART ----
-const handleAddToCart = async (e) => {
-        e.stopPropagation(); 
-        e.preventDefault();
+  const handleAddToCart = async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
 
-        // 1. Lấy thông tin User (để kiểm tra xem là Khách hay User)
-        const userStored = localStorage.getItem('user');
-        
-        // --- Xac nhan user ---
-        /*
-        if (!userStored) {
-            if (window.confirm("Bạn cần đăng nhập để mua hàng. Chuyển đến trang đăng nhập ngay?")) {
-                navigate('/login');
-            }
-            return; 
+    // 1. Lấy thông tin User (để kiểm tra xem là Khách hay User)
+    const userStored = localStorage.getItem('user');
+
+    // --- Xac nhan user ---
+    /*
+    if (!userStored) {
+        if (window.confirm("Bạn cần đăng nhập để mua hàng. Chuyển đến trang đăng nhập ngay?")) {
+            navigate('/login');
         }
-        */
-        // ---------------------------------------------
+        return; 
+    }
+    */
+    // ---------------------------------------------
 
-        // 2. Xác định Account ID (Nếu khách vãng lai thì là null)
-        let accountId = null;
-        if (userStored) {
-            const user = JSON.parse(userStored);
-            accountId = user.id;
-        }
+    // 2. Xác định Account ID (Nếu khách vãng lai thì là null)
+    let accountId = null;
+    if (userStored) {
+      const user = JSON.parse(userStored);
+      accountId = user.id;
+    }
 
-        // 3. Kiểm tra biến thể 
-        if (!product.variants || product.variants.length === 0) {
-            alert("Sản phẩm này tạm hết hàng hoặc chưa có phân loại!");
-            return;
-        }
-        const defaultVariantId = product.variants[0].id;
+    // 3. Kiểm tra biến thể 
+    if (!product.variants || product.variants.length === 0) {
+      alert("Sản phẩm này tạm hết hàng hoặc chưa có phân loại!");
+      return;
+    }
+    const defaultVariantId = product.variants[0].id;
 
-        // Chuẩn bị thông tin phụ trợ cho Khách Vãng Lai (để lưu vào SessionStorage)
-        const productInfoForGuest = {
-             productId: product.id,
-             productName: product.name,
-             sizeName: product.variants[0].variantName,
-             price: product.variants[0].price,
-             image: (product.images && product.images[0]) || "/placeholder.svg"
-        };
-
-        // 4. GỌI API (Truyền đủ tham số)
-        try {
-            setAdding(true);
-            // Truyền thêm productInfoForGuest vào tham số cuối
-            await addToCart(accountId, defaultVariantId, 1, productInfoForGuest);
-            
-            alert("Đã thêm vào giỏ hàng thành công!");
-        } catch (error) {
-            console.error(error);
-            alert("Lỗi: Không thể thêm vào giỏ hàng.");
-        } finally {
-            setAdding(false);
-        }
+    // Chuẩn bị thông tin phụ trợ cho Khách Vãng Lai (để lưu vào SessionStorage)
+    const productInfoForGuest = {
+      productId: product.id,
+      productName: product.name,
+      sizeName: product.variants[0].variantName,
+      price: product.variants[0].price,
+      image: (product.images && product.images[0]) || "/placeholder.svg"
     };
 
-    
+    // 4. GỌI API (Truyền đủ tham số)
+    try {
+      setAdding(true);
+      // Truyền thêm productInfoForGuest vào tham số cuối
+      await addToCart(accountId, defaultVariantId, 1, productInfoForGuest);
 
-    
+      alert("Đã thêm vào giỏ hàng thành công!");
+    } catch (error) {
+      console.error(error);
+      alert("Lỗi: Không thể thêm vào giỏ hàng.");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+
+
+
 
   // ---- HIỂN THỊ GIÁ ----
   const renderPrice = () => {
@@ -118,48 +118,48 @@ const handleAddToCart = async (e) => {
   return (
     <div
       onClick={() => navigate(`/products/${product.id}`)}
-      className="bg-white rounded-lg overflow-hidden shadow-sm 
+      className="bg-white rounded-lg overflow-hidden shadow-sm border-2 border-white
       hover:shadow-md hover:border-teal-600 hover:border-2 transition cursor-pointer group flex flex-col h-full"
     >
       {/* IMAGE */}
-        <div className="relative w-full overflow-hidden bg-gray-100">
+      <div className="relative w-full overflow-hidden bg-gray-100">
+        <img
+          src={(product.images && product.images.length > 0) ? product.images[0] : "/placeholder.svg"}
+          alt={product.name}
+          className={`w-full aspect-square object-contain transition-all duration-500 ${product.images && product.images.length > 1
+            ? "group-hover:opacity-0"
+            : "group-hover:scale-105"
+            }`}
+        />
+        {product.images && product.images.length > 1 && (
           <img
-              src={(product.images && product.images.length > 0) ? product.images[0] : "/placeholder.svg"}
-              alt={product.name}
-              className={`w-full aspect-square object-contain transition-all duration-500 ${product.images && product.images.length > 1
-                  ? "group-hover:opacity-0"
-                  : "group-hover:scale-105"
-                  }`}
+            src={product.images[1]}
+            alt={product.name}
+            className="absolute inset-0 w-full aspect-square object-contain opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
           />
-          {product.images && product.images.length > 1 && (
-              <img
-                  src={product.images[1]}
-                  alt={product.name}
-                  className="absolute inset-0 w-full aspect-square object-contain opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
-              />
-          )}
-          {/* Like Button */}
-          <button className="absolute top-2 left-2 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition">
-              <Heart className="w-4 h-4 text-red-500" />
-          </button>
-          {/* Stock Badge (merge từ origin/kieutrang) */}
-          <div
-              className={`absolute top-2 right-2 px-2 py-1 rounded-full text-[11px] font-semibold 
+        )}
+        {/* Like Button */}
+        <button className="absolute top-2 left-2 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition">
+          <Heart className="w-4 h-4 text-red-500" />
+        </button>
+        {/* Stock Badge (merge từ origin/kieutrang) */}
+        <div
+          className={`absolute top-2 right-2 px-2 py-1 rounded-full text-[11px] font-semibold 
                 shadow ${getStockColor()} animate-fadeBounce`}
-            >
-              {getStockStatus()}
-          </div>
+        >
+          {getStockStatus()}
+        </div>
       </div>
-  
-        
+
+
       {/* INFO */}
       <div className="p-4 gap-8">
         <p className="text-xs font-bold text-teal-700 uppercase mb-1">
           {getBrand()}
         </p>
-          <h3 className="font-semibold text-sm text-gray-800 mb-2 line-clamp-2 h-10">
-              {product.name}
-          </h3>
+        <h3 className="font-semibold text-sm text-gray-800 mb-2 line-clamp-2 h-10">
+          {product.name}
+        </h3>
 
         <div className="mb-3">
           <ProductRating
@@ -178,10 +178,9 @@ const handleAddToCart = async (e) => {
           onClick={handleAddToCart}
           disabled={adding}
           className={`w-full py-2 rounded-md font-medium text-sm transition flex items-center justify-center gap-2
-            ${
-              adding
-                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                : "bg-teal-700 text-white hover:bg-teal-800"
+            ${adding
+              ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+              : "bg-teal-700 text-white hover:bg-teal-800"
             }`}
         >
           {adding ? (
@@ -193,6 +192,6 @@ const handleAddToCart = async (e) => {
           )}
         </button>
       </div>
-  </div>
-    );
+    </div>
+  );
 }

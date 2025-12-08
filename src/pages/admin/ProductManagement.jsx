@@ -888,7 +888,7 @@ const ProductManagement = () => {
                         />
                         <div className="max-w-xs">
                           <p className={`font-medium line-clamp-1 ${isInactive ? "line-through text-gray-500" : "text-gray-900"}`}>{product.name}</p>
-                          <p className="text-xs text-gray-500">ID: {product.id}</p>
+                          <p className="text-xs text-[#2B6377] font-semibold">{product.brandName || "Chưa có thương hiệu"}</p>
                         </div>
                       </div>
                     </td>
@@ -904,7 +904,7 @@ const ProductManagement = () => {
                       </div>
                     </td>
                     <td className={`p-4 font-medium ${isInactive ? "line-through text-gray-400" : (product.quantity === 0 ? "text-red-600" : "text-gray-900")}`}>{product.quantity}</td>
-                    <td className={`p-4 font-medium ${isInactive ? "line-through text-gray-400" : "text-gray-900"}`}>{product.totalSold || 0}</td>
+                    <td className={`p-4 font-medium ${isInactive ? "line-through text-gray-400" : "text-gray-900"}`}>{new Intl.NumberFormat("vi-VN").format(product.totalSold || 0)}</td>
                     <td className="p-4 text-center">
                       <span className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${isInactive ? "bg-gray-300 text-gray-700" : product.quantity > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
                         }`}>
