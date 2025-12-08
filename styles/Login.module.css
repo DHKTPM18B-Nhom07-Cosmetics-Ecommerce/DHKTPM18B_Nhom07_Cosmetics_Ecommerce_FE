@@ -195,3 +195,9 @@
 .socialIcon:hover {
     border-color: var(--primary-color); /* Hover effect đồng bộ với Signup */
 }
+
+.errorText {
+    color: red;
+    font-size: 13px;
+    margin-top: 5px;
+}

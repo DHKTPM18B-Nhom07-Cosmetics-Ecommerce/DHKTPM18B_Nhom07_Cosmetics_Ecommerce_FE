@@ -163,7 +163,7 @@ const SignupPage = () => {
                                     <input
                                         id="password"
                                         type={showPassword ? "text" : "password"}
-                                        placeholder="********"
+                                        placeholder="8+ ký tự, 1 Hoa, 1 Số"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         required
@@ -185,7 +185,7 @@ const SignupPage = () => {
                                     <input
                                         id="confirmPassword"
                                         type={showConfirmPassword ? "text" : "password"}
-                                        placeholder="********"
+                                        placeholder=""
                                         value={confirmPassword}
                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                         required
@@ -213,14 +213,6 @@ const SignupPage = () => {
                         </p>
                     </form>
                 </div> {/* End signupContainer */}
-
-                {/* Đăng ký bằng mạng xã hội */}
-                <p className={styles.socialSignupText}>Hoặc đăng ký bằng</p>
-                <div className={styles.socialIcons}>
-                    {/* Sử dụng Icon Placeholder. Cần thay thế bằng các Icon thực tế (FcGoogle, FaFacebookF, FaApple) */}
-                    <a href="#" className={styles.socialIcon} aria-label="Đăng ký bằng Google">G</a>
-                    <a href="#" className={styles.socialIcon} aria-label="Đăng ký bằng Facebook">f</a>
-                </div>
 
             </div>
         </div>
