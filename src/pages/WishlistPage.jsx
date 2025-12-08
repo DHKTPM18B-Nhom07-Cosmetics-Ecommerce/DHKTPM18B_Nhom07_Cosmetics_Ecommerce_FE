@@ -4,11 +4,14 @@ import { Heart, ShoppingCart } from "lucide-react";
 import { getWishlist, removeFromWishlist } from "../services/wishlistService";
 import { toast } from "react-toastify";
 import ProductRating from "../components/ProductRating";
+import ConfirmModal from "../components/ConfirmModal";
 
 export default function WishlistPage() {
   const navigate = useNavigate();
   const [wishlistItems, setWishlistItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [productToRemove, setProductToRemove] = useState(null);
 
   const getAccountId = () => {
     const userStored = localStorage.getItem("user");
@@ -45,17 +48,23 @@ export default function WishlistPage() {
     }
   };
 
-  const handleRemove = async (productVariantId) => {
-    const confirmDelete = window.confirm("Bạn có muốn xóa sản phẩm này khỏi danh sách yêu thích?");
-    if (!confirmDelete) return;
+  const handleRemove = (productVariantId) => {
+    setProductToRemove(productVariantId);
+    setShowConfirmModal(true);
+  };
+
+  const confirmRemove = async () => {
+    if (!productToRemove) return;
 
     try {
-      await removeFromWishlist(accountId, productVariantId);
+      await removeFromWishlist(accountId, productToRemove);
       toast.success("Đã xóa sản phẩm khỏi danh sách yêu thích");
       loadWishlist();
     } catch (error) {
       console.error("Lỗi khi xóa:", error);
       toast.error("Không thể xóa sản phẩm");
+    } finally {
+      setProductToRemove(null);
     }
   };
 
@@ -194,6 +203,14 @@ export default function WishlistPage() {
         })}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={confirmRemove}
+        title="Xác nhận xóa"
+        message="Bạn có muốn xóa sản phẩm này khỏi danh sách yêu thích?"
+      />
     </div>
   );
 }

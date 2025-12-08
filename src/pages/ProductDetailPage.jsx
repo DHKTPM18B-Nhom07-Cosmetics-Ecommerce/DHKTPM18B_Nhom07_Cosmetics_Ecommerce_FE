@@ -7,6 +7,7 @@ import { addToWishlist, removeFromWishlist, checkInWishlist } from "../services/
 import { toast } from "react-toastify";
 import Breadcrumb from "../components/Breadcrumb";
 import ProductImageCarousel from "../components/ProductImageCarousel";
+import ConfirmModal from "../components/ConfirmModal";
 
 // Format price to Vietnamese currency
 const formatPrice = (price) => {
@@ -31,6 +32,7 @@ export default function ProductDetailPage() {
   const [adding, setAdding] = useState(false); // Thêm state loading cho nút Add
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const getAccountId = () => {
     const userStored = localStorage.getItem("user");
@@ -232,14 +234,9 @@ export default function ProductDetailPage() {
       setWishlistLoading(true);
       
       if (isInWishlist) {
-        const confirmDelete = window.confirm("Bạn có muốn xóa sản phẩm này khỏi danh sách yêu thích?");
-        if (!confirmDelete) {
-          setWishlistLoading(false);
-          return;
-        }
-        await removeFromWishlist(accountId, selectedSize.id);
-        setIsInWishlist(false);
-        toast.success("Đã xóa khỏi danh sách yêu thích");
+        setShowConfirmModal(true);
+        setWishlistLoading(false);
+        return;
       } else {
         await addToWishlist(accountId, selectedSize.id);
         setIsInWishlist(true);
@@ -498,6 +495,25 @@ export default function ProductDetailPage() {
           <p className="text-gray-600">Chưa có đánh giá nào.</p>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={async () => {
+          try {
+            await removeFromWishlist(accountId, selectedSize.id);
+            setIsInWishlist(false);
+            toast.success("Đã xóa khỏi danh sách yêu thích");
+          } catch (error) {
+            console.error("Lỗi wishlist:", error);
+            toast.error(error.response?.data?.message || "Có lỗi xảy ra");
+          } finally {
+            setWishlistLoading(false);
+          }
+        }}
+        title="Xác nhận xóa"
+        message="Bạn có muốn xóa sản phẩm này khỏi danh sách yêu thích?"
+      />
     </div>
   );
 }
