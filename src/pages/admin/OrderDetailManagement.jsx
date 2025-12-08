@@ -523,7 +523,7 @@ const OrderDetailManagement = () => {
                                 {/* THAY ĐỔI: Hiển thị thông tin Employee thực tế */}
                                 <div className="text-sm text-gray-700">
                                     <p>Tên: <span className="font-semibold text-gray-800">{order.employeeInfo?.fullName || 'Chưa phân công'}</span></p>
-                                    <p>ID: {order.employeeInfo?.id || 'N/A'}</p>
+                                    {/*<p>ID: {order.employeeInfo?.id || 'N/A'}</p>*/}
 
                                 </div>
                             </div>
