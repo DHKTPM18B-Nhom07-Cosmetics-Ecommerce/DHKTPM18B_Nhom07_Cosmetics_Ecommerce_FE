@@ -204,6 +204,12 @@
     border-color: var(--primary-color);
 }
 
+.errorText {
+    color: red;
+    font-size: 13px;
+    margin-top: 5px;
+}
+
 /* Media Query cho màn hình nhỏ hơn 500px để chuyển sang bố cục 1 cột */
 @media (max-width: 500px) {
     .row {

@@ -145,15 +145,6 @@ const LoginPage = () => {
                     </form>
                 </div> {/* End loginContainer */}
 
-                {/* Đăng nhập bằng mạng xã hội - Vị trí nằm ngoài khung */}
-                <p className={styles.socialLoginText}>Hoặc đăng nhập bằng</p>
-                <div className={styles.socialIcons}>
-                    {/* Cần icon Google */}
-                    <a href="#" className={styles.socialIcon} aria-label="Đăng nhập bằng Google">G</a>
-                    {/* Cần icon Facebook */}
-                    <a href="#" className={styles.socialIcon} aria-label="Đăng nhập bằng Facebook">f</a>
-                </div>
-
             </div>
         </div>
     );

@@ -441,50 +441,73 @@ export default function Header() {
 
               {isUserMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-white text-[#316f84] rounded-lg shadow-lg py-2 z-50">
-                  <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
-                    <User className="w-4 h-4" /> Tài khoản của bạn
-                  </button>
-
-                  <button
-                    onClick={() => navigate("/order")}
-                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3"
-                  >
-                    <ShoppingCart className="w-4 h-4" /> Quản lý đơn hàng
-                  </button>
-
-                  <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
-                    <FaStore className="w-4 h-4" /> Quản lý cửa hàng
-                  </button>
-
-                  <button 
-                    onClick={() => navigate("/wishlist")}
-                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
-                    <Heart className="w-4 h-4" /> Sản phẩm yêu thích
-                  </button>
-
-                  <button
-                    onClick={handleShippingAddressClick}
-                    className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3"
-                  >
-                    <MapPin className="w-4 h-4" /> Địa chỉ giao hàng
-                  </button>
-
-                  <hr className="my-2 border-gray-200" />
-
+                  
                   {isLoggedIn ? (
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3"
-                    >
-                      <LogOut className="w-4 h-4" /> Thoát
-                    </button>
+                    // --- ĐÃ ĐĂNG NHẬP (Hiển thị Menu đầy đủ) ---
+                    <>
+                      <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
+                        <User className="w-4 h-4" /> Tài khoản của bạn
+                      </button>
+
+                      <button
+                        onClick={() => navigate("/order")}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3"
+                      >
+                        <ShoppingCart className="w-4 h-4" /> Quản lý đơn hàng
+                      </button>
+                      
+                      {/* Thêm check role nếu cần */}
+                      {user?.role === 'ADMIN' && (
+                        <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
+                          <FaStore className="w-4 h-4" /> Quản lý cửa hàng
+                        </button>
+                      )}
+
+
+                      <button 
+                        onClick={() => navigate("/wishlist")}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
+                        <Heart className="w-4 h-4" /> Sản phẩm yêu thích
+                      </button>
+
+                      <button
+                        onClick={handleShippingAddressClick}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3"
+                      >
+                        <MapPin className="w-4 h-4" /> Địa chỉ giao hàng
+                      </button>
+
+                      <hr className="my-2 border-gray-200" />
+
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3"
+                      >
+                        <LogOut className="w-4 h-4" /> Thoát
+                      </button>
+                    </>
                   ) : (
-                    <button
-                      onClick={() => navigate("/login")}
-                      className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3"
-                    >
-                      <LogIn className="w-4 h-4" /> Đăng nhập
-                    </button>
+                    // --- CHƯA ĐĂNG NHẬP (Hiển thị Đăng nhập & Đăng ký) ---
+                    <>
+                      <button
+                        onClick={() => {
+                            setIsUserMenuOpen(false);
+                            navigate("/login");
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-sm text-[#2B6377] hover:bg-gray-100 flex items-center gap-3"
+                      >
+                        <LogIn className="w-4 h-4" /> Đăng nhập
+                      </button>
+                      <button
+                        onClick={() => {
+                            setIsUserMenuOpen(false);
+                            navigate("/signup"); // Giả sử route Đăng ký là /signup
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-sm text-[#2B6377] hover:bg-gray-100 flex items-center gap-3"
+                      >
+                        <User className="w-4 h-4" /> Đăng ký
+                      </button>
+                    </>
                   )}
                 </div>
               )}
