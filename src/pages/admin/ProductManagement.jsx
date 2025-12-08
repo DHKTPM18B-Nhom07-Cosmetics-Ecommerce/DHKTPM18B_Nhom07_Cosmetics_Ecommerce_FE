@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Search,
   Plus,
@@ -11,16 +11,21 @@ import {
   ShoppingCart,
   Upload,
   Eye,
-  Download
+  Download,
+  Filter,
+  ToggleLeft,
+  ToggleRight
 } from "lucide-react";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import {
   getAllProducts,
+  getProductById,
   createProduct,
   updateProduct,
   deleteProduct,
+  getProductVariants,
 } from "../../services/productService";
 import { getAllCategories } from "../../services/categoryService";
 import { getAllBrands } from "../../services/brandService";
@@ -28,6 +33,7 @@ import { filterProducts } from "../../services/productFilterApi";
 
 import Pagination from "../../components/ui/Pagination";
 import ProductModal from "../../components/admin/ProductModal";
+import ProductDetailModal from "../../components/admin/ProductDetailModal";
 // import { ExportButton } from "../../components/admin/ExcelButton"; 
 import ExcelImportModal from "../../components/admin/ExcelImportModal";
 import ConfirmationModal from "../../components/ui/ConfirmationModal";
@@ -50,9 +56,21 @@ const ProductManagement = () => {
   const [statusFilter, setStatusFilter] = useState(""); // "", "active", "inactive"
   const [sortType, setSortType] = useState("newest"); // newest, oldest, priceAsc, priceDesc, az, za
 
+  // Applied Filters to trigger fetch
+  const [appliedFilters, setAppliedFilters] = useState({
+    category: "",
+    stock: "",
+    status: ""
+  });
+
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+
+  // View Detail Modal
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewProduct, setViewProduct] = useState(null);
+
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
@@ -79,16 +97,21 @@ const ProductManagement = () => {
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
 
+  // Ref to track if suggestion was clicked to prevent re-opening dropdown
+  const isSuggestionClicked = useRef(false);
 
-  const fetchData = async () => {
+
+  const fetchData = async (overrideParams = {}) => {
     setLoading(true);
     try {
+      const search = overrideParams.search !== undefined ? overrideParams.search : searchQuery;
+
       const [filterResult, categoriesData, brandsData] = await Promise.all([
         filterProducts({
-          search: searchQuery,
-          categories: selectedCategory,
-          stocks: stockFilter === "Hết hàng" ? "out" : stockFilter === "Còn hàng" ? "in" : "",
-          active: statusFilter === "active" ? true : statusFilter === "inactive" ? false : null,
+          search: search,
+          categories: appliedFilters.category,
+          stocks: appliedFilters.stock === "Hết hàng" ? "out" : appliedFilters.stock === "Còn hàng" ? "in" : "",
+          active: appliedFilters.status === "active" ? true : appliedFilters.status === "inactive" ? false : null,
           page: currentPage,
           size: itemsPerPage,
           sort: sortType,
@@ -113,7 +136,7 @@ const ProductManagement = () => {
           variantsCount: variants.length,
           minPrice,
           maxPrice,
-          status: (product.isActive === false) ? "NGƯNG HOẠT ĐỘNG" : (totalQuantity > 0 ? "HOẠT ĐỘNG" : "HẾT HÀNG"),
+          status: (product.isActive === false) ? "Vô hiệu hóa" : (totalQuantity > 0 ? "Hoạt động" : "Hết hàng"),
           categoryName: product.categoryName || "N/A",
         };
       });
@@ -143,13 +166,13 @@ const ProductManagement = () => {
           ...product,
           quantity: totalQuantity,
           status: (product.isActive === false)
-            ? "NGƯNG HOẠT ĐỘNG"
-            : (totalQuantity > 0 ? "HOẠT ĐỘNG" : "HẾT HÀNG"),
+            ? "Vô hiệu hóa"
+            : (totalQuantity > 0 ? "Hoạt động" : "Hết hàng"),
         };
       });
 
       const totalProducts = mapped.length;
-      const activeProducts = mapped.filter(p => p.status === "HOẠT ĐỘNG").length;
+      const activeProducts = mapped.filter(p => p.status === "Hoạt động").length;
       const outOfStockProducts = mapped.filter(p => p.quantity === 0).length;
       const totalInventory = mapped.reduce((sum, p) => sum + p.quantity, 0);
 
@@ -170,6 +193,12 @@ const ProductManagement = () => {
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
+      // If the change was triggered by clicking a suggestion, ignore fetching new suggestions
+      if (isSuggestionClicked.current) {
+        isSuggestionClicked.current = false;
+        return;
+      }
+
       if (searchQuery.trim().length > 0) {
         try {
           const res = await filterProducts({ search: searchQuery, size: 5 });
@@ -189,12 +218,11 @@ const ProductManagement = () => {
 
   useEffect(() => {
     fetchData();
-  }, [currentPage, sortType, stockFilter, selectedCategory, statusFilter]);
+  }, [currentPage, sortType, appliedFilters]);
 
   useEffect(() => {
-    const activeProducts = products.filter(p => p.status !== "NGƯNG HOẠT ĐỘNG");
     setIsAllSelected(
-      activeProducts.length > 0 && activeProducts.every((p) => selectedProducts.includes(p.id))
+      products.length > 0 && products.every((p) => selectedProducts.includes(p.id))
     );
   }, [products, selectedProducts]);
 
@@ -206,8 +234,11 @@ const ProductManagement = () => {
   };
 
   const handleSuggestionClick = (name) => {
+    isSuggestionClicked.current = true; // Set flag before updating state
     setSearchQuery(name);
     setShowSuggestions(false);
+    setCurrentPage(0);
+    fetchData({ search: name });
   };
 
   const handlePageChange = (page) => {
@@ -218,8 +249,7 @@ const ProductManagement = () => {
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      // Only select active products
-      setSelectedProducts(products.filter(p => p.status !== "NGƯNG HOẠT ĐỘNG").map((p) => p.id));
+      setSelectedProducts(products.map((p) => p.id));
     } else {
       setSelectedProducts([]);
     }
@@ -235,49 +265,111 @@ const ProductManagement = () => {
     });
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDisable = () => {
     setConfirmModal({
       isOpen: true,
-      title: "Xác nhận xóa",
-      message: `Bạn có chắc chắn muốn xóa ${selectedProducts.length} sản phẩm đã chọn? Hành động này không thể hoàn tác.`,
+      title: "Xác nhận vô hiệu hóa",
+      message: `Bạn có chắc chắn muốn vô hiệu hóa ${selectedProducts.length} sản phẩm đã chọn?`,
       variant: "danger",
-      confirmLabel: "Xóa sản phẩm",
+      confirmLabel: "Vô hiệu hóa",
       onConfirm: async () => {
         try {
+          // deleteProduct effectively does soft delete (disable)
           await Promise.all(selectedProducts.map(id => deleteProduct(id)));
-          toast.success(`Đã xóa thành công ${selectedProducts.length} sản phẩm.`);
+          toast.success(`Đã vô hiệu hóa thành công ${selectedProducts.length} sản phẩm.`);
           fetchData();
           setSelectedProducts([]);
         } catch (error) {
-          console.error("Error deleting products", error);
-          toast.error("Có lỗi xảy ra khi xóa sản phẩm.");
+          console.error("Error disabling products", error);
+          toast.error("Có lỗi xảy ra khi vô hiệu hóa sản phẩm.");
         }
       }
     });
   };
 
-  const handleDelete = (id) => {
+  const handleBulkEnable = () => {
+    const inactiveSelected = products.filter(p => selectedProducts.includes(p.id) && !p.isActive);
+    if (inactiveSelected.length === 0) return;
+
     setConfirmModal({
       isOpen: true,
-      title: "Xóa sản phẩm",
-      message: "Bạn có chắc chắn muốn xóa sản phẩm này? Sản phẩm sẽ được chuyển vào trạng thái ngưng hoạt động.",
-      variant: "danger",
-      confirmLabel: "Xóa",
+      title: "Xác nhận kích hoạt",
+      message: `Bạn có chắc chắn muốn kích hoạt lại ${inactiveSelected.length} sản phẩm đã chọn?`,
+      variant: "success",
+      confirmLabel: "Kích hoạt",
       onConfirm: async () => {
         try {
-          await deleteProduct(id);
-          toast.success("Xóa sản phẩm thành công!");
+          await Promise.all(inactiveSelected.map(async (p) => {
+            const fullProduct = await getProductById(p.id);
+            fullProduct.isActive = true;
+            await updateProduct(p.id, fullProduct);
+          }));
+          toast.success(`Đã kích hoạt thành công ${inactiveSelected.length} sản phẩm.`);
           fetchData();
+          setSelectedProducts([]);
         } catch (error) {
-          console.error("Error deleting product", error);
-          toast.error("Có lỗi xảy ra khi xóa sản phẩm.");
+          console.error("Error enabling products", error);
+          toast.error("Có lỗi xảy ra khi kích hoạt sản phẩm.");
         }
       }
     });
   };
 
-  const handleViewDetail = (id) => {
-    window.open(`/products/${id}`, '_blank');
+  const handleToggleStatus = (product) => {
+    const isActivating = !product.isActive;
+    setConfirmModal({
+      isOpen: true,
+      title: isActivating ? "Kích hoạt sản phẩm" : "Vô hiệu hóa sản phẩm",
+      message: isActivating
+        ? "Bạn có chắc chắn muốn kích hoạt lại sản phẩm này?"
+        : "Bạn có chắc chắn muốn vô hiệu hóa sản phẩm này?",
+      variant: isActivating ? "success" : "danger",
+      confirmLabel: isActivating ? "Kích hoạt" : "Vô hiệu hóa",
+      onConfirm: async () => {
+        try {
+          if (isActivating) {
+            const fullProduct = await getProductById(product.id);
+            fullProduct.isActive = true;
+            await updateProduct(product.id, fullProduct);
+            toast.success("Kích hoạt sản phẩm thành công!");
+          } else {
+            await deleteProduct(product.id);
+            toast.success("Vô hiệu hóa sản phẩm thành công!");
+          }
+          fetchData();
+        } catch (error) {
+          console.error("Error toggling product status", error);
+          toast.error("Có lỗi xảy ra khi thay đổi trạng thái sản phẩm.");
+        }
+      }
+    });
+  };
+
+  const handleViewDetail = async (id) => {
+    try {
+      const loadingToast = toast.loading("Đang tải thông tin...");
+      const [productData, variantsData] = await Promise.all([
+        getProductById(id),
+        getProductVariants(id),
+      ]);
+
+      setViewProduct({ ...productData, variants: variantsData });
+      setIsViewModalOpen(true);
+      toast.dismiss(loadingToast);
+    } catch (error) {
+      console.error("Error fetching detail:", error);
+      toast.error("Không thể tải thông tin chi tiết.");
+    }
+  };
+
+  const handleApplyFilters = () => {
+    setCurrentPage(0);
+    setAppliedFilters({
+      category: selectedCategory,
+      stock: stockFilter,
+      status: statusFilter
+    });
+    setSelectedProducts([]);
   };
 
   const handleRefresh = () => {
@@ -287,7 +379,12 @@ const ProductManagement = () => {
     setStatusFilter("");
     setSortType("newest");
     setCurrentPage(0);
-    // fetchData will be triggered by useEffect when these dependencies change
+    setAppliedFilters({
+      category: "",
+      stock: "",
+      status: ""
+    });
+    setSelectedProducts([]);
   };
 
   const handleEdit = (product) => {
@@ -301,27 +398,30 @@ const ProductManagement = () => {
   };
 
   const handleSaveProduct = async (productData) => {
+    let toastId = null;
     try {
-      const savePromise = editingProduct
-        ? updateProduct(editingProduct.id, productData)
-        : createProduct(productData);
+      toastId = toast.loading("Đang xử lý...");
 
-      await toast.promise(savePromise, {
-        pending: 'Đang xử lý...',
-        success: editingProduct ? 'Cập nhật thành công!' : 'Thêm mới thành công!',
-        error: {
-          render({ data }) {
-            return data.response?.data && typeof data.response.data === 'string'
-              ? data.response.data
-              : (data.message || 'Có lỗi xảy ra!');
-          }
-        }
-      });
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, productData);
+        toast.dismiss(toastId);
+        toast.success("Cập nhật thành công!");
+      } else {
+        await createProduct(productData);
+        toast.dismiss(toastId);
+        toast.success("Thêm mới thành công!");
+      }
 
       setIsModalOpen(false);
       fetchData();
     } catch (error) {
       console.error("Error saving product", error);
+      const msg = error.response?.data && typeof error.response.data === 'string'
+        ? error.response.data
+        : (error.message || 'Có lỗi xảy ra!');
+
+      if (toastId) toast.dismiss(toastId);
+      toast.error(msg);
     }
   };
 
@@ -332,9 +432,9 @@ const ProductManagement = () => {
       // Fetch all products matching current filters (size=100000 ensures we get everything)
       const res = await filterProducts({
         search: searchQuery,
-        categories: selectedCategory,
-        stocks: stockFilter === "Hết hàng" ? "out" : stockFilter === "Còn hàng" ? "in" : "",
-        active: statusFilter === "active" ? true : statusFilter === "inactive" ? false : null,
+        categories: appliedFilters.category,
+        stocks: appliedFilters.stock === "Hết hàng" ? "out" : appliedFilters.stock === "Còn hàng" ? "in" : "",
+        active: appliedFilters.status === "active" ? true : appliedFilters.status === "inactive" ? false : null,
         page: 0,
         size: 100000,
         sort: sortType,
@@ -487,7 +587,7 @@ const ProductManagement = () => {
   if (loading) {
     return (
       <div className="p-8 bg-gray-50 min-h-screen">
-        <ToastContainer position="top-right" autoClose={3000} style={{ zIndex: 99999 }} />
+
         <div className="flex justify-center items-center h-[80vh]">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
@@ -497,7 +597,7 @@ const ProductManagement = () => {
 
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
-      <ToastContainer position="top-right" autoClose={3000} style={{ zIndex: 99999 }} />
+
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-[#2B6377]">Quản lý sản phẩm</h1>
         <p className="text-gray-600 mt-1">Quản lý tất cả sản phẩm trong hệ thống</p>
@@ -508,6 +608,13 @@ const ProductManagement = () => {
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveProduct}
         product={editingProduct}
+      />
+
+      <ProductDetailModal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        product={viewProduct}
+        variants={viewProduct?.variants || []}
       />
 
       <ExcelImportModal
@@ -612,12 +719,12 @@ const ProductManagement = () => {
             </div>
           </div>
 
-          <div className="w-48 shrink-0">
+          <div className="w-44 shrink-0">
             <label className="block text-sm font-semibold text-gray-700 mb-2">Danh mục</label>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B6377] bg-white cursor-pointer"
+              className="w-full p-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B6377] bg-white cursor-pointer"
             >
               <option value="">Tất cả danh mục</option>
               {categories.map((cat) => (
@@ -626,12 +733,12 @@ const ProductManagement = () => {
             </select>
           </div>
 
-          <div className="w-48 shrink-0">
+          <div className="w-40 shrink-0">
             <label className="block text-sm font-semibold text-gray-700 mb-2">Tồn kho</label>
             <select
               value={stockFilter}
               onChange={(e) => setStockFilter(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B6377] bg-white cursor-pointer"
+              className="w-full p-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B6377] bg-white cursor-pointer"
             >
               <option value="">Tất cả tồn kho</option>
               <option value="Còn hàng">Còn hàng</option>
@@ -639,25 +746,38 @@ const ProductManagement = () => {
             </select>
           </div>
 
-          <div className="w-48 shrink-0">
+          <div className="w-44 shrink-0">
             <label className="block text-sm font-semibold text-gray-700 mb-2">Trạng thái</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B6377] bg-white cursor-pointer"
+              className="w-full p-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B6377] bg-white cursor-pointer"
             >
               <option value="">Tất cả trạng thái</option>
-              <option value="active">Đang hoạt động</option>
-              <option value="inactive">Ngưng hoạt động</option>
+              <option value="active">Hoạt động</option>
+              <option value="inactive">Vô hiệu hóa</option>
             </select>
           </div>
 
-          <div className="w-48 shrink-0">
+          <div className="flex items-end pb-0.5">
+            <button
+              onClick={handleApplyFilters}
+              className="h-[42px] px-4 bg-[#2B6377] text-white rounded-lg hover:bg-[#235161] transition-colors flex items-center gap-2 font-medium shadow-sm active:scale-95"
+            >
+              <Filter className="w-4 h-4" />
+              Áp dụng
+            </button>
+          </div>
+
+          <div className="w-40 shrink-0">
             <label className="block text-sm font-semibold text-gray-700 mb-2">Sắp xếp</label>
             <select
               value={sortType}
-              onChange={(e) => setSortType(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B6377] bg-white cursor-pointer"
+              onChange={(e) => {
+                setSortType(e.target.value);
+                setSelectedProducts([]);
+              }}
+              className="w-full p-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B6377] bg-white cursor-pointer"
             >
               <option value="newest">Mới nhất</option>
               <option value="oldest">Cũ nhất</option>
@@ -672,7 +792,6 @@ const ProductManagement = () => {
             <button
               onClick={handleRefresh}
               className="p-3 border border-gray-300 rounded-xl hover:bg-[#ccdfe3] text-gray-600 hover:text-[#2B6377] transition-colors shadow-sm"
-              title="Làm mới dữ liệu & Đặt lại bộ lọc"
             >
 
               <RotateCcw className="w-5 h-5" />
@@ -686,19 +805,32 @@ const ProductManagement = () => {
       </div>
 
       {selectedProducts.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between mb-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between mb-6 gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-blue-900">
-              Đã chọn: <span className="font-bold">{selectedProducts.length}</span> sản phẩm
+            <span className="text-sm font-medium text-gray-900">
+              Đã chọn: <span className="font-bold text-[#2B6377]">{selectedProducts.length}</span> sản phẩm
             </span>
           </div>
-          <button
-            onClick={handleBulkDelete}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            <Trash2 size={18} />
-            Xóa đã chọn
-          </button>
+          <div className="flex items-center gap-3">
+            {products.some(p => selectedProducts.includes(p.id) && !p.isActive) && (
+              <button
+                onClick={handleBulkEnable}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-green-600 border border-green-200 rounded-lg hover:bg-green-50 hover:border-green-300 transition-colors"
+              >
+                <ToggleRight size={18} />
+                Kích hoạt ({products.filter(p => selectedProducts.includes(p.id) && !p.isActive).length})
+              </button>
+            )}
+            {products.some(p => selectedProducts.includes(p.id) && p.isActive) && (
+              <button
+                onClick={handleBulkDisable}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors"
+              >
+                <ToggleRight size={18} />
+                Vô hiệu hóa ({products.filter(p => selectedProducts.includes(p.id) && p.isActive).length})
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -707,7 +839,7 @@ const ProductManagement = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#2B6377] text-white text-sm whitespace-nowrap">
-                <th className="p-4 font-bold uppercase tracking-wider">
+                <th className="p-4 font-bold tracking-wider">
                   <input
                     type="checkbox"
                     checked={isAllSelected}
@@ -715,32 +847,32 @@ const ProductManagement = () => {
                     className="w-4 h-4 rounded border-gray-300 text-[#2B6377] focus:ring-[#2B6377]"
                   />
                 </th>
-                <th className="p-4 font-bold uppercase tracking-wider">Sản phẩm</th>
-                <th className="p-4 font-bold uppercase tracking-wider">Danh mục</th>
-                <th className="p-4 font-bold uppercase tracking-wider">Giá</th>
-                <th className="p-4 font-bold uppercase tracking-wider">Số lượng</th>
-                <th className="p-4 font-bold uppercase tracking-wider text-center">Trạng thái</th>
-                <th className="p-4 font-bold uppercase tracking-wider">Ngày tạo</th>
-                <th className="p-4 font-bold uppercase tracking-wider text-right">Thao tác</th>
+                <th className="p-4 font-bold tracking-wider">Sản phẩm</th>
+                <th className="p-4 font-bold tracking-wider">Danh mục</th>
+                <th className="p-4 font-bold tracking-wider">Giá</th>
+                <th className="p-4 font-bold tracking-wider">Số lượng</th>
+                <th className="p-4 font-bold tracking-wider text-center">Trạng thái</th>
+                <th className="p-4 font-bold tracking-wider">Ngày tạo</th>
+                <th className="p-4 font-bold tracking-wider text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-gray-400">
               {products.map((product) => {
-                const isInactive = product.status === "NGƯNG HOẠT ĐỘNG";
+                const isInactive = product.status === "Vô hiệu hóa";
                 return (
                   <tr
                     key={product.id}
                     className={`transition-colors border-b last:border-0 ${selectedProducts.includes(product.id) ? "bg-blue-50" : isInactive ? "bg-gray-100 text-gray-500" : "hover:bg-gray-50 cursor-pointer"}`}
-                    onClick={() => !isInactive && handleSelectProduct(product.id)}
+                    onClick={() => handleSelectProduct(product.id)}
                   >
+
                     <td className="p-4">
                       <input
                         type="checkbox"
                         checked={selectedProducts.includes(product.id)}
                         onChange={() => handleSelectProduct(product.id)}
                         onClick={(e) => e.stopPropagation()}
-                        disabled={isInactive}
-                        className={`w-4 h-4 rounded border-gray-300 ${isInactive ? "text-gray-400 cursor-not-allowed" : "text-[#2B6377] focus:ring-[#2B6377]"}`}
+                        className={`w-4 h-4 rounded border-gray-300 ${isInactive ? "text-gray-400" : "text-[#2B6377] focus:ring-[#2B6377]"}`}
                       />
                     </td>
                     <td className="p-4">
@@ -770,7 +902,7 @@ const ProductManagement = () => {
                     </td>
                     <td className={`p-4 font-medium ${isInactive ? "line-through text-gray-400" : (product.quantity === 0 ? "text-red-600" : "text-gray-900")}`}>{product.quantity}</td>
                     <td className="p-4 text-center">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${isInactive ? "bg-gray-100 text-gray-500" : product.quantity > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${isInactive ? "bg-gray-300 text-gray-700" : product.quantity > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
                         }`}>
                         {product.status}
                       </span>
@@ -783,14 +915,18 @@ const ProductManagement = () => {
                             <Eye size={16} />
                           </button>
                         )}
-                        <button onClick={() => handleEdit(product)} className="p-1 rounded-lg hover:bg-[#ccdfe3] text-amber-600 hover:text-amber-700 transition-colors">
-                          <Pencil size={16} />
-                        </button>
                         {!isInactive && (
-                          <button onClick={() => handleDelete(product.id)} className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors">
-                            <Trash2 size={16} />
+                          <button onClick={() => handleEdit(product)} className="p-1 rounded-lg hover:bg-[#ccdfe3] text-amber-600 hover:text-amber-700 transition-colors">
+                            <Pencil size={16} />
                           </button>
                         )}
+                        <button
+                          onClick={() => handleToggleStatus(product)}
+                          className={`p-1 rounded-lg transition-colors hover:bg-[#ccdfe3] ${product.isActive ? 'text-green-600 hover:text-green-700' : 'text-gray-600 hover:text-gray-700'}`}
+                          title={product.isActive ? "Vô hiệu hóa" : "Kích hoạt"}
+                        >
+                          {product.isActive ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -808,8 +944,9 @@ const ProductManagement = () => {
           className="border-0 border-t border-gray-200 rounded-none shadow-none"
         />
       </div>
-    </div>
+    </div >
   );
 };
 
 export default ProductManagement;
+

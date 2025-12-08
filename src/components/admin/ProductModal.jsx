@@ -433,9 +433,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                                                 <Archive size={32} />
                                             </div>
                                             <h3 className="text-xl font-bold text-gray-800 mb-2">Sản phẩm đã bị xóa</h3>
-                                            <p className="text-gray-500 mb-6">
-                                                Sản phẩm này hiện đang ngưng hoạt động. Vui lòng kích hoạt lại để chỉnh sửa thông tin.
-                                            </p>
+
 
                                             <label className="flex items-center gap-3 p-4 bg-white rounded-xl border-2 border-[#2B6377]/20 hover:border-[#2B6377] cursor-pointer transition-all shadow-sm group w-full justify-center">
                                                 <input
