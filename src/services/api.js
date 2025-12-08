@@ -46,13 +46,13 @@ export const disableAccount = (id, reason = 'Disabled by admin') => {
 
 // Lấy lịch sử mua hàng của Khách hàng
 export const getOrdersByCustomerId = (customerId) => {
-  return api.get(`/api/orders/search/customer/${customerId}`);
+  return api.get(`/api/orders/admin/customer/${customerId}`);
 };
 
 
 // Lấy lịch sử xử lý đơn hàng của Nhân viên
 export const getOrdersByEmployeeId = (employeeId) => {
-  return api.get(`/api/orders/search/employee/${employeeId}`);
+  return api.get(`/api/orders/admin/employee/${employeeId}`);
 };
 
 
@@ -63,7 +63,7 @@ export const getAllCustomers = () =>
 export const getAllEmployees = () => api.get('/api/employees');
 
 export const getAllOrders = () => {
-  return api.get('/api/orders');
+  return api.get('/api/orders/admin/all');
 };
 
 // Cập nhật thông tin Account (bao gồm role)

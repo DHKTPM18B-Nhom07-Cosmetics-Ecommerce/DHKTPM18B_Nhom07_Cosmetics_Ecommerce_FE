@@ -97,10 +97,9 @@ const OrderManagement = () => {
         }
     };
 
-    // --- Logic Lấy Dữ liệu (FIXED TO ADMIN ENDPOINT LOGIC) ---
+    // --- Logic Lấy Dữ liệu (Sửa để gọi đúng Endpoint) ---
     const fetchOrders = async () => {
 
-        // Chờ Auth Context tải xong
         if (authLoading) return;
 
         setLoading(true);
@@ -108,7 +107,6 @@ const OrderManagement = () => {
 
         const token = adminToken;
 
-        // KIỂM TRA XÁC THỰC RÕ RÀNG VÀ QUA CONTEXT
         if (!isLoggedIn || !isAdminOrEmployee || !token) {
             setError('Lỗi xác thực: Vui lòng đăng nhập bằng tài khoản Quản lý.');
             setLoading(false);
@@ -118,19 +116,25 @@ const OrderManagement = () => {
         let url;
         const params = {};
 
-        // 1. Xác định URL cơ sở: Ưu tiên lọc theo ngày, nếu không có, dùng /admin/all
+        // 1. LỌC THEO NGÀY (Ưu tiên Date Range)
         if (filters.startDate && filters.endDate) {
             url = `${API_BASE_URL}/admin/date-range`;
             params.start = `${filters.startDate}T00:00:00`;
             params.end = `${filters.endDate}T23:59:59`;
-        } else {
-            // DÙNG ENDPOINT ADMIN LẤY TẤT CẢ khi không có lọc ngày
-            url = `${API_BASE_URL}/admin/all`;
-        }
 
-        // 2. Thêm Status Filter
-        if (filters.status) {
-            params.status = filters.status;
+            // Thêm Status nếu có (sẽ được Controller xử lý)
+            if (filters.status) {
+                params.status = filters.status;
+            }
+        }
+        // 2. CHỈ LỌC THEO STATUS (Nếu không có Ngày)
+        else if (filters.status) {
+            // Gọi endpoint /admin/status/{status}
+            url = `${API_BASE_URL}/admin/status/${filters.status}`;
+        }
+        // 3. MẶC ĐỊNH (Không có lọc Status hay Ngày)
+        else {
+            url = `${API_BASE_URL}/admin/all`;
         }
 
         // Gửi token xác thực Admin
@@ -155,9 +159,7 @@ const OrderManagement = () => {
             console.error('Lỗi khi tải đơn hàng:', err);
             const status = err.response?.status;
             if (status === 401 || status === 403) {
-                // Lỗi 403/401: Token có vấn đề (hết hạn hoặc thiếu quyền Admin/Employee)
                 setError('Lỗi phân quyền: Token không đủ quyền truy cập hoặc hết hạn. Vui lòng đăng nhập lại.');
-                // Có thể gọi logout() để xóa token cũ nếu cần
             } else {
                 setError(`Không thể tải dữ liệu đơn hàng. Lỗi HTTP: ${status || 'Không rõ'}. Vui lòng kiểm tra kết nối.`);
             }
@@ -169,11 +171,10 @@ const OrderManagement = () => {
 
     // --- Effect và Hàm Xử lý Lọc ---
     useEffect(() => {
-        // Chỉ fetch khi Auth context đã tải xong
         if (!authLoading) {
             fetchOrders();
         }
-    }, [filters, authLoading]); // Thêm authLoading vào đây để kích hoạt fetch sau khi context tải xong
+    }, [filters, authLoading]);
 
     const handleApplyFilters = () => {
         if ((tempStartDate && !tempEndDate) || (!tempStartDate && tempEndDate)) {
@@ -257,7 +258,6 @@ const OrderManagement = () => {
             <div className="p-8 bg-white rounded-lg shadow-md max-w-xl mx-auto mt-16 text-center">
                 <h2 className="text-xl font-bold text-red-600 mb-4">Không có quyền truy cập</h2>
                 <p className="text-gray-700">Bạn cần đăng nhập bằng tài khoản Quản trị viên hoặc Nhân viên để xem trang này.</p>
-                {/* Bạn có thể thêm nút điều hướng đến trang đăng nhập tại đây */}
             </div>
         );
     }
@@ -459,8 +459,8 @@ const OrderManagement = () => {
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                             {currentOrders.map((order) => {
-                                // Truy cập an toàn qua customer -> account -> fullName
-                                const customerName = order.customer?.account?.fullName || `ID Customer: ${order.customer?.id || 'N/A'}`;
+                                // SỬA ĐỔI HIỂN THỊ TÊN KHÁCH HÀNG: Thay N/A bằng Khách vãng lai nếu không có tên
+                                const customerName = order.customer?.account?.fullName || 'Khách vãng lai';
 
                                 return (
                                     <tr key={order.id} className="hover:bg-gray-50 transition duration-150">

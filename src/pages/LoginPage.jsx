@@ -43,8 +43,8 @@ const LoginPage = () => {
 
             // 4. Điều hướng người dùng dựa trên Vai trò (ROLE)
             let redirectTo = '/products';
-            // Vai trò 'ADMIN' sẽ được chuyển đến trang /admin
-            if (role === 'ADMIN') {
+            // Vai trò 'ADMIN' hoặc 'EMPLOYEE' sẽ được chuyển đến trang /admin
+            if (role === 'ADMIN' || role === 'EMPLOYEE') {
                 redirectTo = '/admin'; 
             }
 

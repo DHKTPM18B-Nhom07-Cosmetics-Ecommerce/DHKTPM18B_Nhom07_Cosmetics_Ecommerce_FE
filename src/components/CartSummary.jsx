@@ -1,4 +1,5 @@
 import { Lock, Check } from 'lucide-react';
+import { formatVND } from '../utils/priceUtils';
 
 export default function CartSummary({ cartData, selectedCount = 0, onCheckout = null, isCheckoutDisabled = false }) {
 
@@ -9,17 +10,17 @@ export default function CartSummary({ cartData, selectedCount = 0, onCheckout = 
       <div className="space-y-4 border-b pb-5">
         <div className="flex justify-between">
           <span className="text-gray-600">Tổng tiền hàng:</span>
-          <span className="font-semibold">${cartData.subtotal.toFixed(2)}</span>
+          <span className="font-semibold">{formatVND(cartData.subtotal)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-600">Phí giao hàng:</span>
-          <span className="font-semibold">${cartData.shippingFee.toFixed(2)}</span>
+          <span className="font-semibold">{formatVND(cartData.shippingFee)}</span>
         </div>
       </div>
 
       <div className="flex justify-between items-center my-6">
         <span className="text-lg font-bold text-gray-900">Tổng cộng:</span>
-        <span className="text-2xl font-bold text-teal-600">${cartData.total.toFixed(2)}</span>
+        <span className="text-2xl font-bold text-teal-600">{formatVND(cartData.total)}</span>
       </div>
 
       {onCheckout && (

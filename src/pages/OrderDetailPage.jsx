@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
     ChevronLeft,
     User,
@@ -29,7 +29,7 @@ const TEAL_BG = 'bg-[#2B6377]';
 const TEAL_HOVER_BG = 'hover:bg-[#E6F3F5]';
 const TEAL_ACTIVE_BG = 'bg-[#CCDFE3]';
 
-// --- HÀM TIỆN ÍCH CHUNG ---
+// --- HÀM TIỆN ÍCH CHUNG (Giữ nguyên) ---
 
 const formatCurrency = (amount) => {
     if (amount === null || amount === undefined) return 'N/A';
@@ -83,32 +83,31 @@ const AccountSidebar = () => (
 
 /**
  * Hiển thị thông tin sản phẩm (tên, biến thể, ảnh)
- * Đã sửa logic hiển thị để TÊN SẢN PHẨM và BIẾN THỂ được hiển thị cùng nhau.
+ * ĐÃ SỬA: Lấy Tên Sản phẩm gốc làm tiêu đề chính.
  */
 const ProductItemDisplay = ({ item }) => {
 
     const product = item.productVariant?.product;
-    // Lấy tên sản phẩm, nếu thiếu thì dùng tên biến thể (variantName), nếu vẫn thiếu thì dùng tên mặc định.
-    // Điều này đảm bảo dòng chính không bao giờ trống.
-    const productName = product?.name || item.productVariant?.variantName || 'Sản phẩm không rõ tên';
-
     const variantName = item.productVariant?.variantName;
-
-    // Tạo chuỗi hiển thị chính: Tên Sản phẩm (Tên Biến thể)
-    // Chỉ thêm biến thể vào nếu nó khác với tên sản phẩm chính.
-    const variantSuffix = (variantName && productName !== variantName) ? ` (${variantName})` : '';
-    const primaryDisplay = productName + variantSuffix;
-
-    // Xóa dòng phụ để không bị trùng lặp, chỉ giữ lại mã variant
-    const secondaryInfo = ''; // Giữ trống để không hiển thị dòng phụ
-
     const placeholderImage = 'https://placehold.co/50x50/f5f5f5/f5f5f5.png?text=SP';
 
-    let imageUrl = null;
-    const productImages = product?.images;
+    // 1. TÊN SẢN PHẨM CHÍNH (LẤY TỪ PRODUCT.NAME)
+    const productName = product?.name || 'Sản phẩm không rõ tên';
 
-    if (productImages && productImages.length > 0) {
-        const firstImage = productImages[0];
+    // 2. TẠO CHUỖI HIỂN THỊ CHÍNH: Tên Sản phẩm [ + (Tên Biến thể) ]
+    const primaryDisplay = (productName === variantName) ?
+        productName :
+        (variantName ? `${productName} (${variantName})` : productName);
+
+    // 3. LẤY URL ẢNH (Ưu tiên từ Variant.imageUrls)
+    let imageUrl = null;
+    const variantImages = item.productVariant?.imageUrls;
+
+    if (variantImages && variantImages.length > 0) {
+        imageUrl = variantImages[0]; // Ưu tiên ảnh của Variant
+    } else if (product?.images && product.images.length > 0) {
+        // Dự phòng: Lấy ảnh từ Product.images (nếu Product có trường images)
+        const firstImage = product.images[0];
         if (typeof firstImage === 'string') {
             imageUrl = firstImage;
         } else if (typeof firstImage === 'object' && firstImage !== null) {
@@ -128,12 +127,18 @@ const ProductItemDisplay = ({ item }) => {
             />
 
             <div className="flex-grow min-w-0 pt-1">
-                {/* Tên sản phẩm chính (có thể bao gồm biến thể trong ngoặc) */}
+                {/* Tên sản phẩm chính (đã kết hợp tên biến thể) */}
                 <p className="font-bold text-gray-800 leading-tight text-sm truncate" title={primaryDisplay}>
+                    {/* Hiển thị tên sản phẩm gốc + (tên biến thể) */}
                     {primaryDisplay}
                 </p>
 
-                {/* Dòng phụ đã bị xóa (secondaryInfo) */}
+                {/* Dòng phụ: Chỉ hiển thị tên biến thể nếu nó khác với tên chính */}
+                {variantName && variantName !== productName && (
+                    <p className="text-xs text-gray-500">
+                        Biến thể: {variantName}
+                    </p>
+                )}
 
                 <p className="text-xs text-gray-500 mt-1">
                     Mã Variant: #{item.productVariant?.id || 'N/A'}
@@ -263,6 +268,7 @@ const ConfirmModal = ({ isOpen, title, children, onConfirm, onCancel }) => {
 // --- COMPONENT CHÍNH: OrderDetailPage ---
 const OrderDetailPage = () => {
     const { orderId } = useParams();
+    const navigate = useNavigate();
 
     // SỬ DỤNG AUTH CONTEXT
     const { user, isLoading: authLoading, isLoggedIn } = useAuth();
@@ -288,10 +294,13 @@ const OrderDetailPage = () => {
             // Lấy Tên Khách hàng từ cấu trúc Customer -> Account (Backend trả về)
             const customerFullName = customer?.account?.fullName;
 
+            // Xác định tên hiển thị mặc định: "N/A"
+            const defaultName = 'N/A';
+
             if (address) {
                 data.shippingAddress = {
                     // Ưu tiên tên trong Address, sau đó là tên từ Customer Account
-                    recipientName: address.fullName || customerFullName || 'N/A',
+                    recipientName: address.fullName || customerFullName || defaultName,
                     phone: address.phone || 'N/A',
                     addressLine: [
                         address.address,
@@ -304,7 +313,7 @@ const OrderDetailPage = () => {
             }
 
             // Thêm trường hiển thị tên khách hàng cho giao diện
-            data.displayCustomerName = customerFullName || 'Khách hàng không rõ';
+            data.displayCustomerName = customerFullName || defaultName;
 
             return data;
         };
@@ -415,7 +424,11 @@ const OrderDetailPage = () => {
     };
 
     const handleRate = () => {
-        setMessage({ type: 'info', text: 'Chức năng đánh giá sản phẩm đang được phát triển.' });
+        navigate('/review-product', { 
+            state: { 
+                orderId: orderId 
+            } 
+        });
     };
 
 

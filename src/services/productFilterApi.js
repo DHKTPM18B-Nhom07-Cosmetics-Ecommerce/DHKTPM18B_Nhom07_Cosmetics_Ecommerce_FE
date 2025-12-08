@@ -14,6 +14,7 @@ export const filterProducts = async ({
   page = 0,
   size = 12,
   sort = "newest",
+  active = null, // Default null: fetch all (for admin)
 }) => {
   try {
     const response = await api.get("/api/products/filter", {
@@ -25,6 +26,7 @@ export const filterProducts = async ({
         minPrice,
         maxPrice,
         rating,
+        active,
         page,
         size,
         sort,

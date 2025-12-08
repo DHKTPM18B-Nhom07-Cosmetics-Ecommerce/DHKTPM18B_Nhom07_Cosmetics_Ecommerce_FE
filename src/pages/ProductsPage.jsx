@@ -90,6 +90,7 @@ export default function ProductsPage() {
         page,
         size: 12,
         sort,
+        active: true, // Only show active products for customers
       });
 
       setData(res.content);
@@ -257,11 +258,10 @@ export default function ProductsPage() {
                   <button
                     key={value}
                     onClick={() => setPendingPrice([0, value])}
-                    className={`px-3 py-1 rounded-full text-xs border ${
-                      pendingPrice[1] === value
+                    className={`px-3 py-1 rounded-full text-xs border ${pendingPrice[1] === value
                         ? "bg-[#2B6377] text-white"
                         : "bg-gray-100 text-gray-700"
-                    }`}
+                      }`}
                   >
                     Dưới {value.toLocaleString()}₫
                   </button>
@@ -390,11 +390,10 @@ export default function ProductsPage() {
                         setShowSort(false);
                       }}
                       className={`w-full text-left px-4 py-2 text-sm 
-                      hover:bg-gray-100 transition ${
-                        sort === opt.value
+                      hover:bg-gray-100 transition ${sort === opt.value
                           ? "font-semibold text-[#2B6377]"
                           : "text-gray-700"
-                      }`}
+                        }`}
                     >
                       {opt.label}
                     </button>
