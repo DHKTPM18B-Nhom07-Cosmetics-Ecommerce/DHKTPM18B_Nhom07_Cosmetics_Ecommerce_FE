@@ -211,14 +211,14 @@ const OrderItemRow = ({ item, orderStatus, orderId, onRateProduct, isReviewed })
                 {formatCurrency(unitPrice)}
             </div>
 
-            {/* CỘT GIẢM GIÁ */}
+            {/* CỘT GIẢM GIÁ
             <div
                 className={`text-right w-1/5 text-sm ${
                     discountAmount > 0 ? "text-red-600" : "text-gray-500"
                 }`}
             >
                 {discountAmount > 0 ? `-${formatCurrency(discountAmount)}` : "-"}
-            </div>
+            </div> */}
 
             {/* CỘT THÀNH TIỀN */}
             <div className="text-right w-1/5 font-bold text-gray-800">
@@ -787,12 +787,12 @@ const OrderDetailPage = () => {
                             <h3 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">
                                 Sản phẩm đã đặt
                             </h3>
+                            
                             {/* Header cột */}
                             <div className="hidden sm:flex font-semibold text-sm text-gray-800 bg-gray-50 p-2 rounded-t-lg">
                                 <div className="w-2/5">Sản Phẩm</div>
                                 <div className="text-center w-1/5">Số Lượng</div>
                                 <div className="text-right w-1/5">Đơn Giá</div>
-                                <div className="text-right w-1/5">Giảm Giá</div>
                                 <div className="text-right w-1/5">Thành Tiền</div>
                                 {order.status === 'DELIVERED' && (
                                     <div className="w-1/6 text-center">Đánh Giá</div>
