@@ -54,52 +54,58 @@ const StatCard = ({ title, value, icon: Icon, iconColor, bgColor = LIGHT_TEAL_BG
 // Hàm tiện ích để tính toán ngày cho API
 const calculateDates = (filterType, start, end) => {
     const now = new Date();
-    let startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0); 
+    let startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
     let endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
     switch (filterType) {
         case '7DAYS':
-            startDate.setDate(now.getDate() - 6); 
+            startDate.setDate(now.getDate() - 6);
             break;
         case '30DAYS':
             startDate.setDate(now.getDate() - 29);
             break;
         case 'MONTH':
             startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59); 
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
             break;
         case 'YEAR':
             startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
             break;
         case 'CUSTOM':
             if (start && end) {
-                startDate = new Date(start + 'T00:00:00'); 
-                endDate = new Date(end + 'T23:59:59'); 
+                startDate = new Date(start + 'T00:00:00');
+                endDate = new Date(end + 'T23:59:59');
             } else {
                 return null;
             }
             break;
         default:
-             startDate.setDate(now.getDate() - 6);
+            startDate.setDate(now.getDate() - 6);
     }
-    
-    const formatDateTime = (date) => date.toISOString().slice(0, 19); 
 
-    return { 
-        startDate: formatDateTime(startDate), 
-        endDate: formatDateTime(endDate) 
+    const formatDateTime = (date) => date.toISOString().slice(0, 19);
+
+    return {
+        startDate: formatDateTime(startDate),
+        endDate: formatDateTime(endDate)
     };
 };
 
 
 // --- LOGIC TÍNH TOÁN (Dựa trên dữ liệu đã fetch) ---
-const calculateStats = (data) => {
+const calculateStats = (data, startDateStr, endDateStr) => {
     const totalRevenue = data.reduce((sum, item) => sum + (item.revenue || 0), 0);
     const totalOrders = data.reduce((sum, item) => sum + (item.orders || 0), 0);
-    const days = data.length;
-    
-    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0; 
-    const averageRevenuePerDay = days > 0 ? totalRevenue / days : 0;
+
+    // Số ngày thực tế giữa 2 mốc
+    const start = new Date(startDateStr);
+    const end = new Date(endDateStr);
+
+    // +1 vì tính cả ngày bắt đầu và ngày kết thúc
+    const days = Math.max(1, Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1);
+
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+    const averageRevenuePerDay = totalRevenue / days;
 
     return { totalRevenue, totalOrders, averageRevenuePerDay, averageOrderValue };
 };
@@ -107,7 +113,7 @@ const calculateStats = (data) => {
 
 // --- COMPONENT CHÍNH: Stats ---
 const Stats = () => {
-    
+
     // LẤY TOKEN THỰC TẾ TỪ CONTEXT
     const { user } = useAuth();
     const adminToken = user?.token;
@@ -116,8 +122,8 @@ const Stats = () => {
     const isAuthorized = userRole === 'ADMIN';
 
     // --- State Quản lý Dữ liệu ---
-    const [salesData, setSalesData] = useState([]); 
-    const [topProducts, setTopProducts] = useState([]); 
+    const [salesData, setSalesData] = useState([]);
+    const [topProducts, setTopProducts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -128,12 +134,13 @@ const Stats = () => {
     const [filterType, setFilterType] = useState('7DAYS');
     const [tempStartDate, setTempStartDate] = useState('');
     const [tempEndDate, setTempEndDate] = useState('');
+    const [rangeDates, setRangeDates] = useState({ start: null, end: null });
 
     // --- Logic Lấy Dữ liệu THẬT từ API ---
     const fetchSalesData = useCallback(async () => {
-        
+
         // KIỂM TRA TRƯỚC KHI GỌI API
-        if (!adminToken) { 
+        if (!adminToken) {
             // Không gọi API nếu không có token (chưa đăng nhập hoặc token đã hết hạn)
             setError('Lỗi phân quyền: Vui lòng đăng nhập với tài khoản Admin/Employee.');
             setLoading(false);
@@ -150,13 +157,15 @@ const Stats = () => {
             return;
         }
 
+        setRangeDates({ start: dates.startDate, end: dates.endDate });
+
         setLoading(true);
         setError(null);
         setPage(0); // Reset trang khi tải dữ liệu mới
 
         const revenueUrl = `${STATS_API_URL}/revenue/daily`;
-        const topProductUrl = `${STATS_API_URL}/products/top5`; 
-        
+        const topProductUrl = `${STATS_API_URL}/products/top5`;
+
         const config = {
             headers: {
                 Authorization: `Bearer ${adminToken}`, // SỬ DỤNG TOKEN THỰC TẾ
@@ -171,17 +180,17 @@ const Stats = () => {
             // 2. Gọi cả hai API song song
             const [revenueResponse, topProductResponse] = await Promise.all([
                 axios.get(revenueUrl, config),
-                axios.get(topProductUrl, config) 
+                axios.get(topProductUrl, config)
             ]);
-            
+
             // Xử lý dữ liệu Doanh thu
             const fetchedSalesData = revenueResponse.data.map(item => ({
                 date: item.date, // 'yyyy-MM-dd'
-                revenue: item.revenue, 
+                revenue: item.revenue,
                 orders: item.orders,
             }));
 
-            setSalesData(fetchedSalesData); 
+            setSalesData(fetchedSalesData);
 
             // 3. Xử lý dữ liệu Top Products
             setTopProducts(topProductResponse.data); // Gán dữ liệu thực từ API
@@ -191,7 +200,7 @@ const Stats = () => {
             const status = err.response?.status;
             let errorMessage = 'Không thể tải dữ liệu thống kê. Vui lòng kiểm tra kết nối API.';
             if (status === 401 || status === 403) {
-                 errorMessage = 'Lỗi phân quyền: Token không đủ quyền truy cập hoặc hết hạn.';
+                errorMessage = 'Lỗi phân quyền: Token không đủ quyền truy cập hoặc hết hạn.';
             }
             setError(errorMessage);
             setSalesData([]);
@@ -207,13 +216,18 @@ const Stats = () => {
             fetchSalesData();
         } else {
             // Hiển thị lỗi phân quyền nếu không có token
-             setError('Lỗi phân quyền: Vui lòng đăng nhập với tài khoản Admin/Employee.');
+            setError('Lỗi phân quyền: Vui lòng đăng nhập với tài khoản Admin/Employee.');
         }
-    }, [fetchSalesData, adminToken]); 
+    }, [fetchSalesData, adminToken]);
 
     // --- Tính toán Thống kê ---
-    const stats = useMemo(() => calculateStats(salesData), [salesData]);
-    const { totalRevenue, totalOrders, averageRevenuePerDay, averageOrderValue } = stats; 
+    const stats = useMemo(
+        () => rangeDates.start && rangeDates.end
+            ? calculateStats(salesData, rangeDates.start, rangeDates.end)
+            : { totalRevenue: 0, totalOrders: 0, averageRevenuePerDay: 0, averageOrderValue: 0 },
+        [salesData, rangeDates]
+    );
+    const { totalRevenue, totalOrders, averageRevenuePerDay, averageOrderValue } = stats;
 
 
     // --- Logic Phân trang Bảng Chi tiết ---
@@ -221,7 +235,7 @@ const Stats = () => {
     const totalPagesFE = Math.ceil(totalSalesItems / ITEMS_PER_PAGE);
     const startIndex = page * ITEMS_PER_PAGE;
     // Đảo ngược dữ liệu để hiển thị ngày mới nhất lên đầu bảng chi tiết
-    const reversedSalesData = useMemo(() => [...salesData].reverse(), [salesData]); 
+    const reversedSalesData = useMemo(() => [...salesData].reverse(), [salesData]);
     const currentSalesData = reversedSalesData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
 
@@ -234,7 +248,7 @@ const Stats = () => {
             }
         }
         // Gọi fetchSalesData để tải dữ liệu mới
-        fetchSalesData(); 
+        fetchSalesData();
     };
 
     // Nếu không có quyền truy cập, hiển thị thông báo lỗi
@@ -249,7 +263,7 @@ const Stats = () => {
 
     return (
         <div className="p-8 bg-gray-50 min-h-screen font-sans">
-            
+
             {/* Tiêu đề */}
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-900">Thống kê Doanh thu</h1>
@@ -320,7 +334,7 @@ const Stats = () => {
 
             {/* --- 4 CHỈ SỐ DOANH THU CHÍNH --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                
+
                 {/* 1. Tổng Doanh Thu */}
                 <StatCard
                     title="Tổng Doanh Thu"
@@ -344,7 +358,7 @@ const Stats = () => {
                     icon={Clock}
                     iconColor="text-purple-700"
                 />
-                
+
                 {/* 4. Tổng số đơn hàng */}
                 <StatCard
                     title="Tổng số Đơn hàng"
@@ -356,7 +370,7 @@ const Stats = () => {
 
             {/* --- KHU VỰC BIỂU ĐỒ VÀ CHI TIẾT (Grid 1) --- */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                
+
                 {/* 1. Biểu đồ Doanh thu (Chiếm 2/3) - GIỮ NGUYÊN VỊ TRÍ */}
                 <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden p-6">
                     <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
@@ -367,18 +381,18 @@ const Stats = () => {
                     {loading ? (
                         <div className="text-center py-16 text-[#2B6377]">Đang tải dữ liệu biểu đồ...</div>
                     ) : error ? (
-                         <div className="text-center py-16 text-red-500">{error}</div>
+                        <div className="text-center py-16 text-red-500">{error}</div>
                     ) : salesData.length === 0 ? (
                         <div className="h-80 flex items-center justify-center text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                             Không có dữ liệu doanh thu trong khoảng thời gian này.
+                            Không có dữ liệu doanh thu trong khoảng thời gian này.
                         </div>
                     ) : (
                         // KHỐI CODE BIỂU ĐỒ THỰC TẾ
                         <div style={{ width: '100%', height: 320 }}>
                             <ResponsiveContainer>
-                                <LineChart 
+                                <LineChart
                                     // SỬA LỖI: Tạo bản sao mảng trước khi sắp xếp
-                                    data={[...salesData].sort((a, b) => new Date(a.date) - new Date(b.date))} 
+                                    data={[...salesData].sort((a, b) => new Date(a.date) - new Date(b.date))}
                                     margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                                 >
                                     <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
@@ -406,7 +420,7 @@ const Stats = () => {
                             </div>
                         </div>
                     </div>
-                    
+
                     {/* Table Content */}
                     <div className="overflow-x-auto">
                         {loading && salesData.length === 0 && <div className="text-center text-[#2B6377] py-8">Đang tải chi tiết doanh thu...</div>}
@@ -414,9 +428,9 @@ const Stats = () => {
                         {!loading && !error && currentSalesData.length === 0 && (
                             <div className="text-center text-gray-500 py-8">Không tìm thấy chi tiết doanh thu nào cho khoảng thời gian này.</div>
                         )}
-                        
+
                         {currentSalesData.length > 0 && (
-                             <table className="min-w-full divide-y divide-gray-200">
+                            <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-[#f4f7f8]">
                                     <tr>
                                         <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Thời gian</th>
@@ -495,7 +509,7 @@ const Stats = () => {
                         </tbody>
                     </table>
                     {topProducts.length === 0 && !loading && (
-                            <div className="text-center text-gray-500 py-4">Không có dữ liệu Top Sản phẩm.</div>
+                        <div className="text-center text-gray-500 py-4">Không có dữ liệu Top Sản phẩm.</div>
                     )}
                 </div>
             </div>
