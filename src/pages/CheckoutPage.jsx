@@ -10,11 +10,7 @@ import {
 
 import { getCartData, clearOrderedItems } from "../services/cartService";
 
-import {
-  getAllVouchers,
-  applyVoucher,
-  applyMultipleVouchers,
-} from "../services/voucherApi";
+import { getAllVouchers, applyVoucher } from "../services/voucherApi";
 
 import Select from "react-select";
 
@@ -34,7 +30,7 @@ export default function CheckoutPage() {
   const { user: authUser } = useAuth();
 
   const selectedItemsData = location.state?.selectedItems;
-  const selectedItemIds = location.state?.selectedItemIds;
+  const selectedItemIds = location.state?.selectedItemIds; // nếu không dùng cũng không sao
 
   const [defaultAddress, setDefaultAddress] = useState({
     fullName: "",
@@ -65,16 +61,21 @@ export default function CheckoutPage() {
   const [shippingMethod, setShippingMethod] = useState("standard");
 
   // ===== VOUCHER STATE =====
-  const [selectedVouchers, setSelectedVouchers] = useState([]); // nhiều voucher được chọn từ list
+  const [selectedVouchers, setSelectedVouchers] = useState([]); // những voucher chọn từ list
   const [showRuleVoucher, setShowRuleVoucher] = useState(null); // modal rule
-
   const [voucherCode, setVoucherCode] = useState(""); // code nhập tay
-  const [selectedVoucher, setSelectedVoucher] = useState(null); // label voucher đã áp dụng (string)
+  const [selectedVoucher, setSelectedVoucher] = useState(null); // label voucher đã áp dụng (string join)
   const [availableVouchers, setAvailableVouchers] = useState([]);
   const [applyingVoucher, setApplyingVoucher] = useState(false);
   const [voucherError, setVoucherError] = useState("");
+  // voucher đã áp dụng thật (để gửi BE khi checkout)
+  const [appliedVouchers, setAppliedVouchers] = useState([]);
+
+  // tổng tiền giảm giá từ voucher
   const [appliedDiscount, setAppliedDiscount] = useState(0);
-  const [freeShipping, setFreeShipping] = useState(false);
+
+  // giảm phí ship (BE trả về)
+  const [shippingDiscount, setShippingDiscount] = useState(0);
 
   const shippingOptions = [
     {
@@ -103,11 +104,11 @@ export default function CheckoutPage() {
       return sum + price * (item.quantity || 1);
     }, 0) || 0;
 
-  const shippingFee = freeShipping
-    ? 0
-    : shippingOptions.find((o) => o.id === shippingMethod)?.price || 0;
+  const baseShippingFee =
+    shippingOptions.find((o) => o.id === shippingMethod)?.price || 0;
+  const shippingFee = Math.max(0, baseShippingFee - shippingDiscount);
 
-  const discount = appliedDiscount;
+  const discount = appliedDiscount; // hiện đang = 0, BE mới là nơi trừ tiền thật
   const total = subtotal + shippingFee - discount;
 
   const hasValidAddress = showAddressForm
@@ -124,7 +125,9 @@ export default function CheckoutPage() {
 
   const hasCartItems = cartData?.items && cartData.items.length > 0;
 
+  // =============================
   // FETCH DEFAULT ADDRESS / GUEST
+  // =============================
 
   useEffect(() => {
     const fetchDefaultAddress = async () => {
@@ -167,7 +170,9 @@ export default function CheckoutPage() {
     fetchDefaultAddress();
   }, []);
 
+  // ============
   // FETCH CART
+  // ============
 
   useEffect(() => {
     const fetchCart = async () => {
@@ -186,7 +191,9 @@ export default function CheckoutPage() {
     fetchCart();
   }, [authUser, selectedItemsData]);
 
+  // ===============
   // FETCH VOUCHERS
+  // ===============
 
   useEffect(() => {
     const loadVouchers = async () => {
@@ -200,7 +207,6 @@ export default function CheckoutPage() {
 
         const response = await getAllVouchers();
 
-        // BE có thể trả nhiều dạng page, list thuần, bọc data
         const raw =
           response?.data?.content ||
           response?.data?.data ||
@@ -210,7 +216,11 @@ export default function CheckoutPage() {
         const now = new Date();
         const activeVouchers = raw.filter((v) => {
           if (v.status !== "ACTIVE") return false;
+
+          // BE đang dùng startAt / endAt
+          if (v.endAt && new Date(v.endAt) < now) return false;
           if (v.endDate && new Date(v.endDate) < now) return false;
+
           return true;
         });
 
@@ -224,7 +234,9 @@ export default function CheckoutPage() {
     loadVouchers();
   }, []);
 
+  // ============================
   // ADDRESS SELECT HANDLERS
+  // ============================
 
   const handleProvinceChange = (selectedOption) => {
     setManualAddress({
@@ -261,27 +273,21 @@ export default function CheckoutPage() {
   const toggleVoucher = (voucher) => {
     setSelectedVouchers((prev) => {
       const exists = prev.find((v) => v.id === voucher.id);
+
       if (exists) {
         return prev.filter((v) => v.id !== voucher.id);
       }
 
-      // Không cho chọn 2 freeship
-      const hasFreeShip = prev.some((v) => v.type === "SHIPPING_FREE");
-      // Không cho chọn 2 voucher giảm tiền / % cùng lúc
-      const hasDiscount = prev.some(
-        (v) => v.type === "PERCENT" || v.type === "AMOUNT"
-      );
-
+      // chỉ chặn freeship chồng freeship
       if (
-        (voucher.type === "SHIPPING_FREE" && hasFreeShip) ||
-        ((voucher.type === "PERCENT" || voucher.type === "AMOUNT") &&
-          hasDiscount)
+        voucher.type === "SHIPPING_FREE" &&
+        prev.some((v) => v.type === "SHIPPING_FREE")
       ) {
         return prev;
       }
 
-      // Giới hạn tối đa 2 voucher (1 freeship + 1 discount)
-      if (prev.length >= 2) return prev;
+      // giới hạn tối đa 3 cho UX (BE xử đúng/sai)
+      if (prev.length >= 3) return prev;
 
       return [...prev, voucher];
     });
@@ -293,7 +299,6 @@ export default function CheckoutPage() {
       return "Đơn hàng chưa đạt giá trị tối thiểu";
     }
 
-    // Nếu voucher không stackable và đã có voucher khác được chọn
     if (
       !voucher.stackable &&
       selectedVouchers.length > 0 &&
@@ -305,10 +310,19 @@ export default function CheckoutPage() {
     return "";
   };
 
-  // APPLY VOUCHER LOGIC
+  // APPLY VOUCHER
+  const handleRemoveVoucher = () => {
+    setSelectedVoucher(null);
+    setAppliedVouchers([]);
+    setSelectedVouchers([]);
+    setAppliedDiscount(0);
+    setShippingDiscount(0);
+    setVoucherCode("");
+    setVoucherError("");
+  };
 
+  // sửa
   const handleApplyVoucher = async () => {
-    const userStored = localStorage.getItem("user");
     const hasCode = !!voucherCode.trim();
     const hasSelection = selectedVouchers.length > 0;
 
@@ -324,8 +338,6 @@ export default function CheckoutPage() {
 
     setApplyingVoucher(true);
     setVoucherError("");
-    setAppliedDiscount(0);
-    setFreeShipping(false);
 
     try {
       const items = cartData.items.map((item) => ({
@@ -334,79 +346,38 @@ export default function CheckoutPage() {
         price: item.salePrice || item.originalPrice || item.price || 0,
       }));
 
-      // GUEST: CHỈ 1 VOUCHER
+      // ✅ danh sách code cần apply
+      const codes = hasCode
+        ? [voucherCode.trim().toUpperCase()]
+        : selectedVouchers.map((v) => v.code);
 
-      if (!userStored) {
-        // Ưu tiên code nhập tay, nếu không có thì lấy voucher được chọn (trong trường hợp sau này guest cũng được xem list)
-        const code =
-          (hasCode && voucherCode.trim()) ||
-          (hasSelection && selectedVouchers[0].code);
+      let totalDiscount = 0;
+      let totalShippingDiscount = 0;
+      const applied = [];
 
-        if (!code) {
-          throw new Error("Vui lòng nhập mã voucher");
-        }
-
-        const res = await applyVoucher({
-          code,
-          items,
-        });
-
-        const data = res?.data || res;
-
-        if (!data.valid)
-          throw new Error(data.message || "Voucher không hợp lệ");
-
-        setSelectedVoucher({ code });
-        setAppliedDiscount(Number(data.discount || 0));
-        setFreeShipping(!!data.freeShipping);
-        return;
-      }
-
-      // CUSTOMER: NHIỀU VOUCHER / CODE TAY
-
-      // Nếu chọn từ list → dùng applyMultiple
-      if (hasSelection) {
-        const codes = selectedVouchers.map((v) => v.code);
-
-        const res = await applyMultipleVouchers({
-          codes,
-          items,
-        });
-
+      for (const code of codes) {
+        const res = await applyVoucher({ code, items });
         const data = res?.data || res;
 
         if (!data.valid) {
-          throw new Error(
-            data.message || "Không thể áp dụng các voucher đã chọn"
-          );
+          throw new Error(data.message || `Voucher ${code} không hợp lệ`);
         }
 
-        setSelectedVoucher({
-          code: data.appliedVouchers.join(" + "),
-        });
+        totalDiscount += Number(data.discountAmount || 0);
+        totalShippingDiscount += Number(data.shippingDiscount || 0);
 
-        setAppliedDiscount(Number(data.discount || 0));
-        setFreeShipping(!!data.freeShipping);
-        return;
+        applied.push({ code });
       }
 
-      // Nếu không chọn list mà chỉ nhập tay code
-      if (hasCode) {
-        const res = await applyVoucher({
-          code: voucherCode.trim(),
-          items,
-        });
+      setAppliedVouchers(applied);
+      setAppliedDiscount(totalDiscount);
+      setShippingDiscount(totalShippingDiscount);
 
-        const data = res?.data || res;
+      setSelectedVoucher({
+        code: applied.map((v) => v.code).join(" + "),
+      });
 
-        if (!data.valid)
-          throw new Error(data.message || "Voucher không hợp lệ");
-
-        setSelectedVoucher({ code: voucherCode.trim() });
-        setAppliedDiscount(Number(data.discount || 0));
-        setFreeShipping(!!data.freeShipping);
-        return;
-      }
+      setVoucherError("");
     } catch (err) {
       console.error("Apply voucher error:", err);
       setVoucherError(err.message || "Không thể áp dụng voucher");
@@ -416,34 +387,10 @@ export default function CheckoutPage() {
     }
   };
 
-  // Tự động re-apply khi user thay đổi selection (customer)
-  useEffect(() => {
-    const userStored = localStorage.getItem("user");
-    if (!userStored) return; // guest không auto-apply,nhập mã code
-
-    if (!selectedVouchers.length) {
-      setAppliedDiscount(0);
-      setFreeShipping(false);
-      setSelectedVoucher(null);
-      return;
-    }
-
-    // gọi lại apply cho selection mới
-    handleApplyVoucher();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedVouchers]);
-
-  const handleRemoveVoucher = () => {
-    setSelectedVoucher(null);
-    setAppliedDiscount(0);
-    setFreeShipping(false);
-    setVoucherCode("");
-    setVoucherError("");
-  };
-
   // ============
   // CHECKOUT
   // ============
+
   const handleCheckout = async () => {
     if (!hasValidAddress) {
       alert("Vui lòng thêm địa chỉ giao hàng để thanh toán!");
@@ -458,7 +405,7 @@ export default function CheckoutPage() {
     try {
       setIsSubmitting(true);
 
-      //  XÁC ĐỊNH CUSTOMER
+      // XÁC ĐỊNH CUSTOMER
       const userStored = localStorage.getItem("user");
       let customerId = null;
 
@@ -479,14 +426,11 @@ export default function CheckoutPage() {
           alert("Customer ID không hợp lệ.");
           return;
         }
-      }
-      // GUEST ->  customerId = null (KHÔNG phải 0)
-      else {
-        customerId = null;
+      } else {
+        customerId = null; // guest
       }
 
-      //  ADDRESS INFO
-
+      // ADDRESS INFO
       let addressInfo = null;
 
       if (showAddressForm) {
@@ -508,7 +452,9 @@ export default function CheckoutPage() {
       } else if (userStored && addressObject) {
         addressInfo = {
           shippingFullName: addressObject.fullName,
-          shippingPhone: addressObject.phone,
+          shippingPhone: isGuestCheckout
+            ? manualAddress.phone
+            : authUser?.phoneNumber, //LẤY TỪ ACCOUNT
           shippingAddress: addressObject.address,
           shippingCity: addressObject.city,
           shippingState: addressObject.state,
@@ -538,18 +484,19 @@ export default function CheckoutPage() {
         };
       });
 
-      //  PAYLOAD GỬI BE
+      // Dùng danh sách voucher đã áp dụng thật
+      const voucherCodes = appliedVouchers.map((v) => v.code);
+
       const orderPayload = {
-        customerId: customerId, // null nếu guest
-        shippingFee: shippingFee,
-        discount: discount,
-        orderDetails: orderDetails,
+        customerId,
+        voucherCodes,
+        orderDetails,
         ...addressInfo,
       };
 
       console.log("📦 ORDER PAYLOAD:", orderPayload);
 
-      /* ===================== CREATE ORDER ===================== */
+      // CREATE ORDER
       const createdOrder = await createOrder(orderPayload);
 
       console.log("✅ ORDER CREATED:", createdOrder);
@@ -558,12 +505,10 @@ export default function CheckoutPage() {
 
       alert(`Đặt hàng thành công!${orderId ? ` Mã đơn: ${orderId}` : ""}`);
 
-      /* ===================== CLEAR CART ===================== */
+      // CLEAR CART
       await clearOrderedItems(cartData.items);
 
-      /* ===================== REDIRECT ĐÚNG===================== */
-
-      // GUEST KHÔNG được vào /orders/:id
+      // REDIRECT
       if (!userStored) {
         navigate("/order-success", {
           state: {
@@ -576,9 +521,7 @@ export default function CheckoutPage() {
             isGuest: !userStored,
           },
         });
-      }
-      // USER LOGIN
-      else {
+      } else {
         navigate(`/orders/${orderId}`);
       }
     } catch (error) {
@@ -950,8 +893,10 @@ export default function CheckoutPage() {
                         </div>
                       </div>
                       <div className="font-semibold text-[#12343b]">
-                        {freeShipping && active ? (
-                          <span className="text-green-600">Miễn phí</span>
+                        {active && shippingDiscount > 0 ? (
+                          <span className="text-green-600">
+                            Giảm {shippingDiscount.toLocaleString()}₫
+                          </span>
                         ) : (
                           `${option.price.toLocaleString()}₫`
                         )}
@@ -1230,8 +1175,10 @@ export default function CheckoutPage() {
                 <div className="flex justify-between text-sm text-[#7b8a8b]">
                   <span>Phí vận chuyển</span>
                   <span className="font-semibold text-[#12343b]">
-                    {freeShipping ? (
-                      <span className="text-green-600">Miễn phí</span>
+                    {shippingDiscount > 0 ? (
+                      <span className="text-green-600">
+                        {shippingFee.toLocaleString()}₫
+                      </span>
                     ) : (
                       `${shippingFee.toLocaleString()}₫`
                     )}
