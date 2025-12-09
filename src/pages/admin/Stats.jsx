@@ -471,7 +471,7 @@ const Stats = () => {
                 <div className="p-6 border-b border-gray-200">
                     <h2 className="text-xl font-bold text-gray-800 flex items-center">
                         <ArrowUpCircle className="w-5 h-5 mr-2 text-red-500" />
-                        Top 5 Sản phẩm Bán chạy
+                        Top Sản phẩm Bán chạy
                     </h2>
                 </div>
                 {/* Bảng Top Products */}
