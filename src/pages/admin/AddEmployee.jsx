@@ -117,13 +117,6 @@ export default function AddEmployeePage() {
 
   return (
       <>
-        <div className="bg-cyan-50 border-b border-cyan-100 mt-4">
-          <div className="max-w-7xl mx-auto px-8 py-3">
-            <p className="text-sm text-cyan-700 font-medium">
-              Tài khoản <span className="mx-2">›</span> Thêm tài khoản
-            </p>
-          </div>
-        </div>
 
         <div className="min-h-screen bg-gray-50 flex items-center justify-center m-2">
           <div className="rounded-lg shadow-sm border border-gray-200 p-8 w-full max-w-4xl" style={{ background: '#D5E2E6' }}>
