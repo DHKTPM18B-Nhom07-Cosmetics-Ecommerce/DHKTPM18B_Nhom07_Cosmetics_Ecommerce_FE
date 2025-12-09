@@ -19,6 +19,7 @@ import OrderDetailPage from "./pages/OrderDetailPage";
 import AdminLayout from "./components/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
 import UserManagement from "./pages/admin/UserManagement";
+import Stats from "./pages/admin/Stats.jsx"
 import { AuthProvider } from "./context/AuthContext";
 import VoucherManagement from "./pages/admin/VoucherManagement";
 import CategoryManagement from "./pages/admin/CategoryManagement";
@@ -81,6 +82,7 @@ export default function App() {
             <Route path="users/:id" element={<UserDetail />} />
             <Route path="categories" element={<CategoryManagement />} />
             <Route path="products" element={<ProductManagement />} />
+            <Route path="stats" element={<Stats />} />
             <Route path="orders" element={<OrderManagement />} />
             <Route path="orders/:orderId" element={<OrderDetailManagement />} />
             <Route path="vouchers" element={<VoucherManagement />} />

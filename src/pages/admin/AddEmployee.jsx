@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
+import { notifySuccess, notifyError } from '../../utils/toast.js';
 
 export default function AddEmployeePage() {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function AddEmployeePage() {
     e.preventDefault();
 
     if (!formData.fullName || !formData.email || !formData.password || !formData.role) {
-      alert('Vui lòng điền đầy đủ thông tin!');
+      notifyError('Vui lòng điền đầy đủ thông tin!');
       return;
     }
 
@@ -59,16 +60,16 @@ export default function AddEmployeePage() {
       });
 
       if (response.ok) {
-        alert('Thêm nhân viên thành công!');
+        notifySuccess('Thêm nhân viên thành công!');
         navigate('/admin/users');
       } else {
         const err = await response.json();
         console.error("Lỗi Server trả về:", err);
-        alert(' Lỗi: ' + (err.message || "Không thể tạo nhân viên"));
+        notifyError('Lỗi: ' + (err.message || "Không thể tạo nhân viên"));
       }
     } catch (error) {
       console.error(error);
-      alert(' Lỗi kết nối server!');
+      notifyError('Lỗi kết nối server!');
     } finally {
       setLoading(false);
     }

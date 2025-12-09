@@ -1,76 +1,45 @@
-import axios from "axios";
 
-const voucherApi = axios.create({
-  baseURL: "http://localhost:8080",
-  headers: { "Content-Type": "application/json" }
-});
+import api from "./api";
+/* ===== READ ===== */
+export const getAllVouchers = () => api.get("/api/vouchers");
 
-// VOUCHER API
-
-// GET ALL
-export const getAllVouchers = async () => {
-  try {
-    const res = await voucherApi.get("/api/vouchers");
-    return res; // res.data = list
-  } catch (err) {
-    console.error("Load vouchers failed:", err.response?.data || err);
-    return { data: [] };
-  }
-};
-
-// GET BY ID
 export const getVoucherById = async (id) => {
-  const res = await voucherApi.get(`/api/vouchers/${id}`);
+  if (!id) throw new Error("Thiếu voucher id");
+  const res = await api.get(`/api/vouchers/${id}`);
   return res.data;
 };
 
-// CREATE
-export const createVoucher = (data) =>
-  voucherApi.post("/api/vouchers", data);
+/* ===== CREATE / UPDATE ===== */
+export const createVoucher = (payload) =>
+  api.post("/api/vouchers", payload);
 
-// UPDATE
-export const updateVoucher = (id, data) =>
-  voucherApi.put(`/api/vouchers/${id}`, data);
-
-// UPDATE STATUS
-export const updateVoucherStatus = (id, newStatus) =>
-  voucherApi.patch(`/api/vouchers/${id}/status`, { status: newStatus });
-
-// APPLY VOUCHER
-// GUEST – chỉ 1 voucher
-export const applyVoucher = async (payload) => {
-  try {
-    const res = await voucherApi.post("/api/vouchers/apply", payload);
-    return res.data;
-  } catch (err) {
-    console.error("Apply voucher failed:", err.response?.data || err);
-    throw err;
-  }
+export const updateVoucher = (id, payload) => {
+  if (!id) throw new Error("Thiếu voucher id");
+  return api.put(`/api/vouchers/${id}`, payload);
 };
 
-// CUSTOMER – nhiều voucher
-export const applyMultipleVouchers = async (payload) => {
-  /*
-    payload = {
-      codes: ["SALE10", "FREESHIP"],
-      items: [
-        { productId, quantity, price }
-      ]
-    }
-  */
-  try {
-    const res = await voucherApi.post(
-      "/api/vouchers/apply-multiple",
-      payload
-    );
-    return res.data;
-  } catch (err) {
-    console.error(
-      "Apply multiple vouchers failed:",
-      err.response?.data || err
-    );
-    throw err;
-  }
+/*  */
+export const updateVoucherStatus = (id, status) => {
+  if (!id || !status)
+    throw new Error("Thiếu voucherId hoặc status");
+
+  return api.patch(`/api/vouchers/${id}/status`, { status });
 };
 
-export default voucherApi;
+/* ===== DELETE ===== */
+export const deleteVoucher = (id) =>
+  api.delete(`/api/vouchers/${id}`);
+
+/* ===== APPLY (CHECKOUT) ===== */
+export const applyVoucher = ({ code, items }) =>
+  api.post("/api/vouchers/apply", { code, items });
+
+export default {
+  getAllVouchers,
+  getVoucherById,
+  createVoucher,
+  updateVoucher,
+  updateVoucherStatus,
+  deleteVoucher,
+  applyVoucher,
+};

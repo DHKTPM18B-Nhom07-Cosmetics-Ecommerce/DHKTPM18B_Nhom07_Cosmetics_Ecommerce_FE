@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Search, BadgeCheck, Globe, Sparkles, Handshake } from "lucide-react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import { getAllBrands } from "../services/brandService"; //
+import { getAllBrands } from "../services/brandService";
+import Breadcrumb from "../components/Breadcrumb.jsx"
 
 export default function BrandsPage() {
     const navigate = useNavigate();
@@ -44,7 +45,12 @@ export default function BrandsPage() {
 
     return (
         <div className="min-h-screen bg-white">
-
+            <Breadcrumb
+                breadcrumbs={[
+                    { label: "Trang chủ", href: "/" },
+                    { label: "Thương hiệu", active: true }
+                ]}
+            />
             <main className="flex flex-col gap-16 pb-20 pt-8">
 
                 {/* === 1. HERO BANNER === */}

@@ -12,7 +12,6 @@ const LoginPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
@@ -119,17 +118,7 @@ const LoginPage = () => {
                         </div>
 
                         {/* Tùy chọn Ghi nhớ và Quên mật khẩu */}
-                        <div className={styles.optionsGroup}>
-                            <div className={styles.rememberMe}>
-                                <input
-                                    type="checkbox"
-                                    id="rememberMe"
-                                    checked={rememberMe}
-                                    onChange={(e) => setRememberMe(e.target.checked)}
-                                    className={styles.checkbox}
-                                />
-                                <label htmlFor="rememberMe" className={styles.rememberLabel}>Ghi nhớ đăng nhập</label>
-                            </div>
+                        <div className={styles.optionsGroup} style={{ justifyContent: 'end' }}>
                             <Link to="/forgot-password" className={styles.forgotPassword}>Quên mật khẩu?</Link>
                         </div>
 

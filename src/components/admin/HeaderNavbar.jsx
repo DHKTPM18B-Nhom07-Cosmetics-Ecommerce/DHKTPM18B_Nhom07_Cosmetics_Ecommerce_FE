@@ -27,6 +27,7 @@ export default function HeaderNavbar() {
     { name: 'Đơn hàng', path: '/admin/orders' },
     { name: 'Mã giảm giá', path: '/admin/vouchers' },
     { name: 'Tài khoản', path: '/admin/users' },
+    { name: 'Thống kê', path: '/admin/stats' },
   ];
 
   // Lọc nav items dựa trên role
@@ -120,16 +121,6 @@ export default function HeaderNavbar() {
 
         {/* === RIGHT SIDE (Search, Bell, User) === */}
         <div className="flex items-center gap-5">
-         
-          {/* 1. SEARCH BAR NHỎ */}
-          <div className="relative hidden md:block">
-            <input 
-              type="text" 
-              placeholder="Tìm kiếm nhanh..." 
-              className="bg-black/10 border border-transparent focus:border-white/30 text-white text-sm rounded-full pl-9 pr-4 py-1.5 focus:outline-none placeholder-gray-300 transition w-48 focus:w-64"
-            />
-            <Search className="w-4 h-4 text-gray-300 absolute left-3 top-2" />
-          </div>
 
           {/* 2. CHUÔNG THÔNG BÁO */}
           <div className="relative" ref={notifRef}>
