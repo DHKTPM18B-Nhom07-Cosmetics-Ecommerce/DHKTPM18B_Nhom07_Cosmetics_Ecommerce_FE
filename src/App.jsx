@@ -40,6 +40,8 @@ import VoucherEditPage from "./pages/admin/VoucherEditPage";
 import OrderSuccessPage from "./pages/OrderSuccessPage";
 import WishlistPage from "./pages/WishlistPage";
 
+import AddressPage from './pages/AddressPage';
+
 export default function App() {
   return (
     <AuthProvider>
@@ -69,6 +71,7 @@ export default function App() {
           <Route path="/order" element={<OrderPage />} />
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />
           <Route path="/review-product" element={<ProductReviewPage />} />
+          <Route path="/addresses" element={<AddressPage />} />
 
           {/* Admin */}
           <Route path="/admin" element={<AdminLayout />}>
