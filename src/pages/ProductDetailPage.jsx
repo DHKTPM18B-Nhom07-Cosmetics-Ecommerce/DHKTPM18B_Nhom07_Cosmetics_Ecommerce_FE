@@ -4,6 +4,8 @@ import { Heart, ShoppingCart } from "lucide-react";
 import { getProductById, getProductVariants } from "../services/productService";
 import { addToCart } from "../services/cartService"; // Import service Cart
 import { filterProducts } from "../services/productFilterApi";
+import { getAllReviews } from "../services/reviewService";
+import { getCustomerById } from "../services/customerService";
 import Breadcrumb from "../components/Breadcrumb";
 import ProductImageCarousel from "../components/ProductImageCarousel";
 
@@ -34,6 +36,18 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [productCategory, setProductCategory] = useState(null);
   const [adding, setAdding] = useState(false); // Thêm state loading cho nút Add
+
+  // Reviews State
+  const [reviews, setReviews] = useState([]);
+  const [sortOrder, setSortOrder] = useState('newest'); // 'newest' | 'oldest'
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all', '5', '4', '3', '2', '1', 'recent'
+
+  const [reviewStats, setReviewStats] = useState({
+    average: 0,
+    total: 0,
+    counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+  });
+
   const descriptionRef = useRef(null);
 
   useEffect(() => {
@@ -45,8 +59,65 @@ export default function ProductDetailPage() {
           getProductVariants(id),
         ]);
 
+        let reviewsData = [];
+        try {
+          const allReviews = await getAllReviews();
+          reviewsData = allReviews.filter(r => r.product && r.product.id === Number(id));
+        } catch (error) {
+          console.error("Error fetching reviews:", error);
+          // reviewsData remains []
+        }
+
         setProduct(productData);
+
         setVariants(variantsData);
+
+        // Process Reviews
+        const reviewsRaw = Array.isArray(reviewsData) ? reviewsData : (reviewsData.content || []);
+
+        // Filter by current product ID (frontend workaround)
+        const filteredReviews = reviewsRaw.filter(r => r.product && r.product.id === Number(id));
+
+        // Fetch user names
+        const reviewsWithNames = await Promise.all(filteredReviews.map(async (review) => {
+          let userName = review.userName || "Người dùng ẩn danh";
+          // If review has customer object or ID, try to fetch name
+          if (review.customer && review.customer.id) {
+            try {
+              const customerData = await getCustomerById(review.customer.id);
+              // Try to get fullName from Account if possible, otherwise rely on naming convention
+              // Based on Customer model, it has Account. Account has fullName.
+              if (customerData && customerData.account && customerData.account.fullName) {
+                userName = customerData.account.fullName;
+              }
+            } catch (e) {
+              console.error("Failed to fetch customer name for review", review.id);
+            }
+          }
+          return { ...review, displayName: userName };
+        }));
+
+        setReviews(reviewsWithNames);
+
+        if (reviewsWithNames.length > 0) {
+          const total = reviewsWithNames.length;
+          const sum = reviewsWithNames.reduce((acc, r) => acc + (r.rating || 0), 0);
+          const average = (sum / total).toFixed(1);
+
+          const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+          reviewsWithNames.forEach(r => {
+            const rating = Math.round(r.rating || 0);
+            if (counts[rating] !== undefined) counts[rating]++;
+          });
+
+          setReviewStats({ average, total, counts });
+        } else {
+          setReviewStats({
+            average: 0,
+            total: 0,
+            counts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+          });
+        }
 
         if (productData.category) {
           setProductCategory(productData.category.name || productData.category);
@@ -256,7 +327,7 @@ export default function ProductDetailPage() {
                   <div className="flex items-center gap-2 text-sm text-[#2B6377]">
                     {renderStars(product.averageRating || 0)}
                     <span className="border-r border-gray-300 pr-2 mr-2 text-gray-600">
-                      (0 đánh giá)
+                      ({reviewStats.total} đánh giá)
                     </span>
                     <span className="border-r border-gray-300 pr-2 mr-2 text-gray-600">
                       Chưa có hỏi đáp
@@ -445,9 +516,172 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Đánh giá</h2>
-            <p className="text-gray-600">Chưa có đánh giá nào.</p>
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">Đánh giá sản phẩm</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-600">Sắp xếp:</span>
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                  className="border border-gray-300 rounded-md text-sm px-2 py-1 focus:outline-none focus:border-[#2B6377]"
+                >
+                  <option value="newest">Mới nhất</option>
+                  <option value="oldest">Cũ nhất</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row items-center gap-8 mb-8">
+              {/* Rating Summary Box */}
+              <div className="flex flex-col items-center justify-center p-6 bg-yellow-50/50 rounded-xl border border-yellow-100 min-w-[200px]">
+                <div className="text-5xl font-bold text-yellow-500 mb-2">
+                  {reviewStats.average}
+                </div>
+                <div className="flex gap-1 mb-2 text-yellow-400">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span key={star} className="text-2xl">
+                      {star <= Math.round(reviewStats.average) ? "★" : "☆"}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-gray-500 font-medium">{reviewStats.total} đánh giá</p>
+              </div>
+
+              {/* Rating Bars */}
+              <div className="flex-1 w-full max-w-md">
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const count = reviewStats.counts[star];
+                  const percent = reviewStats.total > 0 ? (count / reviewStats.total) * 100 : 0;
+                  return (
+                    <div key={star} className="flex items-center gap-3 mb-2 last:mb-0">
+                      <span className="text-sm font-bold text-gray-600 w-3">{star}</span>
+                      <span className="text-yellow-400 text-sm">★</span>
+                      <div className="flex-1 h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-yellow-400 rounded-full"
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-500 w-8 text-right">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Filter Buttons */}
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+              {[
+                { label: 'Tất cả', value: 'all', count: reviewStats.total },
+                { label: '5 Sao', value: '5', count: reviewStats.counts[5] },
+                { label: '4 Sao', value: '4', count: reviewStats.counts[4] },
+                { label: '3 Sao', value: '3', count: reviewStats.counts[3] },
+                { label: '2 Sao', value: '2', count: reviewStats.counts[2] },
+                { label: '1 Sao', value: '1', count: reviewStats.counts[1] },
+                {
+                  label: 'Gần đây', value: 'recent', count: reviews.filter(r => {
+                    const date = new Date(r.reviewDate || r.createdAt || 0);
+                    const sevenDaysAgo = new Date();
+                    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                    return date >= sevenDaysAgo;
+                  }).length
+                }
+              ].map(filter => (
+                <button
+                  key={filter.value}
+                  onClick={() => setActiveFilter(filter.value)}
+                  className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${activeFilter === filter.value
+                    ? 'bg-[#2B6377] text-white border-[#2B6377]'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-[#2B6377] hover:text-[#2B6377]'
+                    }`}
+                >
+                  {filter.label} ({filter.count})
+                </button>
+              ))}
+            </div>
+
+            {/* Review List */}
+            <div className="space-y-6">
+              {reviews
+                .filter(review => {
+                  if (activeFilter === 'all') return true;
+                  if (activeFilter === 'recent') {
+                    const date = new Date(review.reviewDate || review.createdAt || 0);
+                    const sevenDaysAgo = new Date();
+                    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                    return date >= sevenDaysAgo;
+                  }
+                  return Math.round(review.rating) === parseInt(activeFilter);
+                }).length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center bg-gray-50 rounded-lg">
+                  <img
+                    src="/empty_review_star.png"
+                    alt="No reviews"
+                    className="w-32 h-32 object-contain mb-4 opacity-80"
+                  />
+                  <p className="text-gray-500 text-lg font-medium">
+                    {activeFilter === 'all'
+                      ? "Chưa có đánh giá nào cho sản phẩm này."
+                      : `Sản phẩm này chưa có đánh giá ${{
+                        '5': 'Tuyệt vời',
+                        '4': 'Hài lòng',
+                        '3': 'Bình thường',
+                        '2': 'Không hài lòng',
+                        '1': 'Rất tệ',
+                        'recent': 'Gần đây'
+                      }[activeFilter] || ''
+                      }`}
+                  </p>
+                </div>
+              ) : (
+                reviews
+                  .filter(review => {
+                    if (activeFilter === 'all') return true;
+                    if (activeFilter === 'recent') {
+                      const date = new Date(review.reviewDate || review.createdAt || 0);
+                      const sevenDaysAgo = new Date();
+                      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                      return date >= sevenDaysAgo;
+                    }
+                    return Math.round(review.rating) === parseInt(activeFilter);
+                  })
+                  .sort((a, b) => {
+                    const dateA = new Date(a.reviewDate || a.createdAt || 0);
+                    const dateB = new Date(b.reviewDate || b.createdAt || 0);
+                    return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+                  })
+                  .map((review) => (
+                    <div key={review.id} className="border-b border-gray-100 pb-6 last:border-0">
+                      <div className="flex items-start gap-4">
+                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-lg shrink-0">
+                          {review.displayName ? review.displayName.charAt(0).toUpperCase() : "U"}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="font-bold text-gray-900">
+                              {review.displayName}
+                            </h4>
+                            <span className="text-xs text-gray-400">
+                              {review.reviewDate ? new Date(review.reviewDate).toLocaleDateString("vi-VN") : (review.createdAt ? new Date(review.createdAt).toLocaleDateString("vi-VN") : "")}
+                            </span>
+                          </div>
+                          <div className="flex text-yellow-400 text-sm mb-2">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <span key={star}>
+                                {star <= review.rating ? "★" : "☆"}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-gray-700 leading-relaxed">
+                            {review.comment}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
           </div>
         </div>
 
