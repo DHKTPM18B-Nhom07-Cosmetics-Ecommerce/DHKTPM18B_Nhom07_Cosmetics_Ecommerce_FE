@@ -390,7 +390,6 @@ export default function CheckoutPage() {
   // ============
   // CHECKOUT
   // ============
-
   const handleCheckout = async () => {
     if (!hasValidAddress) {
       alert("Vui lòng thêm địa chỉ giao hàng để thanh toán!");
@@ -452,9 +451,11 @@ export default function CheckoutPage() {
       } else if (userStored && addressObject) {
         addressInfo = {
           shippingFullName: addressObject.fullName,
-          shippingPhone: isGuestCheckout
-            ? manualAddress.phone
-            : authUser?.phoneNumber, //LẤY TỪ ACCOUNT
+          shippingPhone:
+            manualAddress.phone ||
+            authUser?.phoneNumber ||
+            addressObject?.phone ||
+            "",
           shippingAddress: addressObject.address,
           shippingCity: addressObject.city,
           shippingState: addressObject.state,
@@ -465,6 +466,25 @@ export default function CheckoutPage() {
       if (!addressInfo) {
         throw new Error("Thiếu thông tin địa chỉ giao hàng.");
       }
+
+      // VALIDATE + NORMALIZE PHONE
+      if (!addressInfo.shippingPhone) {
+        alert("Thiếu số điện thoại giao hàng");
+        return;
+      }
+
+      // bỏ ký tự không phải số
+      addressInfo.shippingPhone = addressInfo.shippingPhone.replace(/\D/g, "");
+
+      if (
+        addressInfo.shippingPhone.length < 9 ||
+        addressInfo.shippingPhone.length > 12
+      ) {
+        alert("Số điện thoại không hợp lệ");
+        return;
+      }
+
+      console.log("☎️ PHONE GỬI BE:", addressInfo.shippingPhone);
 
       // ORDER DETAILS
       const orderDetails = cartData.items.map((item) => {
@@ -489,12 +509,14 @@ export default function CheckoutPage() {
 
       const orderPayload = {
         customerId,
+        shippingFee: shippingFee,
         voucherCodes,
         orderDetails,
         ...addressInfo,
       };
 
       console.log("📦 ORDER PAYLOAD:", orderPayload);
+      console.log("📞 SHIPPING PHONE FINAL:", addressInfo.shippingPhone);
 
       // CREATE ORDER
       const createdOrder = await createOrder(orderPayload);

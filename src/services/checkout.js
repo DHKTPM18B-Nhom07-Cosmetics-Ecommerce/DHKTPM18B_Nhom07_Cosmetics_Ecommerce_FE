@@ -79,22 +79,10 @@ export const createOrder = async (orderPayload) => {
     },
   };
 
-  const payload = {
-    customerId: orderPayload.customerId ?? null,
-    addressId: orderPayload.addressId ?? null,
-    shippingFee: orderPayload.shippingFee || 0,
-    // Bỏ luôn discount, để BE tự tính
-    // discount: orderPayload.discount || 0,
+  //GỬI NGUYÊN OBJECT – KHÔNG CẮT FIELD
+  console.log("✅ ORDER API PAYLOAD (FINAL):", orderPayload);
 
-    orderDetails: orderPayload.orderDetails,
-
-    // GỬI THÊM voucherCodes
-    voucherCodes: orderPayload.voucherCodes || [],
-  };
-
-  console.log("✅ ORDER API PAYLOAD (FINAL):", payload);
-
-  const res = await api.post("/api/orders", payload, config);
+  const res = await api.post("/api/orders", orderPayload, config);
   return res.data;
 };
 
