@@ -202,13 +202,11 @@ export default function CheckoutPage() {
       try {
         const userStored = localStorage.getItem("user");
         if (!userStored) {
-          // Guest: không load list voucher, chỉ cho nhập code
           setAvailableVouchers([]);
           return;
         }
 
         const response = await getAllVouchers();
-
         const raw =
           response?.data?.content ||
           response?.data?.data ||
@@ -216,17 +214,23 @@ export default function CheckoutPage() {
           [];
 
         const now = new Date();
-        const activeVouchers = raw.filter((v) => {
-          if (v.status !== "ACTIVE") return false;
 
-          // BE đang dùng startAt / endAt
-          if (v.endAt && new Date(v.endAt) < now) return false;
-          if (v.endDate && new Date(v.endDate) < now) return false;
+        // ✅ LỌC HẾT HẠN + INACTIVE
+        const filtered = raw.filter((v) => {
+          if (v.status && v.status !== "ACTIVE") return false;
+
+          const endDate = v.endAt
+            ? new Date(v.endAt)
+            : v.endDate
+            ? new Date(v.endDate)
+            : null;
+
+          if (endDate && endDate < now) return false;
 
           return true;
         });
 
-        setAvailableVouchers(activeVouchers);
+        setAvailableVouchers(filtered);
       } catch (error) {
         console.error("Failed to load vouchers:", error);
         setAvailableVouchers([]);
@@ -295,12 +299,37 @@ export default function CheckoutPage() {
     });
   };
 
-  // Lý do voucher bị disable (dùng cho tooltip nhẹ nhàng)
+  // Lý do voucher bị disable
   const getVoucherDisableReason = (voucher) => {
+    // HẾT HẠN
+    if (isVoucherExpired(voucher)) {
+      return "Voucher đã hết hạn";
+    }
+
+    // HẾT LƯỢT TOÀN HỆ THỐNG
+    if (
+      voucher.maxUses != null &&
+      voucher.usedCount != null &&
+      voucher.usedCount >= voucher.maxUses
+    ) {
+      return "Voucher đã hết lượt sử dụng";
+    }
+
+    // USER DÙNG HẾT LƯỢT
+    if (
+      voucher.perUserLimit != null &&
+      voucher.usedByUser != null &&
+      voucher.usedByUser >= voucher.perUserLimit
+    ) {
+      return "Bạn đã dùng hết lượt voucher này";
+    }
+
+    // CHƯA ĐỦ ĐƠN TỐI THIỂU
     if (voucher.minOrderAmount && subtotal < voucher.minOrderAmount) {
       return "Đơn hàng chưa đạt giá trị tối thiểu";
     }
 
+    // KHÔNG CHO STACK
     if (
       !voucher.stackable &&
       selectedVouchers.length > 0 &&
@@ -342,47 +371,26 @@ export default function CheckoutPage() {
     setVoucherError("");
 
     try {
-      const items = cartData.items.map((item) => ({
-        productId: Number(item.productId || item.id),
-        quantity: Number(item.quantity || 1),
-        price: item.salePrice || item.originalPrice || item.price || 0,
-      }));
-
-      // ✅ danh sách code cần apply
+      // CHỈ GOM CODE
       const codes = hasCode
         ? [voucherCode.trim().toUpperCase()]
         : selectedVouchers.map((v) => v.code);
 
-      let totalDiscount = 0;
-      let totalShippingDiscount = 0;
-      const applied = [];
+      // LƯU CODE ĐỂ GỬI BE KHI CHECKOUT
+      setAppliedVouchers(codes.map((code) => ({ code })));
 
-      for (const code of codes) {
-        const res = await applyVoucher({ code, items });
-        const data = res?.data || res;
-
-        if (!data.valid) {
-          throw new Error(data.message || `Voucher ${code} không hợp lệ`);
-        }
-
-        totalDiscount += Number(data.discountAmount || 0);
-        totalShippingDiscount += Number(data.shippingDiscount || 0);
-
-        applied.push({ code });
-      }
-
-      setAppliedVouchers(applied);
-      setAppliedDiscount(totalDiscount);
-      setShippingDiscount(totalShippingDiscount);
-
+      // HIỂN THỊ CHO USER BIẾT ĐÃ CHỌN
       setSelectedVoucher({
-        code: applied.map((v) => v.code).join(" + "),
+        code: codes.join(" + "),
       });
+
+      // KHÔNG TÍNH TIỀN
+      setAppliedDiscount(0);
+      setShippingDiscount(0);
 
       setVoucherError("");
     } catch (err) {
-      console.error("Apply voucher error:", err);
-      setVoucherError(err.message || "Không thể áp dụng voucher");
+      setVoucherError("Không thể áp dụng voucher");
       handleRemoveVoucher();
     } finally {
       setApplyingVoucher(false);
@@ -576,6 +584,21 @@ export default function CheckoutPage() {
       default:
         return type;
     }
+  };
+
+  // kiểm tra voucher hết hạn
+  const isVoucherExpired = (voucher) => {
+    const now = Date.now();
+
+    if (voucher.status && voucher.status !== "ACTIVE") return true;
+
+    const rawEnd = voucher.endAt || voucher.endDate;
+
+    if (!rawEnd) return false;
+
+    const end = new Date(rawEnd.replace(" ", "T")).getTime();
+
+    return isNaN(end) || end < now;
   };
 
   // ==================
@@ -1110,13 +1133,10 @@ export default function CheckoutPage() {
                       return (
                         <div
                           key={voucher.id}
-                          className={`flex items-start gap-3 p-3 rounded-lg border transition ${
-                            isChecked
-                              ? "border-[#2B5F68] bg-[#eaf6f6]"
-                              : "border-[#e6e6e6] bg-white"
-                          } ${
-                            isDisabled ? "opacity-60 cursor-not-allowed" : ""
-                          }`}
+                          className={`flex items-start gap-3 p-3 rounded-lg border transition
+    ${isChecked ? "border-[#2B5F68] bg-[#eaf6f6]" : "border-[#e6e6e6] bg-white"}
+    ${isDisabled ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}
+  `}
                           title={disableReason || undefined}
                         >
                           {/* RADIO / CHECKBOX */}
