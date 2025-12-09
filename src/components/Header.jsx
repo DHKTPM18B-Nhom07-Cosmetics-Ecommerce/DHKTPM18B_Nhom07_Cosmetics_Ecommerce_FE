@@ -439,39 +439,10 @@ const [cartCount, setCartCount] = useState(0);
                     // --- ĐÃ ĐĂNG NHẬP (Hiển thị Menu đầy đủ) ---
                     <>
                       <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
-                        <User className="w-4 h-4" /> Tài khoản của bạn
+                        <User className="w-4 h-4" /> Quản lý tài khoản của bạn
                       </button>
 
-                      <button
-                        onClick={() => navigate("/order")}
-                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3"
-                      >
-                        <ShoppingCart className="w-4 h-4" /> Quản lý đơn hàng
-                      </button>
-                      
-                      {/* Thêm check role nếu cần */}
-                      {user?.role === 'ADMIN' && (
-                        <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
-                          <FaStore className="w-4 h-4" /> Quản lý cửa hàng
-                        </button>
-                      )}
-
-
-                      <button 
-                        onClick={() => navigate("/wishlist")}
-                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
-                        <Heart className="w-4 h-4" /> Sản phẩm yêu thích
-                      </button>
-
-                      <button
-                        onClick={handleShippingAddressClick}
-                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3"
-                      >
-                        <MapPin className="w-4 h-4" /> Địa chỉ giao hàng
-                      </button>
-
-                      <hr className="my-2 border-gray-200" />
-
+                     
                       <button
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3"
