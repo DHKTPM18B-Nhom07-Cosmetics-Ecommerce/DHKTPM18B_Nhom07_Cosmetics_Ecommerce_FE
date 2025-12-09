@@ -11,9 +11,14 @@ export const getAccountProfile = async (accountId) => {
     }
 };
 
-// Cập nhật thông tin
+// Cập nhật thông tin - sử dụng endpoint PUT như trong api.js
 export const updateAccountProfile = async (accountId, profileData) => {
     try {
+        // Kiểm tra accountId
+        if (!accountId) {
+            throw new Error("Account ID không hợp lệ");
+        }
+        
         // profileData: { fullName: "...", phoneNumber: "..." }
         const response = await api.put(`/api/accounts/${accountId}`, profileData);
         return response.data;

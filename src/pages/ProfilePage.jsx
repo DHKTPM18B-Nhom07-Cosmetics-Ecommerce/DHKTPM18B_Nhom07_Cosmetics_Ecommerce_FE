@@ -68,7 +68,13 @@ export default function ProfilePage() {
             const currentUser = JSON.parse(localStorage.getItem('user'));
             let userId = user?.id || currentUser?.id;
 
+            if (!userId) {
+                alert("Không tìm thấy ID người dùng!");
+                return;
+            }
+
             // 1. Gọi API cập nhật Backend
+            console.log("Cập nhật tài khoản với ID:", userId);
             await updateAccountProfile(userId, {
                 fullName: formData.fullName,
                 phoneNumber: formData.phoneNumber
@@ -90,8 +96,14 @@ export default function ProfilePage() {
 
             alert("Cập nhật thông tin thành công!");
         } catch (error) {
-            console.error(error);
-            alert("Có lỗi xảy ra khi cập nhật!");
+            console.error("Lỗi cập nhật tài khoản:", error);
+            if (error.response?.status === 404) {
+                alert("Lỗi: Tài khoản không tồn tại hoặc endpoint không hỗ trợ!");
+            } else if (error.response?.status === 400) {
+                alert("Lỗi: Dữ liệu không hợp lệ! " + (error.response?.data?.message || ""));
+            } else {
+                alert("Có lỗi xảy ra khi cập nhật: " + error.message);
+            }
         } finally {
             setIsSaving(false);
         }

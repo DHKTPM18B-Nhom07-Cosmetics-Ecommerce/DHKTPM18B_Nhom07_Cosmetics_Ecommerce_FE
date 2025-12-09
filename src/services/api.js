@@ -7,13 +7,14 @@ const api = axios.create({
   },
 });
 
+// Bật JWT Interceptor để thêm token vào request
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 export default api;
-// Nếu  có JWT thì mở comment dòng dưới
-// api.interceptors.request.use(config => {
-//   const token = localStorage.getItem('token');
-//   if (token) config.headers.Authorization = `Bearer ${token}`;
-//   return config;
-// });
 
 // --- QUẢN LÝ TÀI KHOẢN (ACCOUNT) ---
 
