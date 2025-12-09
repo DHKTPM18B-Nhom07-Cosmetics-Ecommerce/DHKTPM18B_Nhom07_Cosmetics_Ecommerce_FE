@@ -28,6 +28,9 @@ export default function ProductCard({ product }) {
     0
   );
 
+  // flag hết hàng dùng chung
+  const isOutOfStock = totalQty <= 0;
+
   // ---- BADGE TEXT ----
   const getStockStatus = () => {
     if (totalQty <= 0) return "Tạm hết hàng";
@@ -47,19 +50,14 @@ export default function ProductCard({ product }) {
     e.stopPropagation();
     e.preventDefault();
 
-    // 1. Lấy thông tin User (để kiểm tra xem là Khách hay User)
-    const userStored = localStorage.getItem('user');
-
-    // --- Xac nhan user ---
-    /*
-    if (!userStored) {
-        if (window.confirm("Bạn cần đăng nhập để mua hàng. Chuyển đến trang đăng nhập ngay?")) {
-            navigate('/login');
-        }
-        return; 
+    // nếu hết hàng thì dừng luôn, không gọi API
+    if (isOutOfStock) {
+      alert("Sản phẩm đã hết hàng");
+      return;
     }
-    */
-    // ---------------------------------------------
+
+    // 1. Lấy thông tin User (để kiểm tra xem là Khách hay User)
+    const userStored = localStorage.getItem("user");
 
     // 2. Xác định Account ID (Nếu khách vãng lai thì là null)
     let accountId = null;
@@ -68,26 +66,36 @@ export default function ProductCard({ product }) {
       accountId = user.id;
     }
 
-    // 3. Kiểm tra biến thể 
+    // 3. Kiểm tra biến thể
     if (!product.variants || product.variants.length === 0) {
       alert("Sản phẩm này tạm hết hàng hoặc chưa có phân loại!");
       return;
     }
-    const defaultVariantId = product.variants[0].id;
+
+    // chỉ lấy variant còn hàng
+    const availableVariant = product.variants.find(
+      (v) => (v.quantity || 0) > 0
+    );
+
+    if (!availableVariant) {
+      alert("Sản phẩm đã hết hàng");
+      return;
+    }
+
+    const defaultVariantId = availableVariant.id;
 
     // Chuẩn bị thông tin phụ trợ cho Khách Vãng Lai (để lưu vào SessionStorage)
     const productInfoForGuest = {
       productId: product.id,
       productName: product.name,
-      sizeName: product.variants[0].variantName,
-      price: product.variants[0].price,
-      image: (product.images && product.images[0]) || "/placeholder.svg"
+      sizeName: availableVariant.variantName,
+      price: availableVariant.price,
+      image: (product.images && product.images[0]) || "/placeholder.svg",
     };
 
-    // 4. GỌI API (Truyền đủ tham số)
+    // 4. GỌI API
     try {
       setAdding(true);
-      // Truyền thêm productInfoForGuest vào tham số cuối
       await addToCart(accountId, defaultVariantId, 1, productInfoForGuest);
 
       alert("Đã thêm vào giỏ hàng thành công!");
@@ -98,10 +106,6 @@ export default function ProductCard({ product }) {
       setAdding(false);
     }
   };
-
-
-
-
 
   // ---- HIỂN THỊ GIÁ ----
   const renderPrice = () => {
@@ -124,11 +128,15 @@ export default function ProductCard({ product }) {
       {/* IMAGE */}
       <div className="relative w-full overflow-hidden bg-gray-100">
         <img
-          src={(product.images && product.images.length > 0) ? product.images[0] : "/placeholder.svg"}
+          src={
+            product.images && product.images.length > 0
+              ? product.images[0]
+              : "/placeholder.svg"
+          }
           alt={product.name}
           className={`w-full aspect-square object-contain transition-all duration-500 ${product.images && product.images.length > 1
-            ? "group-hover:opacity-0"
-            : "group-hover:scale-105"
+              ? "group-hover:opacity-0"
+              : "group-hover:scale-105"
             }`}
         />
         {product.images && product.images.length > 1 && (
@@ -142,7 +150,7 @@ export default function ProductCard({ product }) {
         <button className="absolute top-2 left-2 bg-white/80 backdrop-blur-sm p-2 rounded-full hover:bg-white transition">
           <Heart className="w-4 h-4 text-red-500" />
         </button>
-        {/* Stock Badge (merge từ origin/kieutrang) */}
+        {/* Stock Badge */}
         <div
           className={`absolute top-2 right-2 px-2 py-1 rounded-full text-[11px] font-semibold 
                 shadow ${getStockColor()} animate-fadeBounce`}
@@ -150,7 +158,6 @@ export default function ProductCard({ product }) {
           {getStockStatus()}
         </div>
       </div>
-
 
       {/* INFO */}
       <div className="p-4 gap-8">
@@ -174,17 +181,20 @@ export default function ProductCard({ product }) {
           </span>
         </div>
 
+        {/* NÚT THÊM VÀO GIỎ – KHÓA KHI HẾT HÀNG */}
         <button
           onClick={handleAddToCart}
-          disabled={adding}
+          disabled={adding || isOutOfStock}
           className={`w-full py-2 rounded-md font-medium text-sm transition flex items-center justify-center gap-2
-            ${adding
+            ${adding || isOutOfStock
               ? "bg-gray-200 text-gray-500 cursor-not-allowed"
               : "bg-teal-700 text-white hover:bg-teal-800"
             }`}
         >
           {adding ? (
             "Đang thêm..."
+          ) : isOutOfStock ? (
+            "Hết hàng"
           ) : (
             <>
               <ShoppingCart size={16} /> Thêm vào giỏ
