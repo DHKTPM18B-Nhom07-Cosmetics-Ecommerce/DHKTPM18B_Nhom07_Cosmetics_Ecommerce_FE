@@ -122,7 +122,7 @@ export default function ProductCard({ product }) {
   return (
     <div
       onClick={() => navigate(`/products/${product.id}`)}
-      className="bg-white rounded-lg overflow-hidden shadow-sm 
+      className="bg-white rounded-lg overflow-hidden shadow-sm border-2 border-white
       hover:shadow-md hover:border-teal-600 hover:border-2 transition cursor-pointer group flex flex-col h-full"
     >
       {/* IMAGE */}
@@ -134,11 +134,10 @@ export default function ProductCard({ product }) {
               : "/placeholder.svg"
           }
           alt={product.name}
-          className={`w-full aspect-square object-contain transition-all duration-500 ${
-            product.images && product.images.length > 1
-              ? "group-hover:opacity-0"
-              : "group-hover:scale-105"
-          }`}
+          className={`w-full aspect-square object-contain transition-all duration-500 ${product.images && product.images.length > 1
+            ? "group-hover:opacity-0"
+            : "group-hover:scale-105"
+            }`}
         />
         {product.images && product.images.length > 1 && (
           <img
@@ -172,7 +171,7 @@ export default function ProductCard({ product }) {
         <div className="mb-3">
           <ProductRating
             rating={product.averageRating}
-            reviewCount={product.reviews?.length || 0}
+            soldCount={product.totalSold || 0}
           />
         </div>
 
@@ -187,10 +186,9 @@ export default function ProductCard({ product }) {
           onClick={handleAddToCart}
           disabled={adding || isOutOfStock}
           className={`w-full py-2 rounded-md font-medium text-sm transition flex items-center justify-center gap-2
-            ${
-              adding || isOutOfStock
-                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                : "bg-teal-700 text-white hover:bg-teal-800"
+            ${adding || isOutOfStock
+              ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+              : "bg-teal-700 text-white hover:bg-teal-800"
             }`}
         >
           {adding ? (

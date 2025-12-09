@@ -39,6 +39,7 @@ import Stats from "./pages/admin/Stats.jsx"
 import AddEmployee from "./pages/admin/AddEmployee";
 import UserDetail from "./pages/admin/UserDetail";
 import CategoryManagement from "./pages/admin/CategoryManagement";
+import BrandManagement from "./pages/admin/BrandManagement";
 import ProductManagement from "./pages/admin/ProductManagement";
 import OrderManagement from "./pages/admin/OrderManagement";
 import OrderDetailManagement from "./pages/admin/OrderDetailManagement";
@@ -99,6 +100,7 @@ export default function App() {
               <Route path="users" element={<UserManagement />} />
               <Route path="users/add" element={<AddEmployee />} />
               <Route path="users/:id" element={<UserDetail />} />
+              <Route path="brands" element={<BrandManagement />} />
               <Route path="categories" element={<CategoryManagement />} />
               <Route path="products" element={<ProductManagement />} />
               <Route path="orders" element={<OrderManagement />} />
