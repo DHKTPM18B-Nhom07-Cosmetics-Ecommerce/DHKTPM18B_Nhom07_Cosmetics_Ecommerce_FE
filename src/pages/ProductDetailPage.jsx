@@ -8,7 +8,9 @@ import { getAllReviews } from "../services/reviewService";
 import { getCustomerById } from "../services/customerService";
 import Breadcrumb from "../components/Breadcrumb";
 import ProductImageCarousel from "../components/ProductImageCarousel";
-
+import { addToWishlist, removeFromWishlist, checkInWishlist } from "../services/wishlistService"; // Import wishlist service
+import ConfirmModal from "../components/ConfirmModal";
+import { toast } from "react-toastify";
 // Format price to Vietnamese currency
 const formatPrice = (price) => {
   return new Intl.NumberFormat("vi-VN", {
@@ -36,12 +38,25 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true);
   const [productCategory, setProductCategory] = useState(null);
   const [adding, setAdding] = useState(false); // Thêm state loading cho nút Add
-
+const [isInWishlist, setIsInWishlist] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   // Reviews State
   const [reviews, setReviews] = useState([]);
   const [sortOrder, setSortOrder] = useState('newest'); // 'newest' | 'oldest'
   const [activeFilter, setActiveFilter] = useState('all'); // 'all', '5', '4', '3', '2', '1', 'recent'
+const getAccountId = () => {
+    const userStored = localStorage.getItem("user");
+    if (!userStored) return null;
+    try {
+      const user = JSON.parse(userStored);
+      return user.id;
+    } catch (e) {
+      return null;
+    }
+  };
 
+  const accountId = getAccountId();
   const [reviewStats, setReviewStats] = useState({
     average: 0,
     total: 0,
@@ -246,7 +261,56 @@ export default function ProductDetailPage() {
       setAdding(false);
     }
   };
+// Kiểm tra variant có trong wishlist không
+  const checkWishlistStatus = async (variantId) => {
+    if (!accountId || !variantId) return;
+    try {
+      const inWishlist = await checkInWishlist(accountId, variantId);
+      setIsInWishlist(inWishlist);
+    } catch (error) {
+      console.error("Lỗi kiểm tra wishlist:", error);
+    }
+  };
+  // Chọn variant và kiểm tra wishlist
+  const handleSelectVariant = (variant) => {
+    setSelectedSize(variant);
+    if (accountId) {
+      checkWishlistStatus(variant.id);
+    }
+  };
 
+  // Thêm/xóa sản phẩm khỏi wishlist
+  const handleToggleWishlist = async () => {
+    if (!accountId) {
+      toast.error("Vui lòng đăng nhập để sử dụng tính năng này");
+      navigate("/login");
+      return;
+    }
+
+    if (!selectedSize) {
+      toast.warning("Vui lòng chọn phân loại sản phẩm trước");
+      return;
+    }
+
+    try {
+      setWishlistLoading(true);
+      
+      if (isInWishlist) {
+        setShowConfirmModal(true);
+        setWishlistLoading(false);
+        return;
+      } else {
+        await addToWishlist(accountId, selectedSize.id);
+        setIsInWishlist(true);
+        toast.success("Đã thêm vào danh sách yêu thích");
+      }
+    } catch (error) {
+      console.error("Lỗi wishlist:", error);
+      toast.error(error.response?.data?.message || "Có lỗi xảy ra");
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
   if (loading) {
     return (
       <div className="min-h-screen flex justify-center items-center bg-gray-50">
@@ -276,9 +340,7 @@ export default function ProductDetailPage() {
   const currentStock = selectedSize ? selectedSize.quantity : totalStock;
   const currentSold = selectedSize ? (selectedSize.sold || 0) : (product?.totalSold || 0);
 
-  const handleSelectVariant = (variant) => {
-    setSelectedSize(variant);
-  };
+
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 gap-4">
@@ -336,9 +398,21 @@ export default function ProductDetailPage() {
                       {formatSold(currentSold)} Đã bán
                     </span>
                   </div>
-                  <button className="text-gray-400 hover:text-red-500 transition">
-                    <Heart className="w-6 h-6" />
-                  </button>
+                  <button 
+                  onClick={handleToggleWishlist}
+                  disabled={wishlistLoading}
+                  className={`transition ${
+                    isInWishlist 
+                      ? "text-red-500" 
+                      : "text-gray-400 hover:text-red-500"
+                  } ${wishlistLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                  title={isInWishlist ? "Bỏ yêu thích" : "Thêm vào yêu thích"}
+                >
+                  <Heart 
+                    className="w-6 h-6" 
+                    fill={isInWishlist ? "currentColor" : "none"}
+                  />
+                </button>
                 </div>
 
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
@@ -751,6 +825,24 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </div>
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={async () => {
+          try {
+            await removeFromWishlist(accountId, selectedSize.id);
+            setIsInWishlist(false);
+            toast.success("Đã xóa khỏi danh sách yêu thích");
+          } catch (error) {
+            console.error("Lỗi wishlist:", error);
+            toast.error(error.response?.data?.message || "Có lỗi xảy ra");
+          } finally {
+            setWishlistLoading(false);
+          }
+        }}
+        title="Xác nhận xóa"
+        message="Bạn có muốn xóa sản phẩm này khỏi danh sách yêu thích?"
+      />
     </div>
   );
 }
