@@ -274,6 +274,40 @@ export default function CheckoutPage() {
     });
   };
 
+  // Tính thử mức giảm giá để hiển thị trên UI (backend vẫn kiểm tra khi đặt hàng)
+  const calculateVoucherSavings = (vouchers, orderSubtotal, currentShippingFee) => {
+    let discountAmount = 0;
+    let shipDiscount = 0;
+
+    vouchers.forEach((voucher) => {
+      if (!voucher) return;
+
+      // Không đủ điều kiện đơn tối thiểu
+      if (voucher.minOrderAmount && orderSubtotal < voucher.minOrderAmount) {
+        return;
+      }
+
+      const type = voucher.type;
+      const value = Number(voucher.value) || 0;
+
+      if (type === "AMOUNT") {
+        discountAmount += Math.max(0, value);
+      } else if (type === "PERCENT") {
+        const raw = Math.floor((orderSubtotal * value) / 100);
+        const capped = voucher.maxDiscount ? Math.min(raw, voucher.maxDiscount) : raw;
+        discountAmount += Math.max(0, capped);
+      } else if (type === "SHIPPING_FREE") {
+        const cap = voucher.maxDiscount || 50000; // default cap nếu BE không trả về
+        shipDiscount = Math.max(shipDiscount, Math.min(currentShippingFee, cap));
+      }
+    });
+
+    // Không cho giảm quá subtotal
+    discountAmount = Math.min(discountAmount, orderSubtotal);
+
+    return { discountAmount, shipDiscount };
+  };
+
   // VOUCHER TOGGLE + RULES
 
   const toggleVoucher = (voucher) => {
@@ -376,6 +410,17 @@ export default function CheckoutPage() {
         ? [voucherCode.trim().toUpperCase()]
         : selectedVouchers.map((v) => v.code);
 
+      // Tìm object voucher tương ứng để ước lượng giảm giá
+      const voucherObjects = hasCode
+        ? availableVouchers.filter((v) => codes.includes(v.code))
+        : selectedVouchers;
+
+      const { discountAmount, shipDiscount } = calculateVoucherSavings(
+        voucherObjects,
+        subtotal,
+        baseShippingFee
+      );
+
       // LƯU CODE ĐỂ GỬI BE KHI CHECKOUT
       setAppliedVouchers(codes.map((code) => ({ code })));
 
@@ -384,9 +429,9 @@ export default function CheckoutPage() {
         code: codes.join(" + "),
       });
 
-      // KHÔNG TÍNH TIỀN
-      setAppliedDiscount(0);
-      setShippingDiscount(0);
+      // HIỂN THỊ SỐ TIỀN GIẢM
+      setAppliedDiscount(discountAmount);
+      setShippingDiscount(shipDiscount);
 
       setVoucherError("");
     } catch (err) {
@@ -396,6 +441,24 @@ export default function CheckoutPage() {
       setApplyingVoucher(false);
     }
   };
+
+  // Khi đổi phương thức vận chuyển hoặc subtotal đổi, tính lại mức giảm phí ship/giảm giá hiển thị
+  useEffect(() => {
+    if (!selectedVoucher || appliedVouchers.length === 0) return;
+
+    const voucherObjects = availableVouchers.filter((v) =>
+      appliedVouchers.some((applied) => applied.code === v.code)
+    );
+
+    const { discountAmount, shipDiscount } = calculateVoucherSavings(
+      voucherObjects,
+      subtotal,
+      baseShippingFee
+    );
+
+    setAppliedDiscount(discountAmount);
+    setShippingDiscount(shipDiscount);
+  }, [shippingMethod, subtotal, appliedVouchers, availableVouchers, baseShippingFee, selectedVoucher]);
 
   // ============
   // CHECKOUT

@@ -277,9 +277,7 @@ export default function Header() {
               className="hover:text-teal-100 transition font-medium">
               Thương hiệu
             </button>
-            <button className="hover:text-teal-100 transition font-medium">
-              Khuyến mãi
-            </button>
+            
             <button
               onClick={() => navigate("/about")}
               className="hover:text-teal-100 transition font-medium">
