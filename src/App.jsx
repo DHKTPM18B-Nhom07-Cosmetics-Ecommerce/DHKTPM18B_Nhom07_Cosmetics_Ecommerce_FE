@@ -93,7 +93,8 @@ export default function App() {
             <Route path="/order" element={<OrderPage />} />
             <Route path="/orders/:orderId" element={<OrderDetailPage />} />
             <Route path="/review-product" element={<ProductReviewPage />} />
-
+            <Route path="/addresses" element={<AddressPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
             {/* ADMIN */}
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Dashboard />} />
