@@ -17,6 +17,7 @@ const pathTranslations = {
     "profile": "Hồ sơ cá nhân",
     "settings": "Cài đặt",
     "inventory": "Kho hàng",
+    "stats": "Thống kê",
     // Bạn có thể thêm các đường dẫn khác vào đây
 };
 

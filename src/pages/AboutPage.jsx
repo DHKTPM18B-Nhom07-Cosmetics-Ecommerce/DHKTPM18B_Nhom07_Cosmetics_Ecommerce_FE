@@ -5,6 +5,8 @@ import {
     BadgeCheck, Sparkles, RefreshCcw, Truck // Icon mới cho phần cam kết
 } from "lucide-react";
 import api, { sendContact } from "../services/api";
+import { notifySuccess, notifyError } from '../utils/toast.js';
+import Breadcrumb from "../components/Breadcrumb.jsx"
 
 export default function AboutPage() {
     const [formData, setFormData] = useState({
@@ -26,7 +28,7 @@ export default function AboutPage() {
             // Gọi hàm đã định nghĩa sẵn cho gọn
             await sendContact(formData);
 
-            alert("Gửi thành công! Hãy kiểm tra email, chúng tôi vừa gửi xác nhận cho bạn.");
+            notifySuccess('Gửi thành công! Hãy kiểm tra email, chúng tôi vừa gửi xác nhận cho bạn.');
             setFormData({ name: "", email: "", phone: "", message: "" });
 
         } catch (error) {
@@ -38,7 +40,12 @@ export default function AboutPage() {
 
     return (
         <div className="min-h-screen bg-white">
-
+            <Breadcrumb
+                breadcrumbs={[
+                    { label: "Trang chủ", href: "/" },
+                    { label: "Về chúng tôi", active: true }
+                ]}
+            />
             <main className="flex flex-col gap-16 pb-20 pt-8">
 
                 {/* === SECTION 1: HERO GIỚI THIỆU === */}
