@@ -21,11 +21,13 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { getAllProducts } from "../services/productService";
 import { getCartData, getCartData as getCartDataService } from "../services/cartService";
 import { getAddressesByCustomerId, getCustomerIdByAccountId } from "../services/checkout";
+
+import AiProductChat from "./AiProductChat.jsx";
 export default function Header() {
   const { user, logout, isLoggedIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const displayUserName = user ? user.name : "Guest";
+  const displayUserName = user ? (user.fullName || user.name || 'Guest') : 'Guest';
 
   // --- STATE CART COUNT ---
 const [cartCount, setCartCount] = useState(0);
@@ -526,6 +528,7 @@ const [cartCount, setCartCount] = useState(0);
           <span>Dermatologist Tested</span>
         </div>
       </div>
+       <AiProductChat />
     </>
   );
 }

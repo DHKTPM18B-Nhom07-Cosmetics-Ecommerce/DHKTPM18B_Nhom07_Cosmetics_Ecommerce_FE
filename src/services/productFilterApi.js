@@ -17,6 +17,7 @@ export const filterProducts = async ({
   active = null, // Default null: fetch all (for admin)
 }) => {
   try {
+    
     const response = await api.get("/api/products/filter", {
       params: {
         search,
@@ -38,4 +39,5 @@ export const filterProducts = async ({
     console.error("Error filtering products:", error);
     throw error;
   }
+    
 };

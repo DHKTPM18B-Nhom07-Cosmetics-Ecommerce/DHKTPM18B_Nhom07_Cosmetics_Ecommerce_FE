@@ -76,8 +76,14 @@ export const getCartData = async () => {
         // --- CÓ USER -> GỌI API ---
         try {
             const user = JSON.parse(userStored);
-            const response = await api.get(`/api/carts/user/${user.id}`);
-            return transformCartData(response.data);
+            if (user.role === "CUSTOMER") {
+                try {
+                    const response = await api.get(`/api/carts/user/${user.id}`);
+                    return transformCartData(response.data);
+                } catch (error) {
+                    return null;
+                }
+            }
         } catch (error) {
             return null;
         }

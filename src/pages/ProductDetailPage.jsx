@@ -393,19 +393,8 @@ export default function ProductDetailPage() {
                             </>
                           )}
                         </button>
-
-                        <button
-                          className="flex-1 px-2 py-2.5 rounded-lg font-bold transition flex items-center justify-center gap-2 h-12 shadow-sm whitespace-nowrap text-sm bg-[#2B6377] text-white hover:bg-[#1f4654] hover:shadow-md"
-                        >
-                          Mua ngay
-                        </button>
                       </>
                     )}
-
-                    <button className="w-auto px-4 border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-[#ccdfe3] hover:border-[#2B6377] transition flex flex-col items-center justify-center gap-0.5 h-12 bg-white shrink-0 transition">
-                      <Heart className="w-5 h-5" />
-                      <span className="text-[10px] leading-none">Yêu thích</span>
-                    </button>
                   </div>
                 </div>
               </div>

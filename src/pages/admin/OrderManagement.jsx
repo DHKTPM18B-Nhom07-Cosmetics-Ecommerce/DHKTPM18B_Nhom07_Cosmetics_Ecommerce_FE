@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { notifySuccess, notifyError } from '../../utils/toast.js';
 
 // Định nghĩa trạng thái đơn hàng
 const ORDER_STATUSES = [
@@ -92,48 +93,9 @@ const translateStatus = (status) => {
     }
 };
 
-// --- UTILITY COMPONENTS (Message Display) ---
 
-const MessageDisplay = ({ message, onClose }) => {
-    if (!message) return null;
 
-    const { type, text } = message;
-    const baseClass = 'fixed top-4 right-4 z-50 p-4 rounded-lg shadow-xl flex items-center max-w-sm transition-opacity duration-300';
-    let style = {};
-    let Icon = Info;
-
-    switch (type) {
-        case 'success':
-            style = { backgroundColor: '#D4EDDA', color: '#155724', border: '1px solid #C3E6CB' };
-            Icon = CheckCircle;
-            break;
-        case 'error':
-            style = { backgroundColor: '#F8D7DA', color: '#721C24', border: '1px solid #F5C6CB' };
-            Icon = XCircle;
-            break;
-        case 'info':
-        default:
-            style = { backgroundColor: '#CCE5FF', color: '#004085', border: '1px solid #B8DAFF' };
-            Icon = Info;
-            break;
-    }
-
-    return (
-        <div className={baseClass} style={style}>
-            <Icon className="w-5 h-5 mr-3 flex-shrink-0" />
-            <span className="text-sm font-medium flex-1">{text}</span>
-            <button
-                onClick={onClose}
-                className="ml-4 p-1 rounded-full hover:bg-black/10"
-                style={{ color: style.color }}
-            >
-                <XCircle className="w-4 h-4" />
-            </button>
-        </div>
-    );
-};
-
-// --- UTILITY COMPONENTS (Status Update Modal) ---
+// --- UTILITY COMPONENTS ---
 
 const StatusUpdateModal = ({ isOpen, currentOrder, onUpdate, onCancel }) => {
     if (!isOpen || !currentOrder) return null;
@@ -145,20 +107,37 @@ const StatusUpdateModal = ({ isOpen, currentOrder, onUpdate, onCancel }) => {
     const isCustomerCancelRequest = currentOrder.cancelReason && currentOrder.cancelReason.startsWith('Yêu cầu hủy từ KH:');
     const customerReasonText = isCustomerCancelRequest ? currentOrder.cancelReason : '';
 
-    const [selectedStatus, setSelectedStatus] = useState(possibleNextStatus.length > 0 ? possibleNextStatus[0] : currentStatus);
-    // 2. Thiết lập lý do mặc định: Lý do KH nếu tồn tại, ngược lại là rỗng.
+    // 🎯 THAY ĐỔI QUAN TRỌNG: Thiết lập trạng thái mặc định ưu tiên 'CANCELLED'
+    const defaultStatus = useMemo(() => {
+        if (isCustomerCancelRequest && currentStatus === 'PENDING' && possibleNextStatus.includes('CANCELLED')) {
+            return 'CANCELLED';
+        }
+        return possibleNextStatus.length > 0 ? possibleNextStatus[0] : currentStatus;
+    }, [isCustomerCancelRequest, currentStatus, possibleNextStatus]);
+
+    // Sử dụng state cục bộ cho Modal
+    const [selectedStatus, setSelectedStatus] = useState(defaultStatus);
     const [cancelReason, setCancelReason] = useState(customerReasonText);
+    const [modalError, setModalError] = useState(null);
 
     const requiresReason = selectedStatus === 'CANCELLED' || selectedStatus === 'RETURNED';
 
+    // EFFECT để RESET trạng thái khi Modal mở cho đơn hàng khác (QUAN TRỌNG)
+    useEffect(() => {
+        setSelectedStatus(defaultStatus);
+        setCancelReason(customerReasonText);
+        setModalError(null);
+    }, [currentOrder.id, defaultStatus, customerReasonText]);
+
+
     const handleConfirm = () => {
-        // Nếu chuyển sang CANCELLED/RETURNED VÀ lý do là rỗng, yêu cầu nhập
+        setModalError(null);
+
         if (requiresReason && !cancelReason.trim()) {
-            alert('Vui lòng nhập hoặc xác nhận lý do hủy/trả hàng.');
+            setModalError('Vui lòng nhập hoặc xác nhận lý do hủy/trả hàng.');
             return;
         }
 
-        // Khi Nhân viên nhấn "Áp dụng", họ gửi lý do đang hiển thị (có thể là lý do của KH hoặc lý do mới)
         onUpdate(currentOrder.id, selectedStatus, cancelReason);
     };
 
@@ -171,7 +150,7 @@ const StatusUpdateModal = ({ isOpen, currentOrder, onUpdate, onCancel }) => {
                 <div className="text-gray-700 mb-6 space-y-4">
                     <p>Trạng thái hiện tại: <span className={`px-2 py-1 rounded text-white text-xs ${getStatusStyle(currentStatus)}`}>{translateStatus(currentStatus)}</span></p>
 
-                    {/* THAY ĐỔI: HIỂN THỊ CẢNH BÁO YÊU CẦU HỦY CỦA KHÁCH HÀNG */}
+                    {/* HIỂN THỊ CẢNH BÁO YÊU CẦU HỦY CỦA KHÁCH HÀNG */}
                     {isCustomerCancelRequest && currentStatus === 'PENDING' && (
                         <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-start">
                             <AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0" />
@@ -181,16 +160,24 @@ const StatusUpdateModal = ({ isOpen, currentOrder, onUpdate, onCancel }) => {
                             </div>
                         </div>
                     )}
-                    {/* KẾT THÚC THAY ĐỔI */}
 
                     <div className="flex flex-col">
                         <label className="text-sm font-medium mb-1">Chọn trạng thái mới:</label>
                         <select
                             value={selectedStatus}
                             onChange={(e) => {
-                                setSelectedStatus(e.target.value);
-                                // Khi đổi trạng thái, reset reason, trừ khi lý do đã được điền tự động
-                                if (!customerReasonText) setCancelReason('');
+                                const newStatus = e.target.value;
+                                setSelectedStatus(newStatus);
+
+                                // Logic giữ hoặc reset lý do
+                                if (isCustomerCancelRequest && newStatus === 'CANCELLED') {
+                                    setCancelReason(customerReasonText);
+                                } else if (newStatus === 'CANCELLED' || newStatus === 'RETURNED') {
+                                    setCancelReason('');
+                                } else {
+                                    setCancelReason('');
+                                }
+                                setModalError(null);
                             }}
                             className="px-3 py-2 border rounded-lg focus:ring-[#2B6377] focus:border-[#2B6377]"
                             disabled={possibleNextStatus.length === 0}
@@ -212,12 +199,22 @@ const StatusUpdateModal = ({ isOpen, currentOrder, onUpdate, onCancel }) => {
                             </label>
                             <textarea
                                 value={cancelReason}
-                                onChange={(e) => setCancelReason(e.target.value)}
+                                onChange={(e) => {
+                                    setCancelReason(e.target.value);
+                                    setModalError(null);
+                                }}
                                 rows="3"
-                                className="px-3 py-2 border rounded-lg focus:ring-red-500 focus:border-red-500 resize-none"
+                                className={`px-3 py-2 border rounded-lg focus:ring-red-500 focus:border-red-500 resize-none ${modalError ? 'border-red-500' : ''}`}
                                 placeholder="Xác nhận hoặc nhập lý do của nhân viên..."
                             />
                         </div>
+                    )}
+
+                    {/* Hiển thị lỗi cục bộ */}
+                    {modalError && (
+                        <p className="text-sm text-red-500 flex items-center mt-2">
+                            <AlertTriangle className="w-4 h-4 mr-1"/> {modalError}
+                        </p>
                     )}
 
                 </div>
@@ -251,7 +248,7 @@ const OrderManagement = () => {
     // Kiểm tra quyền hạn
     const isAdminOrEmployee = user && (user.role === 'ADMIN' || user.role === 'EMPLOYEE');
     const isEmployeeRole = user?.role === 'EMPLOYEE';
-    const isAdminRole = user?.role === 'ADMIN';
+    // const isAdminRole = user?.role === 'ADMIN'; // Không cần dùng
 
     // --- State Quản lý Dữ liệu ---
     const [orders, setOrders] = useState([]);
@@ -260,7 +257,6 @@ const OrderManagement = () => {
     const [error, setError] = useState(null);
 
     // --- State Cập nhật Trạng thái ---
-    const [message, setMessage] = useState(null);
     const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState(null);
 
@@ -334,8 +330,10 @@ const OrderManagement = () => {
             const status = err.response?.status;
             if (status === 401 || status === 403) {
                 setError('Lỗi phân quyền: Token không đủ quyền truy cập hoặc hết hạn. Vui lòng đăng nhập lại.');
+                notifyError('Lỗi phân quyền: Token không đủ quyền truy cập hoặc hết hạn. Vui lòng đăng nhập lại.');
             } else {
                 setError(`Không thể tải dữ liệu đơn hàng. Lỗi HTTP: ${status || 'Không rõ'}. Vui lòng kiểm tra kết nối.`);
+                notifyError(`Không thể tải dữ liệu đơn hàng. Lỗi HTTP: ${status || 'Không rõ'}.`);
             }
             setOrders([]);
         } finally {
@@ -343,7 +341,7 @@ const OrderManagement = () => {
         }
     }, [authLoading, adminToken, isLoggedIn, isAdminOrEmployee, filters]);
 
-    // --- Hàm GỌI API CẬP NHẬT TRẠNG THÁI (Bỏ empId khỏi tham số) ---
+    // --- Hàm GỌI API CẬP NHẬT TRẠNG THÁI (Giữ nguyên) ---
     const handleUpdateStatus = async (orderId, newStatus, cancelReason) => {
         setIsStatusModalOpen(false);
 
@@ -367,18 +365,18 @@ const OrderManagement = () => {
             // Backend sẽ tự động lấy Employee ID qua Principal (username) từ token
             await axios.post(updateUrl, null, config);
 
-            setMessage({ type: 'success', text: `Đã cập nhật trạng thái đơn hàng #${orderId} sang ${translateStatus(newStatus)}.` });
+            notifySuccess(`Đã cập nhật trạng thái đơn hàng #${orderId} sang ${translateStatus(newStatus)}.`);
             fetchOrders();
 
         } catch (err) {
             console.error('Lỗi khi cập nhật trạng thái:', err);
             const errorMessage = err.response?.data?.message || 'Lỗi cập nhật trạng thái đơn hàng.';
-            setMessage({ type: 'error', text: errorMessage });
+            notifyError(errorMessage);
         }
     };
 
 
-    // --- Effect và Hàm Xử lý Lọc (giữ nguyên) ---
+    // --- Effect và Hàm Xử lý Lọc (Giữ nguyên) ---
     useEffect(() => {
         if (!authLoading) {
             fetchOrders();
@@ -387,7 +385,7 @@ const OrderManagement = () => {
 
     const handleApplyFilters = () => {
         if ((tempStartDate && !tempEndDate) || (!tempStartDate && tempEndDate)) {
-            alert('Vui lòng chọn cả "Từ Ngày" và "Đến Ngày" khi lọc theo ngày.');
+            notifyError('Vui lòng chọn cả "Từ Ngày" và "Đến Ngày" khi lọc theo ngày.');
             return;
         }
         setFilters({
@@ -399,7 +397,7 @@ const OrderManagement = () => {
         setPage(0);
     };
 
-    // --- Lọc dữ liệu trên Frontend (Lọc theo Tên/Search) ---
+    // --- Lọc dữ liệu trên Frontend (Giữ nguyên) ---
     const filteredOrdersByCustomer = useMemo(() => {
         let result = orders;
 
@@ -417,7 +415,7 @@ const OrderManagement = () => {
         return result;
     }, [orders, filters.search]);
 
-    // --- Tính toán Thống kê (giữ nguyên) ---
+    // --- Tính toán Thống kê (Giữ nguyên) ---
     const stats = useMemo(() => {
         const ordersData = filteredOrdersByCustomer;
 
@@ -446,13 +444,13 @@ const OrderManagement = () => {
 
     const { totalOrdersCount, totalRevenueAmount, totalCustomersCount, deliveredCount } = stats;
 
-    // --- Logic Phân trang Frontend (giữ nguyên) ---
+    // --- Logic Phân trang Frontend (Giữ nguyên) ---
     const totalOrders = filteredOrdersByCustomer.length;
     const totalPagesFE = Math.ceil(totalOrders / ORDERS_PER_PAGE);
     const startIndex = page * ORDERS_PER_PAGE;
     const currentOrders = filteredOrdersByCustomer.slice(startIndex, startIndex + ORDERS_PER_PAGE);
 
-    // --- RENDER ACTION BUTTONS TRONG BẢNG (MỚI) ---
+    // --- RENDER ACTION BUTTONS TRONG BẢNG (Giữ nguyên) ---
     const renderActionButton = (order) => {
         const isCompleted = order.status === 'DELIVERED' || order.status === 'CANCELLED' || order.status === 'REFUNDED';
         const hasCancelRequest = order.status === 'PENDING' && order.cancelReason && order.cancelReason.startsWith('Yêu cầu hủy từ KH:'); // Phân biệt dựa vào prefix
@@ -512,9 +510,6 @@ const OrderManagement = () => {
                 onUpdate={handleUpdateStatus}
                 onCancel={() => setIsStatusModalOpen(false)}
             />
-
-            {/* MESSAGE BOX */}
-            <MessageDisplay message={message} onClose={() => setMessage(null)} />
 
 
             {/* Tiêu đề (giữ nguyên) */}

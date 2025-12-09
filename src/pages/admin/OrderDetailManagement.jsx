@@ -164,10 +164,10 @@ const OrderItemRow = ({ item }) => {
                 {formatCurrency(unitPrice)}
             </div>
 
-            {/* CỘT GIẢM GIÁ */}
+            {/* CỘT GIẢM GIÁ
             <div className={`text-right w-1/5 text-sm ${discountAmount > 0 ? 'text-red-600' : 'text-gray-500'}`}>
                 {discountAmount > 0 ? `-${formatCurrency(discountAmount)}` : '-'}
-            </div>
+            </div> */}
 
             {/* CỘT THÀNH TIỀN */}
             <div className="text-right w-1/5 font-bold text-gray-800">
@@ -485,7 +485,6 @@ const OrderDetailManagement = () => {
                                 <div className="w-2/5">Sản Phẩm</div>
                                 <div className="text-center w-1/5">Số Lượng</div>
                                 <div className="text-right w-1/5">Đơn Giá</div>
-                                <div className="text-right w-1/5">Giảm Giá</div>
                                 <div className="text-right w-1/5">Thành Tiền</div>
                             </div>
 

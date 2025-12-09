@@ -1,28 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { X, Package, Layers, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { X, Package, Layers } from 'lucide-react';
 import { filterProducts } from '../../services/productFilterApi';
 
-const CategoryDetailModal = ({ isOpen, onClose, category, allCategories }) => {
+const CategoryDetailModal = ({ isOpen, onClose, category }) => {
     const [products, setProducts] = useState([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
-    const [children, setChildren] = useState([]);
 
     useEffect(() => {
         if (isOpen && category) {
-            // 1. Find Children
-            const childCats = allCategories.filter(c => c.parent && c.parent.id === category.id);
-            setChildren(childCats);
-
-            // 2. Fetch Products
             fetchCategoryProducts();
         }
-    }, [isOpen, category, allCategories]);
+    }, [isOpen, category]);
 
     const fetchCategoryProducts = async () => {
         setLoadingProducts(true);
         try {
-            // Assuming filterProducts accepts 'categories' as ID
-            const res = await filterProducts({ categories: category.id, size: 100 });
+            // filterProducts works by category ID
+            const res = await filterProducts({ categories: String(category.id), size: 100 });
             setProducts(res.content || []);
         } catch (error) {
             console.error("Error fetching products for category", error);
@@ -33,7 +27,6 @@ const CategoryDetailModal = ({ isOpen, onClose, category, allCategories }) => {
 
     if (!isOpen || !category) return null;
 
-    // Helper to format currency
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount || 0);
     };
@@ -44,18 +37,8 @@ const CategoryDetailModal = ({ isOpen, onClose, category, allCategories }) => {
 
                 {/* Header */}
                 <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50">
-                    <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 rounded-lg border border-gray-200 bg-white p-1 overflow-hidden">
-                            <img
-                                src={category.imageUrl || "https://placehold.co/100"}
-                                alt={category.name}
-                                className="w-full h-full object-contain"
-                            />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold text-gray-800">{category.name}</h2>
-                            {/* ID Removed as per request */}
-                        </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-800">{category.name}</h2>
                     </div>
                     <button
                         onClick={onClose}
@@ -68,57 +51,23 @@ const CategoryDetailModal = ({ isOpen, onClose, category, allCategories }) => {
                 {/* Content */}
                 <div className="p-6 overflow-y-auto space-y-8 custom-scrollbar flex-1">
 
-                    {/* Info Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                        {/* Status & Parent */}
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                                <Layers size={16} /> Thông tin chung
-                            </h3>
-                            <div className="bg-gray-50 rounded-xl p-4 space-y-3 border border-gray-100">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-600 font-medium">Trạng thái:</span>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${category.isActive !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                        {category.isActive !== false ? 'Hoạt động' : 'Vô hiệu hóa'}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-600 font-medium">Danh mục cha:</span>
-                                    {category.parent ? (
-                                        <div className="flex items-center gap-2 text-[#2B6377] font-medium bg-blue-50 px-2 py-1 rounded-md">
-                                            <ArrowUpRight size={14} />
-                                            {category.parent.name}
-                                        </div>
-                                    ) : (
-                                        <span className="text-gray-400 italic">Đây là danh mục gốc</span>
-                                    )}
-                                </div>
+                    {/* Info */}
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                            <Layers size={16} /> Thông tin chung
+                        </h3>
+                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 flex items-center gap-8">
+                            <div className="flex items-center gap-2">
+                                <span className="text-gray-600 font-medium">Tên danh mục:</span>
+                                <span className="text-gray-900 font-bold">{category.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-gray-600 font-medium">Trạng thái:</span>
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${category.isActive !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                    {category.isActive !== false ? 'Hoạt động' : 'Vô hiệu hóa'}
+                                </span>
                             </div>
                         </div>
-
-                        {/* Sub-categories */}
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                                <ArrowDownRight size={16} /> Danh mục con ({children.length})
-                            </h3>
-                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 min-h-[100px]">
-                                {children.length > 0 ? (
-                                    <div className="flex flex-wrap gap-2">
-                                        {children.map(child => (
-                                            <span key={child.id} className="inline-flex items-center px-3 py-1 rounded-full bg-white border border-gray-200 text-sm font-medium text-gray-700 shadow-sm">
-                                                {child.name}
-                                            </span>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="h-full flex flex-col items-center justify-center text-gray-400 text-sm italic">
-                                        Không có danh mục con
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
                     </div>
 
                     {/* Products List */}

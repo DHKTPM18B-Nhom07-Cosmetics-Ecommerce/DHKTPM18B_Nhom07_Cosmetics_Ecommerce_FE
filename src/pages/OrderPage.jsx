@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from '../context/AuthContext';
+import { notifySuccess, notifyError } from '../utils/toast';
 
 // Định nghĩa trạng thái đơn hàng (Mở rộng nếu Backend có RETURNED/REFUNDED)
 const ORDER_STATUSES = [
@@ -75,21 +76,25 @@ const translateStatus = (status) => {
 };
 
 
-// --- MODAL YÊU CẦU HỦY ĐƠN HÀNG ---
+// --- MODAL YÊU CẦU HỦY ĐƠN HÀNG (Sử dụng lỗi cục bộ và thêm prefix cho lý do) ---
 const CancelConfirmationModal = ({ isOpen, orderId, onConfirmCancel, onCancel }) => {
     if (!isOpen) return null;
 
     const [selectedReason, setSelectedReason] = useState(CANCEL_REASONS[0].value);
     const [otherReason, setOtherReason] = useState('');
+    const [modalError, setModalError] = useState(null); // 💡 State lỗi cục bộ
 
     const isOtherReason = selectedReason === 'OTHER';
 
     const handleConfirm = () => {
+        setModalError(null); // Reset lỗi
         let finalReason = selectedReason;
+
         if (isOtherReason) {
             finalReason = otherReason.trim();
             if (!finalReason) {
-                alert('Vui lòng nhập chi tiết lý do khác.');
+                // 💡 Thay alert() bằng hiển thị lỗi trong modal
+                setModalError('Vui lòng nhập chi tiết lý do khác.');
                 return;
             }
         } else {
@@ -97,11 +102,12 @@ const CancelConfirmationModal = ({ isOpen, orderId, onConfirmCancel, onCancel })
             finalReason = CANCEL_REASONS.find(r => r.value === selectedReason)?.label || 'Lý do không xác định';
         }
 
+        // 💡 Gửi lý do thô (Backend sẽ thêm prefix "YÊU CẦU HỦY (KH):")
         onConfirmCancel(orderId, finalReason);
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 font-sans">
+        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-opacity-40 font-sans">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 m-4">
                 <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2 flex items-center">
                     <AlertTriangle className="w-5 h-5 mr-2 text-red-500" /> Yêu cầu Hủy Đơn hàng #{orderId}
@@ -117,6 +123,7 @@ const CancelConfirmationModal = ({ isOpen, orderId, onConfirmCancel, onCancel })
                             onChange={(e) => {
                                 setSelectedReason(e.target.value);
                                 setOtherReason('');
+                                setModalError(null); // Reset lỗi
                             }}
                             className="px-3 py-2 border rounded-lg focus:ring-red-500 focus:border-red-500"
                         >
@@ -132,12 +139,22 @@ const CancelConfirmationModal = ({ isOpen, orderId, onConfirmCancel, onCancel })
                             <label className="text-sm font-medium mb-1">Chi tiết lý do khác:</label>
                             <textarea
                                 value={otherReason}
-                                onChange={(e) => setOtherReason(e.target.value)}
+                                onChange={(e) => {
+                                    setOtherReason(e.target.value);
+                                    setModalError(null); // Reset lỗi
+                                }}
                                 rows="3"
-                                className="px-3 py-2 border rounded-lg focus:ring-red-500 focus:border-red-500 resize-none"
+                                className={`px-3 py-2 border rounded-lg focus:ring-red-500 focus:border-red-500 resize-none ${modalError ? 'border-red-500' : ''}`}
                                 placeholder="Nhập lý do chi tiết..."
                             />
                         </div>
+                    )}
+
+                    {/* Hiển thị lỗi cục bộ */}
+                    {modalError && (
+                        <p className="text-sm text-red-500 flex items-center mt-2">
+                            <AlertTriangle className="w-4 h-4 mr-1"/> {modalError}
+                        </p>
                     )}
                 </div>
                 <div className="flex justify-end space-x-3">
@@ -208,9 +225,6 @@ const OrderPage = () => {
             params.end = `${endDate}T23:59:59`;
         }
 
-        // Chú ý: Backend hiện tại chỉ hỗ trợ lọc [Status + Customer] HOẶC [Date Range + All Customers] HOẶC [All].
-        // Vì ta đang dùng endpoint /api/orders (Customer), Backend sẽ tự động lọc theo Customer ID.
-
         const config = {
             headers: {
                 Authorization: `Bearer ${userToken}`,
@@ -234,8 +248,10 @@ const OrderPage = () => {
 
             if (status === 401 || status === 403) {
                 setError('Phiên đăng nhập hết hạn hoặc không có quyền. Vui lòng đăng nhập lại.');
+                notifyError('Phiên đăng nhập hết hạn hoặc không có quyền. Vui lòng đăng nhập lại.');
             } else {
                 setError('Không thể tải dữ liệu đơn hàng. Vui lòng kiểm tra kết nối.');
+                notifyError('Không thể tải dữ liệu đơn hàng. Vui lòng kiểm tra kết nối.');
             }
             setOrders([]);
         } finally {
@@ -249,33 +265,35 @@ const OrderPage = () => {
         setIsCancelModalOpen(false);
 
         if (!userToken) {
-            alert('Lỗi xác thực. Vui lòng đăng nhập lại.');
+            notifyError('Lỗi xác thực. Vui lòng đăng nhập lại.');
             return;
         }
 
         try {
             setLoading(true);
 
+            // 💡 CHỈ GỬI LÝ DO THUẦN TÚY. BACKEND SẼ THÊM PREFIX.
             const config = {
                 headers: {
                     Authorization: `Bearer ${userToken}`,
                 },
-                params: { // Thêm lý do hủy vào query params
-                    cancelReason: cancelReason
+                params: {
+                    cancelReason: cancelReason // Truyền lý do thô
                 }
             };
 
             // GỌI API PUT /api/orders/{id}/cancel
             await axios.put(`${API_BASE_URL}/${orderId}/cancel`, null, config);
 
-            alert(`Yêu cầu hủy đơn hàng ${orderId} đã được gửi thành công với lý do: ${cancelReason}. Đơn hàng sẽ được cập nhật sau khi nhân viên xử lý.`);
+            // Backend trả về HTTP 200 OK ngay khi yêu cầu được ghi nhận
+            notifySuccess(`Yêu cầu hủy đơn hàng #${orderId} đã được gửi thành công. Đơn hàng sẽ được cập nhật sau khi nhân viên xử lý.`);
             fetchOrders();
 
         } catch (err) {
             setLoading(false);
             console.error(`Lỗi khi hủy đơn hàng ${orderId}:`, err);
             const errorMessage = err.response?.data?.message || 'Không thể hủy đơn hàng. Vui lòng kiểm tra trạng thái.';
-            alert(`Lỗi: ${errorMessage}`);
+            notifyError(`Lỗi: ${errorMessage}`);
         }
     };
 
@@ -284,7 +302,7 @@ const OrderPage = () => {
         const orderToCancel = orders.find(o => o.id === orderId);
 
         if (!orderToCancel || orderToCancel.status !== 'PENDING') {
-            alert('Chỉ đơn hàng ở trạng thái "Chờ xử lý" mới có thể hủy.');
+            notifyError('Chỉ đơn hàng ở trạng thái "Chờ xử lý" mới có thể hủy.');
             return;
         }
 
@@ -310,27 +328,13 @@ const OrderPage = () => {
                     </button>
                 );
 
-            case 'DELIVERED':
-                return (
-                    <button
-                        title="Đánh Giá"
-                        className={`${baseClass} bg-green-500 text-white hover:bg-green-600`}
-                        onClick={() => navigate('/review-product', { 
-                            state: { 
-                                orderId: orderId 
-                            } 
-                        })}
-                    >
-                        Đánh Giá
-                    </button>
-                );
 
             case 'CANCELLED':
                 return (
                     <button
                         title="Mua Lại"
                         className={`${baseClass} ${TEAL_TEXT} border border-gray-300 hover:bg-gray-100`}
-                        onClick={() => alert(`Chức năng mua lại đơn hàng #${orderId} đang được phát triển`)}
+                        onClick={() => notifyError(`Chức năng mua lại đơn hàng #${orderId} đang được phát triển`)}
                     >
                         Mua Lại
                     </button>
@@ -341,6 +345,17 @@ const OrderPage = () => {
             case 'SHIPPING':
                 return <span className="w-28 inline-block text-gray-500 text-xs">Đang trong quy trình</span>;
 
+            case 'DELIVERED':
+                // Thêm nút Mua Lại cho đơn đã giao
+                return (
+                    <button
+                        title="Mua Lại"
+                        className={`${baseClass} ${TEAL_TEXT} border border-gray-300 hover:bg-gray-100`}
+                        onClick={() => navigate(`/orders/${orderId}`)} // Giả sử navigate đến chi tiết để xem lại sản phẩm
+                    >
+                        Mua Lại
+                    </button>
+                );
             default:
                 return <span className="w-28 inline-block text-gray-500 text-xs">Không có thao tác</span>;
         }
@@ -359,7 +374,7 @@ const OrderPage = () => {
 
     const handleApplyFilters = () => {
         if ((startDate && !endDate) || (!startDate && endDate)) {
-            alert('Vui lòng chọn cả "Từ Ngày" và "Đến Ngày" khi lọc theo ngày.');
+            notifyError('Vui lòng chọn cả "Từ Ngày" và "Đến Ngày" khi lọc theo ngày.');
             return;
         }
         fetchOrders();
@@ -377,12 +392,12 @@ const OrderPage = () => {
                 <Link to="/order" className={`flex items-center p-2 ${TEAL_TEXT} ${TEAL_ACTIVE_BG} rounded-md font-medium transition`}>
                     <Package className="w-4 h-4 mr-2" /> Quản lý đơn hàng
                 </Link>
-                <a className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
+                <Link to="/profile" className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
                     <User className="w-4 h-4 mr-2" /> Thông tin cá nhân
-                </a>
-                <a className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
+                </Link>
+                <Link to="/addresses" className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
                     <MapPin className="w-4 h-4 mr-2" /> Địa chỉ giao hàng
-                </a>
+                </Link>
                 <a
                     onClick={logout}
                     className="cursor-pointer flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition mt-4 border-t pt-2"
@@ -532,7 +547,7 @@ const OrderPage = () => {
 
 
                         {/* PAGINATION */}
-                        <div className="flex justify-center items-center gap-2 mt-8">
+                        <div className="flex justify-center items-center gap-2 py-4 border-t">
                             <button
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}

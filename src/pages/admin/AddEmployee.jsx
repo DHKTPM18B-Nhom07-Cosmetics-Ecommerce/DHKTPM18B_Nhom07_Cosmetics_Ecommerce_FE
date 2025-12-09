@@ -14,7 +14,7 @@ export default function AddEmployeePage() {
     fullName: '',
     email: '',
     phoneNumber: '',
-    password: '12345678', // Mặc định
+    password: '12345678',
     role: 'EMPLOYEE'
   });
 
@@ -22,38 +22,78 @@ export default function AddEmployeePage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const validateForm = () => {
+    // 1. Kiểm tra Full Name (Max 50)
+    if (formData.fullName.trim().length > 50) {
+      notifyError('Họ và tên không được vượt quá 50 ký tự!');
+      return false;
+    }
+
+    // 2. Kiểm tra Email (Format + Max 50)
+    if (formData.email.trim().length > 50) {
+      notifyError('Email không được vượt quá 50 ký tự!');
+      return false;
+    }
+    // Regex email cơ bản
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      notifyError('Địa chỉ Email không đúng định dạng!');
+      return false;
+    }
+
+    // 3. Kiểm tra Số điện thoại (Bắt đầu = 0, Độ dài 10-12, chỉ số)
+    // Regex: Bắt đầu bằng 0, theo sau là 9 đến 11 chữ số (tổng 10-12)
+    const phoneRegex = /^0\d{9,11}$/;
+
+    // Nếu sđt là bắt buộc (vì có dấu * ở label):
+    if (!formData.phoneNumber.trim()) {
+      notifyError('Vui lòng nhập số điện thoại!');
+      return false;
+    }
+
+    if (!phoneRegex.test(formData.phoneNumber.trim())) {
+      notifyError('Số điện thoại phải bắt đầu bằng 0, độ dài từ 10-12 số và không chứa chữ cái!');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Kiểm tra điền đủ thông tin cơ bản
     if (!formData.fullName || !formData.email || !formData.password || !formData.role) {
       notifyError('Vui lòng điền đầy đủ thông tin!');
       return;
     }
 
+    // --- GỌI HÀM VALIDATE RIÊNG ---
+    if (!validateForm()) {
+      return; // Dừng nếu validate thất bại
+    }
+
     setLoading(true);
 
     try {
-
       const payload = {
-        hireDate: new Date().toISOString().split('T')[0] + "T00:00:00", // Dữ liệu của bảng Employee
+        hireDate: new Date().toISOString().split('T')[0] + "T00:00:00",
         account: {
           fullName: formData.fullName.trim(),
           username: formData.email.trim(),
           password: formData.password,
-          phoneNumber: formData.phoneNumber.trim() || null,
+          phoneNumber: formData.phoneNumber.trim(),
           role: formData.role,
-          status: "ACTIVE" // Mặc định là Active
+          status: "ACTIVE"
         }
       };
 
-      console.log(" Đang gửi dữ liệu:", payload);
+      console.log("Đang gửi dữ liệu:", payload);
 
-      // [QUAN TRỌNG] Gọi API tạo Employee (chứ không phải Account)
       const response = await fetch('http://localhost:8080/api/employees', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // Gửi kèm Token để tránh lỗi 403 Forbidden
           'Authorization': 'Bearer ' + localStorage.getItem('token')
         },
         body: JSON.stringify(payload)
@@ -77,23 +117,17 @@ export default function AddEmployeePage() {
 
   return (
       <>
-        <div className="bg-cyan-50 border-b border-cyan-100 mt-4">
-          <div className="max-w-7xl mx-auto px-8 py-3">
-            <p className="text-sm text-cyan-700 font-medium">
-              Tài khoản <span className="mx-2">›</span> Thêm tài khoản
-            </p>
-          </div>
-        </div>
 
         <div className="min-h-screen bg-gray-50 flex items-center justify-center m-2">
           <div className="rounded-lg shadow-sm border border-gray-200 p-8 w-full max-w-4xl" style={{ background: '#D5E2E6' }}>
+            {/* ... Phần Header giữ nguyên ... */}
             <div className="border-b mt-4" style={{ background: '#D5E2E6' }}>
               <div className="max-w-7xl mx-auto px-8 py-6 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center">
+                    {/* SVG icon */}
                     <svg className="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                   </div>
                   <div>
@@ -104,7 +138,7 @@ export default function AddEmployeePage() {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-7 mt-6" style={{ background: '#D5E2E6' }}>
+            <form onSubmit={handleSubmit} className="space-y-7 mt-6" style={{ background: '#D5E2E6' }}noValidate>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Họ và tên *</label>
@@ -114,9 +148,11 @@ export default function AddEmployeePage() {
                     value={formData.fullName}
                     onChange={handleChange}
                     placeholder="Nhập họ và tên đầy đủ"
+                    maxLength={50} // Ràng buộc HTML: Max 50
                     className="w-full px-4 py-3 bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                     required
                 />
+                <p className="text-xs text-gray-500 mt-1 text-right">{formData.fullName.length}/50 ký tự</p>
               </div>
 
               <div>
@@ -127,22 +163,26 @@ export default function AddEmployeePage() {
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="user@company.com"
+                    maxLength={50} // Ràng buộc HTML: Max 50
                     className="w-full px-4 py-3 bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                     required
                 />
-                <p className="text-xs text-gray-500 mt-1">Email này sẽ được sử dụng để đăng nhập hệ thống</p>
+                <p className="text-xs text-gray-500 mt-1">Email này sẽ được sử dụng để đăng nhập hệ thống (Tối đa 50 ký tự)</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Số điện thoại*</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Số điện thoại *</label>
                 <input
                     type="tel"
                     name="phoneNumber"
                     value={formData.phoneNumber}
                     onChange={handleChange}
-                    placeholder="Nhập số điện thoại"
+                    placeholder="Ví dụ: 0987654321"
+                    maxLength={12} // Ràng buộc HTML: Max 12
                     className="w-full px-4 py-3 bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    required
                 />
+                <p className="text-xs text-gray-500 mt-1">Bắt đầu bằng 0, độ dài 10-12 số</p>
               </div>
 
               <div>
@@ -152,7 +192,6 @@ export default function AddEmployeePage() {
                       type={showPassword ? "text" : "password"}
                       name="password"
                       value={formData.password}
-                      // Không cho phép sửa đổi mật khẩu mặc định
                       readOnly
                       className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-md focus:outline-none text-gray-500 cursor-not-allowed pr-12"
                       required
@@ -166,7 +205,6 @@ export default function AddEmployeePage() {
                   </button>
                 </div>
 
-                {/* Phần ghi chú tiếng Việt */}
                 <div className="mt-3 text-xs text-gray-600 bg-gray-50 p-4 rounded-md border border-gray-200">
                   <p className="font-bold text-red-600 mb-1">Lưu ý quan trọng:</p>
                   <ul className="list-disc list-inside space-y-1">
