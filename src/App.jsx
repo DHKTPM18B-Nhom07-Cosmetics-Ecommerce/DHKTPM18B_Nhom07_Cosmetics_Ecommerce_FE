@@ -23,6 +23,7 @@ import Stats from "./pages/admin/Stats.jsx"
 import { AuthProvider } from "./context/AuthContext";
 import VoucherManagement from "./pages/admin/VoucherManagement";
 import CategoryManagement from "./pages/admin/CategoryManagement";
+import BrandManagement from "./pages/admin/BrandManagement";
 import ProductManagement from "./pages/admin/ProductManagement";
 import OrderManagement from "./pages/admin/OrderManagement";
 import AddEmployee from "./pages/admin/AddEmployee";
@@ -78,6 +79,7 @@ export default function App() {
             <Route path="users/add" element={<AddEmployee />} />
             <Route path="users/:id" element={<UserDetail />} />
             <Route path="categories" element={<CategoryManagement />} />
+            <Route path="brands" element={<BrandManagement />} />
             <Route path="products" element={<ProductManagement />} />
             <Route path="stats" element={<Stats />} />
             <Route path="orders" element={<OrderManagement />} />

@@ -45,7 +45,7 @@ const ProductManagement = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
-  const itemsPerPage = 12;
+  const itemsPerPage = 10;
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -110,7 +110,7 @@ const ProductManagement = () => {
         filterProducts({
           search: search,
           categories: appliedFilters.category,
-          stocks: appliedFilters.stock === "Hết hàng" ? "out" : appliedFilters.stock === "Còn hàng" ? "in" : "",
+          stocks: appliedFilters.stock === "Hết hàng" ? "out" : appliedFilters.stock === "Còn hàng" ? "in" : appliedFilters.stock === "Sắp hết hàng" ? "low" : "",
           active: appliedFilters.status === "active" ? true : appliedFilters.status === "inactive" ? false : null,
           page: currentPage,
           size: itemsPerPage,
@@ -136,7 +136,7 @@ const ProductManagement = () => {
           variantsCount: variants.length,
           minPrice,
           maxPrice,
-          status: (product.isActive === false) ? "Vô hiệu hóa" : (totalQuantity > 0 ? "Hoạt động" : "Hết hàng"),
+          status: (product.active === false || product.isActive === false) ? "Vô hiệu hóa" : (totalQuantity > 0 ? "Hoạt động" : "Hết hàng"),
           categoryName: product.categoryName || "N/A",
         };
       });
@@ -165,7 +165,7 @@ const ProductManagement = () => {
         return {
           ...product,
           quantity: totalQuantity,
-          status: (product.isActive === false)
+          status: (product.active === false || product.isActive === false)
             ? "Vô hiệu hóa"
             : (totalQuantity > 0 ? "Hoạt động" : "Hết hàng"),
         };
@@ -288,7 +288,7 @@ const ProductManagement = () => {
   };
 
   const handleBulkEnable = () => {
-    const inactiveSelected = products.filter(p => selectedProducts.includes(p.id) && !p.isActive);
+    const inactiveSelected = products.filter(p => selectedProducts.includes(p.id) && (p.active === false || p.isActive === false));
     if (inactiveSelected.length === 0) return;
 
     setConfirmModal({
@@ -301,7 +301,7 @@ const ProductManagement = () => {
         try {
           await Promise.all(inactiveSelected.map(async (p) => {
             const fullProduct = await getProductById(p.id);
-            fullProduct.isActive = true;
+            fullProduct.active = true;
             await updateProduct(p.id, fullProduct);
           }));
           toast.success(`Đã kích hoạt thành công ${inactiveSelected.length} sản phẩm.`);
@@ -316,7 +316,7 @@ const ProductManagement = () => {
   };
 
   const handleToggleStatus = (product) => {
-    const isActivating = !product.isActive;
+    const isActivating = product.active === false || product.isActive === false;
     setConfirmModal({
       isOpen: true,
       title: isActivating ? "Kích hoạt sản phẩm" : "Vô hiệu hóa sản phẩm",
@@ -329,7 +329,7 @@ const ProductManagement = () => {
         try {
           if (isActivating) {
             const fullProduct = await getProductById(product.id);
-            fullProduct.isActive = true;
+            fullProduct.active = true;
             await updateProduct(product.id, fullProduct);
             toast.success("Kích hoạt sản phẩm thành công!");
           } else {
@@ -433,7 +433,7 @@ const ProductManagement = () => {
       const res = await filterProducts({
         search: searchQuery,
         categories: appliedFilters.category,
-        stocks: appliedFilters.stock === "Hết hàng" ? "out" : appliedFilters.stock === "Còn hàng" ? "in" : "",
+        stocks: appliedFilters.stock === "Hết hàng" ? "out" : appliedFilters.stock === "Còn hàng" ? "in" : appliedFilters.stock === "Sắp hết hàng" ? "low" : "",
         active: appliedFilters.status === "active" ? true : appliedFilters.status === "inactive" ? false : null,
         page: 0,
         size: 100000,
@@ -557,7 +557,7 @@ const ProductManagement = () => {
           description: meta.description,
           categoryId: categoryId,
           brandId: brandId,
-          isActive: true,
+          active: true,
           variants: variants
         };
 
@@ -728,7 +728,11 @@ const ProductManagement = () => {
               className="w-full p-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B6377] bg-white cursor-pointer"
             >
               <option value="">Tất cả danh mục</option>
-              {categories.map((cat) => (
+              {categories.filter(cat => {
+                // Check if this cat is a parent of any other cat
+                const isParent = categories.some(c => c.parent && c.parent.id === cat.id);
+                return !isParent;
+              }).map((cat) => (
                 <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>
@@ -743,6 +747,7 @@ const ProductManagement = () => {
             >
               <option value="">Tất cả tồn kho</option>
               <option value="Còn hàng">Còn hàng</option>
+              <option value="Sắp hết hàng">Sắp hết hàng</option>
               <option value="Hết hàng">Hết hàng</option>
             </select>
           </div>
@@ -852,7 +857,7 @@ const ProductManagement = () => {
                 <th className="p-4 font-bold tracking-wider">Sản phẩm</th>
                 <th className="p-4 font-bold tracking-wider">Danh mục</th>
                 <th className="p-4 font-bold tracking-wider">Giá</th>
-                <th className="p-4 font-bold tracking-wider">Số lượng</th>
+                <th className="p-4 font-bold tracking-wider">Tổng số lượng</th>
                 <th className="p-4 font-bold tracking-wider">Đã bán</th>
                 <th className="p-4 font-bold tracking-wider text-center">Trạng thái</th>
                 <th className="p-4 font-bold tracking-wider">Ngày tạo</th>
@@ -860,82 +865,155 @@ const ProductManagement = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-400">
-              {products.map((product) => {
-                const isInactive = product.status === "Vô hiệu hóa";
-                return (
-                  <tr
-                    key={product.id}
-                    className={`transition-colors border-b last:border-0 ${selectedProducts.includes(product.id) ? "bg-blue-50" : isInactive ? "bg-gray-100 text-gray-500" : "hover:bg-gray-50 cursor-pointer"}`}
-                    onClick={() => handleSelectProduct(product.id)}
-                  >
+              {products.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="p-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <AlertCircle size={40} className="text-gray-300" />
+                      <span className="text-lg font-medium text-gray-400">Chưa có sản phẩm nào phù hợp.</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                products.map((product) => {
+                  const isInactive = product.status === "Vô hiệu hóa";
+                  const isOutOfStock = product.quantity === 0;
+                  const isLowStock = product.quantity > 0 && product.quantity <= 10;
+                  const isDimmed = isInactive;
 
-                    <td className="p-4">
-                      <input
-                        type="checkbox"
-                        checked={selectedProducts.includes(product.id)}
-                        onChange={() => handleSelectProduct(product.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className={`w-4 h-4 rounded border-gray-300 ${isInactive ? "text-gray-400" : "text-[#2B6377] focus:ring-[#2B6377]"}`}
-                      />
-                    </td>
-                    <td className="p-4">
-                      <div className={`flex items-center gap-3 ${isInactive ? "opacity-60" : ""}`}>
-                        <img
-                          src={(product.images && product.images[0]) || "https://placehold.co/50"}
-                          alt={product.name}
-                          className="w-12 h-12 rounded-md object-contain border border-gray-200"
-                          onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/50"; }}
+                  return (
+                    <tr
+                      key={product.id}
+                      className={`transition-colors border-b last:border-0 ${selectedProducts.includes(product.id) ? "bg-blue-50" : isDimmed ? "bg-gray-100 text-gray-500" : "hover:bg-gray-50 cursor-pointer"}`}
+                      onClick={() => handleSelectProduct(product.id)}
+                    >
+                      <td className="p-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedProducts.includes(product.id)}
+                          onChange={() => handleSelectProduct(product.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className={`w-4 h-4 rounded border-gray-300 ${isDimmed ? "text-gray-400" : "text-[#2B6377] focus:ring-[#2B6377]"}`}
                         />
-                        <div className="max-w-xs">
-                          <p className={`font-medium line-clamp-1 ${isInactive ? "line-through text-gray-500" : "text-gray-900"}`}>{product.name}</p>
-                          <p className="text-xs text-[#2B6377] font-semibold">{product.brandName || "Chưa có thương hiệu"}</p>
+                      </td>
+
+                      <td className="p-4">
+                        <div className={`flex items-center gap-3 ${isDimmed ? "opacity-60" : ""}`}>
+                          <img
+                            src={(product.images && product.images[0]) || "https://placehold.co/50"}
+                            alt={product.name}
+                            className="w-12 h-12 rounded-md object-contain border border-gray-200"
+                            onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/50"; }}
+                          />
+                          <div className="flex flex-col">
+                            <span className={`font-semibold text-gray-800 ${isDimmed ? "line-through text-gray-400" : ""}`}>{product.name}</span>
+
+
+                            {/* Variant Stats */}
+                            {!isInactive && product.variants && product.variants.length > 0 && (
+                              <div className="flex flex-col mt-0.5 gap-0.5">
+                                <span className="text-[10px] text-gray-500 font-medium">
+                                  ({product.variants.length} biến thể)
+                                </span>
+                                {(() => {
+                                  const oosCount = product.variants.filter(v => v.quantity === 0).length;
+                                  const lowStockCount = product.variants.filter(v => v.quantity > 0 && v.quantity <= 10).length;
+
+                                  return (
+                                    <>
+                                      {oosCount > 0 && (
+                                        <span className="text-[10px] text-red-500 font-bold">
+                                          ({oosCount} biến thể hết hàng)
+                                        </span>
+                                      )}
+                                      {lowStockCount > 0 && (
+                                        <span className="text-[10px] text-orange-500 font-bold">
+                                          ({lowStockCount} biến thể sắp hết hàng)
+                                        </span>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className={`p-4 text-sm ${isInactive ? "line-through text-gray-400" : "text-[#2B6377]"}`}>{product.categoryName}</td>
-                    <td className={`p-4 ${isInactive ? "line-through opacity-60" : ""}`}>
-                      <div className="flex flex-col">
-                        <span className={`font-medium ${isInactive ? "text-gray-500" : "text-[#2B6377]"}`}>
-                          {product.minPrice === product.maxPrice
-                            ? new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(product.minPrice || 0)
-                            : `${new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(product.minPrice || 0)} - ${new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(product.maxPrice || 0)}`
+                      </td>
+                      <td className={`p-4 text-sm ${isDimmed ? "line-through text-gray-400" : "text-[#2B6377]"}`}>{product.categoryName}</td>
+                      <td className={`p-4 ${isDimmed ? "line-through opacity-60" : ""}`}>
+                        <div className="flex flex-col">
+                          <span className={`font-medium ${isDimmed ? "text-gray-500" : "text-[#2B6377]"}`}>
+                            {product.minPrice === product.maxPrice ? (
+                              new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(product.minPrice || 0)
+                            ) : (
+                              <div className="flex flex-col">
+                                <span>{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(product.minPrice || 0)}</span>
+                                <span>{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(product.maxPrice || 0)}</span>
+                              </div>
+                            )}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-medium ${isDimmed
+                            ? "line-through text-gray-400"
+                            : isOutOfStock
+                              ? "text-red-600 bg-red-50 px-2 py-0.5 rounded-md border border-red-100"
+                              : isLowStock
+                                ? "text-yellow-700 bg-yellow-50 px-2 py-0.5 rounded-md border border-yellow-100"
+                                : "text-gray-700"
+                            }`}>
+                            {product.quantity}
+                          </span>
+                        </div>
+                      </td>
+                      <td className={`p-4 font-medium ${isDimmed ? "line-through text-gray-400" : "text-gray-900"}`}>{new Intl.NumberFormat("vi-VN").format(product.totalSold || 0)}</td>
+                      <td className="p-4 text-center">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${isInactive
+                          ? "bg-gray-300 text-gray-700"
+                          : isOutOfStock
+                            ? "bg-red-100 text-red-700"
+                            : isLowStock
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-green-100 text-green-700"
+                          }`}>
+                          {isInactive
+                            ? product.status
+                            : isOutOfStock
+                              ? "Hết hàng"
+                              : isLowStock
+                                ? "Sắp hết hàng"
+                                : "Hoạt động"
                           }
                         </span>
-                      </div>
-                    </td>
-                    <td className={`p-4 font-medium ${isInactive ? "line-through text-gray-400" : (product.quantity === 0 ? "text-red-600" : "text-gray-900")}`}>{product.quantity}</td>
-                    <td className={`p-4 font-medium ${isInactive ? "line-through text-gray-400" : "text-gray-900"}`}>{new Intl.NumberFormat("vi-VN").format(product.totalSold || 0)}</td>
-                    <td className="p-4 text-center">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${isInactive ? "bg-gray-300 text-gray-700" : product.quantity > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                        }`}>
-                        {product.status}
-                      </span>
-                    </td>
-                    <td className="p-4 text-sm text-gray-500">{product.createdAt ? new Date(product.createdAt).toLocaleDateString("vi-VN") : "N/A"}</td>
-                    <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                        {!isInactive && (
-                          <button onClick={() => handleViewDetail(product.id)} className="p-1 rounded-lg hover:bg-[#ccdfe3] text-blue-600 hover:text-blue-700 transition-colors">
-                            <Eye size={16} />
+                      </td>
+                      <td className="p-4 text-sm text-gray-500">{product.createdAt ? new Date(product.createdAt).toLocaleDateString("vi-VN") : "N/A"}</td>
+                      <td className="p-4 text-right">
+                        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                          {!isInactive && (
+                            <button onClick={() => handleViewDetail(product.id)} className="p-1 rounded-lg hover:bg-[#ccdfe3] text-blue-600 hover:text-blue-700 transition-colors">
+                              <Eye size={16} />
+                            </button>
+                          )}
+                          {!isInactive && (
+                            <button onClick={() => handleEdit(product)} className="p-1 rounded-lg hover:bg-[#ccdfe3] text-amber-600 hover:text-amber-700 transition-colors">
+                              <Pencil size={16} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleToggleStatus(product)}
+                            className={`p-1 rounded-lg transition-colors hover:bg-[#ccdfe3] ${!(product.active === false || product.isActive === false) ? 'text-green-600 hover:text-green-700' : 'text-gray-600 hover:text-gray-700'}`}
+                            title={!(product.active === false || product.isActive === false) ? "Vô hiệu hóa" : "Kích hoạt"}
+                          >
+                            {!(product.active === false || product.isActive === false) ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                           </button>
-                        )}
-                        {!isInactive && (
-                          <button onClick={() => handleEdit(product)} className="p-1 rounded-lg hover:bg-[#ccdfe3] text-amber-600 hover:text-amber-700 transition-colors">
-                            <Pencil size={16} />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleToggleStatus(product)}
-                          className={`p-1 rounded-lg transition-colors hover:bg-[#ccdfe3] ${product.isActive ? 'text-green-600 hover:text-green-700' : 'text-gray-600 hover:text-gray-700'}`}
-                          title={product.isActive ? "Vô hiệu hóa" : "Kích hoạt"}
-                        >
-                          {product.isActive ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

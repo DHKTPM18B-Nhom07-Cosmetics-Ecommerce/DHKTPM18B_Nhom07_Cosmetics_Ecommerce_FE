@@ -7,25 +7,13 @@ import { uploadImage } from '../../services/cloudinaryService';
 import ImageUploader from './ImageUploader';
 import ConfirmationModal from '../ui/ConfirmationModal';
 
-const PLACEHOLDER_IMAGE = "https://placehold.co/600x400/e2e8f0/94a3b8?text=No+Image";
-
-const formatCurrency = (value) => {
-    if (!value) return '';
-    return new Intl.NumberFormat('vi-VN').format(value);
-};
-
-const parseCurrency = (string) => {
-    if (!string) return 0;
-    return parseInt(string.replace(/\./g, ''), 10);
-};
-
 export default function ProductModal({ isOpen, onClose, onSave, product }) {
     const [formData, setFormData] = useState({
         name: '',
         description: '',
         categoryId: '',
         brandId: '',
-        isActive: true,
+        active: true,
         images: [],
         variants: []
     });
@@ -34,6 +22,10 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
     const [step, setStep] = useState(1);
     const [categories, setCategories] = useState([]);
     const [brands, setBrands] = useState([]);
+
+    // Cascading Category Path State
+    const [selectedCategoryPath, setSelectedCategoryPath] = useState([]);
+    const [isLeafCategory, setIsLeafCategory] = useState(false);
 
     // Main Product Image State
     const [mainPendingFiles, setMainPendingFiles] = useState([]); // { file, previewUrl }
@@ -67,7 +59,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                     description: product.description || '',
                     categoryId: product.categoryId || (product.category ? product.category.id : ''),
                     brandId: product.brandId || (product.brand ? product.brand.id : ''),
-                    isActive: product.isActive !== undefined ? product.isActive : (product.active !== undefined ? product.active : true),
+                    active: product.active !== undefined ? product.active : (product.isActive !== undefined ? product.isActive : true),
                     images: product.images || [],
                     variants: product.variants ? product.variants.map(v => ({
                         variantName: v.variantName,
@@ -79,22 +71,47 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                 });
 
                 // Lock if product exists and is inactive
-                const initialActive = product.isActive !== undefined ? product.isActive : (product.active !== undefined ? product.active : true);
+                const initialActive = product.active !== undefined ? product.active : (product.isActive !== undefined ? product.isActive : true);
                 setIsLocked(!initialActive);
+
+                // Reconstruct Category Path
+                if (product.category && categories.length > 0) {
+                    const path = [];
+                    let currId = product.category.id;
+                    let safety = 0;
+                    while (currId && safety < 10) {
+                        path.unshift(currId);
+                        const found = categories.find(c => c.id === currId);
+                        if (found && found.parent) {
+                            currId = found.parent.id;
+                        } else {
+                            currId = null;
+                        }
+                        safety++;
+                    }
+                    setSelectedCategoryPath(path);
+                    setIsLeafCategory(true); // Existing product usually has valid category
+                } else {
+                    setSelectedCategoryPath([]);
+                    setIsLeafCategory(false);
+                }
+
             } else {
                 setFormData({
                     name: '',
                     description: '',
                     categoryId: '',
                     brandId: '',
-                    isActive: true,
+                    active: true,
                     images: [],
                     variants: []
                 });
                 setIsLocked(false);
+                setSelectedCategoryPath([]);
+                setIsLeafCategory(false);
             }
         }
-    }, [isOpen, product]);
+    }, [isOpen, product]); // Removed categories to prevent reset loop
 
     const loadDependencies = async () => {
         try {
@@ -117,6 +134,42 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
             setErrors(prev => ({ ...prev, [name]: '' }));
         }
     };
+
+    // --- Cascading Logic ---
+    const getCategoryOptionsForLevel = (levelIndex) => {
+        if (levelIndex === 0) return categories.filter(c => !c.parent);
+        const parentId = selectedCategoryPath[levelIndex - 1];
+        if (!parentId) return [];
+        return categories.filter(c => c.parent && c.parent.id === parentId);
+    };
+
+    const handleCategoryPathChange = (levelIndex, value) => {
+        const newPath = [...selectedCategoryPath];
+        if (value) {
+            newPath[levelIndex] = Number(value);
+            newPath.length = levelIndex + 1; // Trim deeper
+        } else {
+            newPath.length = levelIndex; // Trim current
+        }
+
+        setSelectedCategoryPath(newPath);
+
+        const lastId = newPath.length > 0 ? newPath[newPath.length - 1] : '';
+        const hasChildren = categories.some(c => c.parent && c.parent.id === lastId);
+
+        const isLeaf = lastId && !hasChildren;
+        setIsLeafCategory(isLeaf);
+
+        setFormData(prev => ({
+            ...prev,
+            categoryId: isLeaf ? lastId : ''
+        }));
+
+        if (errors.categoryId) {
+            setErrors(prev => ({ ...prev, categoryId: '' }));
+        }
+    };
+
 
     // --- Main Image Handling ---
     const handleMainFileSelect = (e) => {
@@ -151,7 +204,6 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
             variants: [...prev.variants, { variantName: '', price: 0, quantity: '', sold: 0, imageUrls: [] }]
         }));
 
-        // Clear errors for the new index to prevent ghost errors
         setErrors(prev => {
             const newErrors = { ...prev };
             Object.keys(newErrors).forEach(key => {
@@ -168,7 +220,6 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
         updatedVariants[index] = { ...updatedVariants[index], [field]: value };
         setFormData(prev => ({ ...prev, variants: updatedVariants }));
 
-        // Clear errors if any
         if (errors[`variant_${index}_${field}`]) {
             setErrors(prev => {
                 const newErrs = { ...prev };
@@ -184,7 +235,6 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
             variants: prev.variants.filter((_, i) => i !== index)
         }));
 
-        // Clear all variant errors to avoid shifting issues
         setErrors(prev => {
             const newErrors = { ...prev };
             Object.keys(newErrors).forEach(key => {
@@ -195,13 +245,9 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
             return newErrors;
         });
 
-        // Clean up pending files for this variant
         setVariantPendingFiles(prev => {
             const newPending = { ...prev };
             delete newPending[index];
-            // Re-index pending files?
-            // To ensure consistency, strict re-indexing would be needed but complex.
-            // For now, simple removal is acceptable as pending state is transient.
             return newPending;
         });
     };
@@ -240,13 +286,10 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
     const validate = () => {
         const newErrors = {};
 
-        // Step 1 Validation
         if (!formData.name.trim()) newErrors.name = "Vui lòng nhập tên sản phẩm";
         if (!formData.categoryId) newErrors.categoryId = "Vui lòng chọn danh mục";
         if (!formData.brandId) newErrors.brandId = "Vui lòng chọn thương hiệu";
 
-        // Step 2 (Variant) Validation
-        // If we are on step 2, or submitting entire form
         formData.variants.forEach((v, idx) => {
             if (!v.variantName.trim()) newErrors[`variant_${idx}_variantName`] = "Tên không được để trống";
             if (v.price <= 0) newErrors[`variant_${idx}_price`] = "Giá phải lớn hơn 0";
@@ -262,7 +305,6 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
     };
 
     const handleNext = () => {
-        // Validate Step 1 only
         const step1Errors = {};
         if (!formData.name.trim()) step1Errors.name = "Vui lòng nhập tên sản phẩm";
         if (!formData.categoryId) step1Errors.categoryId = "Vui lòng chọn danh mục";
@@ -291,72 +333,51 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
         setIsUploading(true);
 
         try {
-            // Helper to generate public ID
             const generatePublicId = (baseName, suffix = "") => {
                 const cleanName = baseName.toLowerCase()
-                    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove accents
-                    .replace(/[^a-z0-9]/g, "_"); // replace special chars with _
+                    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                    .replace(/[^a-z0-9]/g, "_");
 
                 const randomId = Math.random().toString(36).substring(2, 8);
                 return suffix ? `${cleanName}_${suffix}_${randomId}` : `${cleanName}_${randomId}`;
             };
 
-            // 1. Tải lên ảnh sản phẩm chính
-            let finalImages = [...formData.images];
-            if (mainPendingFiles.length > 0) {
-                // Use full path 'product'
-                const uploadPromises = mainPendingFiles.map(pf => {
-                    const publicId = generatePublicId(formData.name);
-                    return uploadImage(pf.file, 'product', publicId);
-                });
-                const uploadedUrls = await Promise.all(uploadPromises);
-                const validUrls = uploadedUrls.filter(url => url !== null);
-                finalImages = [...finalImages, ...validUrls];
-            }
-            if (finalImages.length === 0) finalImages.push(PLACEHOLDER_IMAGE);
+            const mainImagePromises = mainPendingFiles.map((fileObj, index) =>
+                uploadImage(fileObj.file, 'product', generatePublicId(formData.name, `main_${index}`))
+            );
+            const uploadedMainImages = await Promise.all(mainImagePromises);
 
-            // 2. Tải lên ảnh biến thể & Xây dựng dữ liệu biến thể cuối cùng
-            const finalVariants = await Promise.all(formData.variants.map(async (v, idx) => {
-                let vImages = [...(v.imageUrls || [])];
-                const vPending = variantPendingFiles[idx] || [];
+            const finalImages = [...formData.images, ...uploadedMainImages.filter(url => url !== null)];
 
-                if (vPending.length > 0) {
-                    // Use full path 'product_variant'
-                    const vUploadPromises = vPending.map(pf => {
-                        // sanitize variant name, productName is base
-                        const cleanVariantName = v.variantName.toLowerCase()
-                            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-                            .replace(/[^a-z0-9]/g, "_");
-                        const publicId = generatePublicId(formData.name, cleanVariantName);
-                        return uploadImage(pf.file, 'product_variant', publicId);
-                    });
-                    const vUploadedUrls = await Promise.all(vUploadPromises);
-                    const vValidUrls = vUploadedUrls.filter(url => url !== null);
-                    vImages = [...vImages, ...vValidUrls];
-                }
-                if (vImages.length === 0) vImages.push(PLACEHOLDER_IMAGE);
+            const variantPromises = formData.variants.map(async (variant, index) => {
+                const pendingFiles = variantPendingFiles[index] || [];
+                const variantImagePromises = pendingFiles.map((fileObj, fIdx) =>
+                    uploadImage(fileObj.file, 'product_variant', generatePublicId(formData.name, `var_${index}_${fIdx}`))
+                );
+                const uploadedVariantImages = await Promise.all(variantImagePromises);
 
                 return {
-                    ...v,
-                    imageUrls: vImages
+                    ...variant,
+                    variantName: variant.variantName, // Ensure consistent naming
+                    imageUrls: [...(variant.imageUrls || []), ...uploadedVariantImages.filter(url => url !== null)]
                 };
-            }));
+            });
 
-            // 3. Construct Final Data matching Backend Entity
-            // Backend expects 'category' and 'brand' as objects with 'id'
-            // Ensure IDs are numbers
-            if (!formData.categoryId || !formData.brandId) {
-                toast.error("Vui lòng chọn danh mục và thương hiệu");
+            const finalVariants = await Promise.all(variantPromises);
+
+            if (finalImages.length === 0 && finalVariants.every(v => v.imageUrls.length === 0)) {
                 setIsUploading(false);
+                toast.error("Vui lòng tải lên ít nhất 1 hình ảnh sản phẩm hoặc biến thể");
                 return;
             }
 
             const finalData = {
+                id: product?.id, // Includes ID for update
                 name: formData.name,
                 description: formData.description,
                 category: { id: Number(formData.categoryId) },
                 brand: { id: Number(formData.brandId) },
-                isActive: formData.isActive,
+                active: formData.active,
                 images: finalImages,
                 variants: finalVariants
             };
@@ -426,7 +447,6 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                 <div className="flex-1 overflow-y-auto p-8 bg-gray-50">
                     <form id="product-form" onSubmit={handleSubmit} className="h-full">
                         {(() => {
-                            // Simplified UI for Inactive Products (Only if initially locked)
                             if (isLocked) {
                                 return (
                                     <div className="flex flex-col items-center justify-center h-full py-12">
@@ -440,7 +460,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                                             <label className="flex items-center gap-3 p-4 bg-white rounded-xl border-2 border-[#2B6377]/20 hover:border-[#2B6377] cursor-pointer transition-all shadow-sm group w-full justify-center">
                                                 <input
                                                     type="checkbox"
-                                                    checked={formData.isActive}
+                                                    checked={formData.active}
                                                     onChange={(e) => {
                                                         const checked = e.target.checked;
                                                         if (checked) {
@@ -448,30 +468,27 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                                                                 isOpen: true,
                                                                 title: "Kích hoạt lại sản phẩm",
                                                                 message: "Bạn có chắc chắn muốn kích hoạt lại sản phẩm này? Sau khi kích hoạt, bạn có thể chỉnh sửa thông tin sản phẩm.",
-                                                                variant: "info",
                                                                 confirmLabel: "Kích hoạt",
+                                                                variant: "success",
                                                                 onConfirm: () => {
+                                                                    setFormData(prev => ({ ...prev, active: true }));
                                                                     setIsLocked(false);
-                                                                    setFormData(prev => ({ ...prev, isActive: true }));
+                                                                    setConfirmModal({ isOpen: false });
                                                                 }
                                                             });
                                                         }
                                                     }}
-                                                    className="w-6 h-6 text-[#2B6377] rounded focus:ring-[#2B6377] cursor-pointer"
+                                                    className="w-5 h-5 text-[#2B6377] rounded focus:ring-[#2B6377] cursor-pointer"
                                                 />
-                                                <span className="text-base font-semibold text-[#2B6377]">Kích hoạt lại sản phẩm</span>
+                                                <span className="font-medium text-gray-700 group-hover:text-[#2B6377] transition-colors">Kích hoạt lại sản phẩm</span>
                                             </label>
                                         </div>
                                     </div>
                                 );
                             }
 
-                            // Active Product - Show Full Form
-                            const formDisabled = false;
                             return step === 1 ? (
-                                /* Step 1: Basic Info */
-                                <div className="space-y-6 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                                    <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Thông tin cơ bản</h3>
+                                <div className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="md:col-span-2">
                                             <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tên sản phẩm <span className="text-red-500">*</span></label>
@@ -481,26 +498,36 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                                                 value={formData.name}
                                                 onChange={handleChange}
                                                 required
-                                                disabled={formDisabled}
+                                                disabled={isLocked}
                                                 placeholder="Nhập tên sản phẩm..."
-                                                className={`w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-[#2B6377] focus:border-transparent transition-all outline-none ${errors.name ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${formDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
+                                                className={`w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-[#2B6377] outline-none ${errors.name ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                                             />
                                             {errors.name && <p className="text-red-500 text-xs mt-1 font-medium">{errors.name}</p>}
                                         </div>
 
                                         <div>
                                             <label className="block text-sm font-semibold text-gray-700 mb-1.5">Danh mục <span className="text-red-500">*</span></label>
+
                                             <select
                                                 name="categoryId"
                                                 value={formData.categoryId}
                                                 onChange={handleChange}
                                                 required
-                                                disabled={formDisabled}
-                                                className={`w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-[#2B6377] focus:border-transparent transition-all outline-none bg-white ${errors.categoryId ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${formDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
+                                                disabled={isLocked}
+                                                className={`w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-[#2B6377] outline-none bg-white ${errors.categoryId ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${isLocked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                                             >
                                                 <option value="">Chọn danh mục</option>
-                                                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                {categories.filter(cat => {
+                                                    // Only show leaf categories (categories that are NOT parents)
+                                                    const isParent = categories.some(c => c.parent && c.parent.id === cat.id);
+                                                    return !isParent;
+                                                }).map(c => (
+                                                    <option key={c.id} value={c.id}>
+                                                        {c.name}
+                                                    </option>
+                                                ))}
                                             </select>
+
                                             {errors.categoryId && <p className="text-red-500 text-xs mt-1 font-medium">{errors.categoryId}</p>}
                                         </div>
 
@@ -511,8 +538,8 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                                                 value={formData.brandId}
                                                 onChange={handleChange}
                                                 required
-                                                disabled={formDisabled}
-                                                className={`w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-[#2B6377] focus:border-transparent transition-all outline-none bg-white ${errors.brandId ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${formDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
+                                                disabled={isLocked}
+                                                className={`w-full px-4 py-2.5 rounded-lg border focus:ring-2 focus:ring-[#2B6377] focus:border-transparent transition-all outline-none bg-white ${errors.brandId ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${isLocked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                                             >
                                                 <option value="">Chọn thương hiệu</option>
                                                 {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -527,36 +554,28 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                                                 value={formData.description}
                                                 onChange={handleChange}
                                                 rows={4}
-                                                disabled={formDisabled}
+                                                disabled={isLocked}
                                                 placeholder="Mô tả chi tiết sản phẩm..."
-                                                className={`w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#2B6377] focus:border-transparent transition-all outline-none resize-none ${formDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
+                                                className={`w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#2B6377] focus:border-transparent transition-all outline-none resize-none ${isLocked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
                                             />
                                         </div>
 
-                                        <div className="md:col-span-2">
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Trạng thái</label>
-                                            <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg border border-gray-200 w-fit pr-4">
-                                                <input
-                                                    type="checkbox"
-                                                    name="isActive"
-                                                    checked={formData.isActive}
-                                                    onChange={handleChange}
-                                                    className="w-5 h-5 text-[#2B6377] rounded focus:ring-[#2B6377] cursor-pointer"
-                                                />
-                                                <span className="text-sm font-medium text-gray-700">Đang hoạt động</span>
+                                        {product && (
+                                            <div className="md:col-span-2">
+                                                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Trạng thái</label>
+                                                <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg border border-gray-200 w-fit pr-4">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="active"
+                                                        checked={formData.active}
+                                                        onChange={handleChange}
+                                                        disabled={isLocked}
+                                                        className="w-5 h-5 text-[#2B6377] rounded focus:ring-[#2B6377] cursor-pointer"
+                                                    />
+                                                    <span className="text-sm font-medium text-gray-700">Đang hoạt động</span>
+                                                </div>
                                             </div>
-                                        </div>
-
-                                        {/* Total Sold (Read Only) */}
-                                        <div className="md:col-span-1">
-                                            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tổng đã bán</label>
-                                            <input
-                                                type="text"
-                                                value={product ? product.totalSold || 0 : 0}
-                                                disabled
-                                                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-100 text-gray-500 font-medium cursor-not-allowed"
-                                            />
-                                        </div>
+                                        )}
                                     </div>
 
                                     <ImageUploader
@@ -566,7 +585,7 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                                         onRemovePending={handleRemoveMainPending}
                                         onRemoveExisting={handleRemoveMainExisting}
                                         idPrefix="main-product-img"
-                                        disabled={formDisabled}
+                                        disabled={isLocked}
                                     />
                                 </div>
                             ) : (
@@ -580,8 +599,8 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                                         <button
                                             type="button"
                                             onClick={handleAddVariant}
-                                            disabled={formDisabled}
-                                            className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg shadow-sm transition-colors font-medium ${formDisabled ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#10b981] hover:bg-[#059669]'}`}
+                                            disabled={isLocked}
+                                            className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg shadow-sm transition-colors font-medium ${isLocked ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#10b981] hover:bg-[#059669]'}`}
                                         >
                                             <Plus size={18} /> Thêm biến thể
                                         </button>
@@ -598,109 +617,81 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                                             </div>
                                         ) : (
                                             <div className="grid grid-cols-1 gap-6">
-                                                {formData.variants.map((variant, idx) => (
-                                                    <div key={idx} className="p-5 border border-gray-200 rounded-xl bg-white hover:shadow-md transition-shadow relative group">
+                                                {formData.variants.map((variant, index) => (
+                                                    <div key={index} className="relative bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow group">
                                                         <button
                                                             type="button"
-                                                            onClick={() => handleRemoveVariant(idx)}
-                                                            disabled={formDisabled}
-                                                            className={`absolute top-4 right-4 transition-colors p-1 ${formDisabled ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-red-500'}`}
+                                                            onClick={() => setConfirmModal({
+                                                                isOpen: true,
+                                                                title: "Xóa biến thể",
+                                                                message: "Bạn có chắc chắn muốn xóa biến thể này không?",
+                                                                onConfirm: () => {
+                                                                    handleRemoveVariant(index);
+                                                                    setConfirmModal({ isOpen: false });
+                                                                },
+                                                                variant: "danger",
+                                                                confirmLabel: "Xóa"
+                                                            })}
+                                                            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                            disabled={isLocked}
                                                         >
-                                                            <X size={18} />
+                                                            <Trash2 size={18} />
                                                         </button>
 
-                                                        {/* Variant Fields */}
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                                                            <div className="md:col-span-2">
-                                                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                                                                    Tên biến thể <span className="text-red-500">*</span>
-                                                                </label>
+                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                                            <div>
+                                                                <label className="block text-sm font-medium text-gray-600 mb-1">Tên biến thể <span className="text-red-500">*</span></label>
                                                                 <input
                                                                     type="text"
                                                                     value={variant.variantName}
-                                                                    onChange={(e) => handleVariantChange(idx, 'variantName', e.target.value)}
-                                                                    disabled={formDisabled}
-                                                                    placeholder="VD: Đỏ - Size M"
-                                                                    className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-[#10b981] outline-none text-sm font-medium ${errors[`variant_${idx}_variantName`] ? 'border-red-500' : 'border-gray-300'} ${formDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
-                                                                    required
+                                                                    onChange={(e) => handleVariantChange(index, 'variantName', e.target.value)}
+                                                                    placeholder="VD: Đỏ, 20ml, 1 chai..."
+                                                                    disabled={isLocked}
+                                                                    className={`w-full px-3 py-2 rounded-lg border outline-none focus:ring-2 focus:ring-[#2B6377] ${errors[`variant_${index}_variantName`] ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                                                                 />
-                                                                {errors[`variant_${idx}_variantName`] && (
-                                                                    <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                                                                        <AlertCircle size={12} /> {errors[`variant_${idx}_variantName`]}
-                                                                    </p>
-                                                                )}
+                                                                {errors[`variant_${index}_variantName`] && <p className="text-red-500 text-xs mt-1">{errors[`variant_${index}_variantName`]}</p>}
                                                             </div>
                                                             <div>
-                                                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                                                                    Giá bán (VNĐ) <span className="text-red-500">*</span>
-                                                                </label>
+                                                                <label className="block text-sm font-medium text-gray-600 mb-1">Giá (VNĐ) <span className="text-red-500">*</span></label>
                                                                 <input
-                                                                    type="text"
-                                                                    value={formatCurrency(variant.price)}
-                                                                    onChange={(e) => handleVariantChange(idx, 'price', parseCurrency(e.target.value))}
-                                                                    disabled={formDisabled}
-                                                                    className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-[#10b981] outline-none text-sm font-medium ${errors[`variant_${idx}_price`] ? 'border-red-500' : 'border-gray-300'} ${formDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
-                                                                    required
+                                                                    type="number"
+                                                                    min={0}
+                                                                    value={variant.price}
+                                                                    onChange={(e) => handleVariantChange(index, 'price', Number(e.target.value))}
+                                                                    disabled={isLocked}
+                                                                    className={`w-full px-3 py-2 rounded-lg border outline-none focus:ring-2 focus:ring-[#2B6377] ${errors[`variant_${index}_price`] ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                                                                 />
-                                                                {errors[`variant_${idx}_price`] && (
-                                                                    <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                                                                        <AlertCircle size={12} /> {errors[`variant_${idx}_price`]}
-                                                                    </p>
-                                                                )}
+                                                                {errors[`variant_${index}_price`] && <p className="text-red-500 text-xs mt-1">{errors[`variant_${index}_price`]}</p>}
                                                             </div>
                                                             <div>
-                                                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                                                                <label className="block text-sm font-medium text-gray-600 mb-1">
                                                                     Số lượng <span className="text-red-500">*</span>
+                                                                    {Number(variant.quantity) === 0 && <span className="text-red-500 font-bold text-xs ml-2">(Tạm hết hàng)</span>}
+                                                                    {Number(variant.quantity) > 0 && Number(variant.quantity) <= 10 && <span className="text-orange-500 font-bold text-xs ml-2">(Sắp hết hàng)</span>}
                                                                 </label>
                                                                 <input
                                                                     type="number"
+                                                                    min={0}
                                                                     value={variant.quantity}
-                                                                    onChange={(e) => handleVariantChange(idx, 'quantity', e.target.value === '' ? '' : parseInt(e.target.value))}
-                                                                    onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()}
-                                                                    disabled={formDisabled}
-                                                                    className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-[#10b981] outline-none text-sm font-medium ${errors[`variant_${idx}_quantity`] ? 'border-red-500' : 'border-gray-300'} ${formDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
-                                                                    min="0"
-                                                                    required
+                                                                    onChange={(e) => handleVariantChange(index, 'quantity', e.target.value)}
+                                                                    disabled={isLocked}
+                                                                    className={`w-full px-3 py-2 rounded-lg border outline-none focus:ring-2 focus:ring-[#2B6377] ${errors[`variant_${index}_quantity`] ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                                                                 />
-                                                                {errors[`variant_${idx}_quantity`] && (
-                                                                    <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                                                                        <AlertCircle size={12} /> {errors[`variant_${idx}_quantity`]}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                            <div>
-                                                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                                                                    Đã bán <span className="text-red-500">*</span>
-                                                                </label>
-                                                                <input
-                                                                    type="number"
-                                                                    value={variant.sold}
-                                                                    onChange={(e) => handleVariantChange(idx, 'sold', e.target.value === '' ? '' : parseInt(e.target.value))}
-                                                                    onKeyDown={(e) => ["e", "E", "+", "-"].includes(e.key) && e.preventDefault()}
-                                                                    disabled={formDisabled}
-                                                                    className={`w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-[#10b981] outline-none text-sm font-medium ${errors[`variant_${idx}_sold`] ? 'border-red-500' : 'border-gray-300'} ${formDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
-                                                                    min="0"
-                                                                    required
-                                                                />
-                                                                {errors[`variant_${idx}_sold`] && (
-                                                                    <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                                                                        <AlertCircle size={12} /> {errors[`variant_${idx}_sold`]}
-                                                                    </p>
-                                                                )}
+                                                                {errors[`variant_${index}_quantity`] && <p className="text-red-500 text-xs mt-1">{errors[`variant_${index}_quantity`]}</p>}
                                                             </div>
                                                         </div>
 
-                                                        {/* Variant Image Uploader */}
-                                                        <div className="border-t pt-4">
+                                                        {/* Variant Images */}
+                                                        <div>
                                                             <ImageUploader
-                                                                existingImages={variant.imageUrls || []}
-                                                                pendingFiles={variantPendingFiles[idx] || []}
-                                                                onFileSelect={(e) => handleVariantFileSelect(idx, e)}
-                                                                onRemovePending={(fileIdx) => handleRemoveVariantPending(idx, fileIdx)}
-                                                                onRemoveExisting={(imgIdx) => handleRemoveVariantExisting(idx, imgIdx)}
-                                                                idPrefix={`variant-img-${idx}`}
+                                                                existingImages={variant.imageUrls}
+                                                                pendingFiles={variantPendingFiles[index]}
+                                                                onFileSelect={(e) => handleVariantFileSelect(index, e)}
+                                                                onRemovePending={(fileIndex) => handleRemoveVariantPending(index, fileIndex)}
+                                                                onRemoveExisting={(imgIndex) => handleRemoveVariantExisting(index, imgIndex)}
+                                                                idPrefix={`variant-${index}`}
                                                                 maxImages={5}
-                                                                disabled={formDisabled}
+                                                                disabled={isLocked}
                                                             />
                                                         </div>
                                                     </div>
@@ -711,56 +702,74 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                                 </div>
                             );
                         })()}
+
+                        {/* Footer Actions */}
+                        <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end gap-3 shrink-0">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 transition-colors"
+                            >
+                                Hủy bỏ
+                            </button>
+
+                            {step === 1 && !isLocked && (
+                                <button
+                                    type="button"
+                                    onClick={handleNext}
+                                    className="px-6 py-2.5 rounded-lg bg-[#2B6377] text-white font-medium hover:bg-[#204a59] transition-colors shadow-lg hover:shadow-xl"
+                                >
+                                    Tiếp tục (Biến thể)
+                                </button>
+                            )}
+
+                            {step === 2 && !isLocked && (
+                                <div className="flex gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setStep(1)}
+                                        className="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 transition-colors"
+                                    >
+                                        Quay lại
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={isUploading}
+                                        className="px-6 py-2.5 rounded-lg bg-[#2B6377] text-white font-medium hover:bg-[#204a59] transition-colors shadow-lg hover:shadow-xl flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isUploading && <Loader2 className="w-4 h-4 animate-spin" />}
+                                        {product ? 'Cập nhật sản phẩm' : 'Thêm sản phẩm'}
+                                    </button>
+                                </div>
+                            )}
+
+                            {isLocked && (
+                                <div className="flex gap-3 items-center">
+                                    <span className="text-gray-500 italic text-sm mr-2">Cần kích hoạt để chỉnh sửa</span>
+                                    <button
+                                        type="button"
+                                        disabled
+                                        className="px-6 py-2.5 rounded-lg bg-gray-300 text-white font-medium cursor-not-allowed"
+                                    >
+                                        Đã khóa
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </form>
                 </div>
 
-                {/* Footer */}
-                <div className="p-4 border-t border-gray-200 bg-white shrink-0 flex justify-end gap-3 rounded-b-2xl">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={isUploading}
-                        className="px-6 py-2.5 bg-[#64748b] text-white rounded-lg hover:bg-[#475569] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        Hủy
-                    </button>
-                    {step === 1 ? (
-                        <button
-                            type="button"
-                            onClick={handleNext}
-                            className="px-6 py-2.5 bg-[#2B6377] text-white rounded-lg hover:bg-[#234d5e] font-medium shadow-sm transition-colors"
-                        >
-                            Tiếp theo
-                        </button>
-                    ) : (
-                        <button
-                            onClick={handleSubmit}
-                            disabled={isUploading}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-[#2B6377] text-white rounded-lg hover:bg-[#234d5e] font-medium shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isUploading ? (
-                                <>
-                                    <Loader2 className="animate-spin" size={18} />
-                                    <span>Đang xử lý...</span>
-                                </>
-                            ) : (
-                                <span>{product ? 'Cập nhật sản phẩm' : 'Tạo sản phẩm'}</span>
-                            )}
-                        </button>
-                    )}
-                </div>
-            </div >
-
-            <ConfirmationModal
-                isOpen={confirmModal.isOpen}
-                onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
-                onConfirm={confirmModal.onConfirm}
-                title={confirmModal.title}
-                message={confirmModal.message}
-                variant={confirmModal.variant}
-                confirmLabel={confirmModal.confirmLabel}
-            />
-        </div >
+                {/* Confirmation Modal */}
+                <ConfirmationModal
+                    isOpen={confirmModal.isOpen}
+                    onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                    onConfirm={confirmModal.onConfirm}
+                    title={confirmModal.title}
+                    message={confirmModal.message}
+                    variant={confirmModal.variant}
+                    confirmLabel={confirmModal.confirmLabel}
+                />
+            </div>
+        </div>
     );
 }
-

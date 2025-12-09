@@ -116,6 +116,33 @@ const ProductDetailModal = ({ isOpen, onClose, product, variants = [] }) => {
                                         <span>({product.averageRating || 0})</span>
                                     </span>
                                 </div>
+
+                                {/* Variant Summary */}
+                                {variants.length > 0 && (
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-xs text-gray-500">
+                                            ({variants.length} biến thể)
+                                        </span>
+                                        {(() => {
+                                            const oosCount = variants.filter(v => v.quantity === 0).length;
+                                            const lowStockCount = variants.filter(v => v.quantity > 0 && v.quantity <= 10).length;
+                                            return (
+                                                <>
+                                                    {oosCount > 0 && (
+                                                        <span className="text-xs text-red-500 font-bold">
+                                                            ({oosCount} biến thể hết hàng)
+                                                        </span>
+                                                    )}
+                                                    {lowStockCount > 0 && (
+                                                        <span className="text-xs text-orange-500 font-bold">
+                                                            ({lowStockCount} biến thể sắp hết hàng)
+                                                        </span>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Price Box */}
@@ -166,7 +193,11 @@ const ProductDetailModal = ({ isOpen, onClose, product, variants = [] }) => {
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-gray-600">Tồn kho hiện tại:</span>
-                                    <span className="font-bold text-gray-900">{currentStock}</span>
+                                    <span className="font-bold text-gray-900">
+                                        {currentStock}
+                                        {currentStock === 0 && <span className="text-red-500 text-xs ml-1">(Hết hàng)</span>}
+                                        {currentStock > 0 && currentStock <= 10 && <span className="text-orange-500 text-xs ml-1">(Sắp hết hàng)</span>}
+                                    </span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm mt-2">
                                     <span className="text-gray-600">Đã bán:</span>
