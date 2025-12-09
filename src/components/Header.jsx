@@ -438,7 +438,7 @@ const [cartCount, setCartCount] = useState(0);
                   {isLoggedIn ? (
                     // --- ĐÃ ĐĂNG NHẬP (Hiển thị Menu đầy đủ) ---
                     <>
-                      <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
+                      <button onClick={() => navigate("/order")} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
                         <User className="w-4 h-4" /> Quản lý tài khoản của bạn
                       </button>
 
