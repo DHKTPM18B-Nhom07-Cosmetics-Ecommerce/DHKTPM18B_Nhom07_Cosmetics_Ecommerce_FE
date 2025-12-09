@@ -30,40 +30,40 @@ export default function Header() {
   const displayUserName = user ? (user.fullName || user.name || 'Guest') : 'Guest';
 
   // --- STATE CART COUNT ---
-const [cartCount, setCartCount] = useState(0);
+  const [cartCount, setCartCount] = useState(0);
 
-    // --- HÀM CẬP NHẬT SỐ LƯỢNG (ĐÃ SỬA) ---
-    const updateCartCount = async () => {
-        try {
-            // Gọi getCartData() luôn (Service sẽ tự lo việc lấy từ DB hay Session)
-            const cart = await getCartData();
-            
-            if (cart && cart.items) {
-                // Tính tổng số lượng
-                const count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
-                setCartCount(count);
-            } else {
-                setCartCount(0);
-            }
-        } catch (error) {
-            console.error("Lỗi lấy số lượng giỏ hàng", error);
-            setCartCount(0);
-        }
+  // --- HÀM CẬP NHẬT SỐ LƯỢNG (ĐÃ SỬA) ---
+  const updateCartCount = async () => {
+    try {
+      // Gọi getCartData() luôn (Service sẽ tự lo việc lấy từ DB hay Session)
+      const cart = await getCartData();
+
+      if (cart && cart.items) {
+        // Tính tổng số lượng
+        const count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+        setCartCount(count);
+      } else {
+        setCartCount(0);
+      }
+    } catch (error) {
+      console.error("Lỗi lấy số lượng giỏ hàng", error);
+      setCartCount(0);
+    }
+  };
+
+  // --- USE EFFECT ---
+  useEffect(() => {
+    // 1. Gọi ngay khi load trang
+    updateCartCount();
+
+    // 2. Lắng nghe sự kiện
+    window.addEventListener('cart-updated', updateCartCount);
+
+    // 3. Cleanup
+    return () => {
+      window.removeEventListener('cart-updated', updateCartCount);
     };
-
-    // --- USE EFFECT ---
-    useEffect(() => {
-        // 1. Gọi ngay khi load trang
-        updateCartCount();
-
-        // 2. Lắng nghe sự kiện
-        window.addEventListener('cart-updated', updateCartCount);
-
-        // 3. Cleanup
-        return () => {
-            window.removeEventListener('cart-updated', updateCartCount);
-        };
-    }, []); // Chỉ cần chạy 1 lần khi mount, logic bên trong tự xử lý user/guest
+  }, []); // Chỉ cần chạy 1 lần khi mount, logic bên trong tự xử lý user/guest
 
   const dropdownRef = useRef(null);
   const searchBoxRef = useRef(null);
@@ -143,7 +143,7 @@ const [cartCount, setCartCount] = useState(0);
   // Handle shipping address click
   const handleShippingAddressClick = async () => {
     setIsUserMenuOpen(false);
-    
+
     try {
       const userStored = localStorage.getItem("user");
       if (!userStored) {
@@ -153,14 +153,14 @@ const [cartCount, setCartCount] = useState(0);
 
       const user = JSON.parse(userStored);
       const customerId = await getCustomerIdByAccountId(user.id);
-      
+
       if (!customerId) {
         navigate("/login");
         return;
       }
 
       const addresses = await getAddressesByCustomerId(customerId);
-      
+
       // If no addresses, go to add address page
       if (!addresses || addresses.length === 0) {
         navigate("/add-address");
@@ -273,16 +273,16 @@ const [cartCount, setCartCount] = useState(0);
               Sản phẩm
             </button>
             <button
-                onClick={() => navigate("/brands")}
-                className="hover:text-teal-100 transition font-medium">
+              onClick={() => navigate("/brands")}
+              className="hover:text-teal-100 transition font-medium">
               Thương hiệu
             </button>
             <button className="hover:text-teal-100 transition font-medium">
               Khuyến mãi
             </button>
             <button
-                onClick={() => navigate("/about")}
-                className="hover:text-teal-100 transition font-medium">
+              onClick={() => navigate("/about")}
+              className="hover:text-teal-100 transition font-medium">
               Về chúng tôi
             </button>
           </nav>
@@ -398,9 +398,9 @@ const [cartCount, setCartCount] = useState(0);
             </div>
 
             {/* WISHLIST */}
-            <Heart 
+            <Heart
               onClick={() => navigate("/wishlist")}
-              className="w-6 h-6 cursor-pointer hover:text-teal-100 transition" 
+              className="w-6 h-6 cursor-pointer hover:text-teal-100 transition"
               title="Sản phẩm yêu thích"
             />
 
@@ -434,15 +434,16 @@ const [cartCount, setCartCount] = useState(0);
 
               {isUserMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-white text-[#316f84] rounded-lg shadow-lg py-2 z-50">
-                  
+
                   {isLoggedIn ? (
                     // --- ĐÃ ĐĂNG NHẬP (Hiển thị Menu đầy đủ) ---
                     <>
-                      <button className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
+                      <button onClick={() => navigate("/order")}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-100 flex items-center gap-3">
                         <User className="w-4 h-4" /> Quản lý tài khoản của bạn
                       </button>
 
-                     
+
                       <button
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3"
@@ -455,8 +456,8 @@ const [cartCount, setCartCount] = useState(0);
                     <>
                       <button
                         onClick={() => {
-                            setIsUserMenuOpen(false);
-                            navigate("/login");
+                          setIsUserMenuOpen(false);
+                          navigate("/login");
                         }}
                         className="w-full text-left px-4 py-2.5 text-sm text-[#2B6377] hover:bg-gray-100 flex items-center gap-3"
                       >
@@ -464,8 +465,8 @@ const [cartCount, setCartCount] = useState(0);
                       </button>
                       <button
                         onClick={() => {
-                            setIsUserMenuOpen(false);
-                            navigate("/signup"); // Giả sử route Đăng ký là /signup
+                          setIsUserMenuOpen(false);
+                          navigate("/signup"); // Giả sử route Đăng ký là /signup
                         }}
                         className="w-full text-left px-4 py-2.5 text-sm text-[#2B6377] hover:bg-gray-100 flex items-center gap-3"
                       >
@@ -499,7 +500,7 @@ const [cartCount, setCartCount] = useState(0);
           <span>Dermatologist Tested</span>
         </div>
       </div>
-       <AiProductChat />
+      <AiProductChat />
     </>
   );
 }
