@@ -101,7 +101,7 @@ const CancelConfirmationModal = ({ isOpen, orderId, onConfirmCancel, onCancel })
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 font-sans">
+        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm  bg-opacity-50 font-sans">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 m-4">
                 <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2 flex items-center">
                     <AlertTriangle className="w-5 h-5 mr-2 text-red-500" /> Yêu cầu Hủy Đơn hàng #{orderId}
@@ -315,10 +315,10 @@ const OrderPage = () => {
                     <button
                         title="Đánh Giá"
                         className={`${baseClass} bg-green-500 text-white hover:bg-green-600`}
-                        onClick={() => navigate('/review-product', { 
-                            state: { 
-                                orderId: orderId 
-                            } 
+                        onClick={() => navigate('/review-product', {
+                            state: {
+                                orderId: orderId
+                            }
                         })}
                     >
                         Đánh Giá
