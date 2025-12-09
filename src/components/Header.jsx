@@ -25,7 +25,7 @@ export default function Header() {
   const { user, logout, isLoggedIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const displayUserName = user ? user.name : "Guest";
+  const displayUserName = user ? (user.fullName || user.name || 'Guest') : 'Guest';
 
   // --- STATE CART COUNT ---
 const [cartCount, setCartCount] = useState(0);

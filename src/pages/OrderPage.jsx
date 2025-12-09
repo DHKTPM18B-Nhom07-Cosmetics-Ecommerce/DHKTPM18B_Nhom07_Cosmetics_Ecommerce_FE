@@ -377,12 +377,12 @@ const OrderPage = () => {
                 <Link to="/order" className={`flex items-center p-2 ${TEAL_TEXT} ${TEAL_ACTIVE_BG} rounded-md font-medium transition`}>
                     <Package className="w-4 h-4 mr-2" /> Quản lý đơn hàng
                 </Link>
-                <a className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
+                <Link to="/profile" className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
                     <User className="w-4 h-4 mr-2" /> Thông tin cá nhân
-                </a>
-                <a className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
+                </Link>
+                <Link to="/addresses" className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
                     <MapPin className="w-4 h-4 mr-2" /> Địa chỉ giao hàng
-                </a>
+                </Link>
                 <a
                     onClick={logout}
                     className="cursor-pointer flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition mt-4 border-t pt-2"
