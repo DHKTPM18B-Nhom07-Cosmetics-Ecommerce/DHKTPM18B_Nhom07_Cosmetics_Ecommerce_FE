@@ -1,28 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Search, Pencil, AlertCircle, ToggleLeft, ToggleRight, Filter, RotateCcw, Eye, Folder, FolderOpen, CircleCheckBig } from 'lucide-react';
+import { Plus, Search, Pencil, AlertCircle, ToggleLeft, ToggleRight, Filter, RotateCcw, Eye, CircleCheckBig, Layers } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { getAllCategories, createCategory, updateCategory } from '../../services/categoryService';
+import { getAllBrands, createBrand, updateBrand } from '../../services/brandService';
 import { filterProducts } from '../../services/productFilterApi';
-import CategoryModal from '../../components/admin/CategoryModal';
-import CategoryDetailModal from '../../components/admin/CategoryDetailModal';
+import BrandModal from '../../components/admin/BrandModal';
+import BrandDetailModal from '../../components/admin/BrandDetailModal';
 import Pagination from '../../components/ui/Pagination';
 import ConfirmationModal from '../../components/ui/ConfirmationModal';
 
-export default function CategoryManagement() {
-  const [categories, setCategories] = useState([]);
-  const [filteredCategories, setFilteredCategories] = useState([]);
-  const [paginatedCategories, setPaginatedCategories] = useState([]);
-  const [categoryStats, setCategoryStats] = useState({}); // { [id]: { children: 0, products: 0 } }
+export default function BrandManagement() {
+  const [brands, setBrands] = useState([]);
+  const [filteredBrands, setFilteredBrands] = useState([]);
+  const [paginatedBrands, setPaginatedBrands] = useState([]);
+  const [brandCounts, setBrandCounts] = useState({}); // { [brandId]: count }
 
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all, active, inactive
-  const [levelFilter, setLevelFilter] = useState('all'); // all, level1, level2... derived dynamic
 
   // Applied State (Triggers Table Update)
   const [appliedSearch, setAppliedSearch] = useState('');
   const [appliedStatus, setAppliedStatus] = useState('all');
-  const [appliedLevel, setAppliedLevel] = useState('all');
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -38,11 +36,11 @@ export default function CategoryManagement() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentCategory, setCurrentCategory] = useState(null);
+  const [currentBrand, setCurrentBrand] = useState(null);
 
   // Detail Modal State
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [detailCategory, setDetailCategory] = useState(null);
+  const [detailBrand, setDetailBrand] = useState(null);
 
   // Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState({
@@ -55,11 +53,11 @@ export default function CategoryManagement() {
   });
 
   // Selection State
-  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [selectedBrands, setSelectedBrands] = useState([]);
   const [isAllSelected, setIsAllSelected] = useState(false);
 
   useEffect(() => {
-    fetchCategories();
+    fetchBrands();
 
     // Close suggestions when clicking outside
     function handleClickOutside(event) {
@@ -75,59 +73,42 @@ export default function CategoryManagement() {
 
   // Filter Logic (Triggered by Applied State)
   useEffect(() => {
-    let result = categories;
+    let result = brands;
 
-    // 1. Search
+    // 1. Search (using applied term)
     if (appliedSearch) {
       const lower = appliedSearch.toLowerCase();
-      result = result.filter(c =>
-        c.name.toLowerCase().includes(lower) ||
-        (c.parent && c.parent.name.toLowerCase().includes(lower))
+      result = result.filter(b =>
+        b.name.toLowerCase().includes(lower)
       );
     }
 
-    // 2. Status
+    // 2. Status Filter (using applied status)
     if (appliedStatus !== 'all') {
       const isActive = appliedStatus === 'active';
-      result = result.filter(c => {
-        const cActive = c.isActive !== false;
-        return cActive === isActive;
+      result = result.filter(b => {
+        const bActive = b.isActive !== false;
+        return bActive === isActive;
       });
     }
 
-    // 3. Level
-    if (appliedLevel !== 'all') {
-      const getDepth = (c) => {
-        let depth = 1;
-        let current = c;
-        while (current.parent) {
-          depth++;
-          current = current.parent;
-        }
-        return depth;
-      };
-
-      const targetLevel = parseInt(appliedLevel.replace('level', ''));
-      if (!isNaN(targetLevel)) {
-        result = result.filter(c => getDepth(c) === targetLevel);
-      }
-    }
-
-    setFilteredCategories(result);
+    setFilteredBrands(result);
     setCurrentPage(0);
-  }, [appliedSearch, appliedStatus, appliedLevel, categories]);
+  }, [appliedSearch, appliedStatus, brands]);
 
-  // Suggestion Logic
+  // Suggestion Logic (Immediate type-ahead)
   useEffect(() => {
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
-      const matches = categories.filter(c =>
-        c.name.toLowerCase().includes(lower) ||
-        (c.parent && c.parent.name.toLowerCase().includes(lower))
+      const matches = brands.filter(b =>
+        b.name.toLowerCase().includes(lower)
       );
+
       if (matches.length > 0) {
         setSuggestions(matches.slice(0, 5));
-        if (!isSuggestionClicked.current) setShowSuggestions(true);
+        if (!isSuggestionClicked.current) {
+          setShowSuggestions(true);
+        }
       } else {
         setSuggestions([]);
         setShowSuggestions(false);
@@ -136,176 +117,291 @@ export default function CategoryManagement() {
       setSuggestions([]);
       setShowSuggestions(false);
     }
+
     isSuggestionClicked.current = false;
-  }, [searchTerm, categories]);
+  }, [searchTerm, brands]);
 
   // Pagination Logic
   useEffect(() => {
     const start = currentPage * itemsPerPage;
     const end = start + itemsPerPage;
-    setPaginatedCategories(filteredCategories.slice(start, end));
-  }, [currentPage, filteredCategories]);
+    setPaginatedBrands(filteredBrands.slice(start, end));
+  }, [currentPage, filteredBrands]);
+
+  // Fetch Product Counts for Visible Brands
+  useEffect(() => {
+    const fetchCounts = async () => {
+      if (paginatedBrands.length === 0) return;
+
+      const counts = {};
+      await Promise.all(paginatedBrands.map(async (brand) => {
+        if (brandCounts[brand.id] !== undefined) return;
+        try {
+          const res = await filterProducts({ brands: brand.id, size: 1 });
+          counts[brand.id] = res.totalElements !== undefined ? res.totalElements : (Array.isArray(res) ? res.length : 0);
+        } catch (err) {
+          console.error("Error fetching count for brand", brand.id, err);
+          counts[brand.id] = 0;
+        }
+      }));
+
+      if (Object.keys(counts).length > 0) {
+        setBrandCounts(prev => ({ ...prev, ...counts }));
+      }
+    };
+
+    fetchCounts();
+  }, [paginatedBrands]);
 
   // Update isAllSelected
   useEffect(() => {
-    if (paginatedCategories.length > 0) {
-      setIsAllSelected(paginatedCategories.every(c => selectedCategories.includes(c.id)));
+    if (paginatedBrands.length > 0) {
+      const allVisibleSelected = paginatedBrands.every(b => selectedBrands.includes(b.id));
+      setIsAllSelected(allVisibleSelected);
     } else {
       setIsAllSelected(false);
     }
-  }, [paginatedCategories, selectedCategories]);
+  }, [paginatedBrands, selectedBrands]);
 
-  // Calculate Stats
-  useEffect(() => {
-    const calculateStats = async () => {
-      if (paginatedCategories.length === 0) return;
-      const updates = {};
-      paginatedCategories.forEach(cat => {
-        const childrenCount = categories.filter(c => c.parent && c.parent.id === cat.id).length;
-        updates[cat.id] = { children: childrenCount, products: 0 };
-      });
-
-      await Promise.all(paginatedCategories.map(async (cat) => {
-        const isLeaf = !categories.some(c => c.parent && c.parent.id === cat.id);
-        if (isLeaf) {
-          try {
-            const res = await filterProducts({ categories: String(cat.id), size: 1 });
-            const count = res.totalElements !== undefined ? res.totalElements : (Array.isArray(res) ? res.length : 0);
-            updates[cat.id].products = count;
-          } catch (e) { console.error(e); }
-        }
-      }));
-      setCategoryStats(prev => ({ ...prev, ...updates }));
-    };
-    calculateStats();
-  }, [paginatedCategories, categories]);
-
-  const fetchCategories = async () => {
+  const fetchBrands = async () => {
     setIsLoading(true);
     try {
-      const data = await getAllCategories();
-      setCategories(data.sort((a, b) => b.id - a.id));
-    } catch (e) { toast.error("Không thể tải danh sách danh mục"); }
-    finally { setIsLoading(false); }
+      const data = await getAllBrands();
+      console.log("Brands Data:", data);
+      // Sort by ID DESC (newest first)
+      const sorted = data.sort((a, b) => b.id - a.id);
+      setBrands(sorted);
+    } catch (error) {
+      toast.error("Không thể tải danh sách thương hiệu");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleApplyFilters = () => {
     setAppliedSearch(searchTerm);
     setAppliedStatus(statusFilter);
-    setAppliedLevel(levelFilter);
     setShowSuggestions(false);
   };
-  const handleSearchKeyDown = (e) => { if (e.key === 'Enter') handleApplyFilters(); };
-  const handleOpenModal = (cat = null) => { setCurrentCategory(cat); setIsModalOpen(true); };
-  const handleCloseModal = () => { setCurrentCategory(null); setIsModalOpen(false); };
-  const handleViewDetail = (cat) => { setDetailCategory(cat); setIsDetailModalOpen(true); };
 
-  const handleSaveCategory = async (data) => {
-    try {
-      if (data.id) { await updateCategory(data.id, data); toast.success("Cập nhật thành công!"); }
-      else { await createCategory(data); toast.success("Tạo mới thành công!"); }
-      handleCloseModal(); fetchCategories();
-    } catch (e) { console.error(e); }
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleApplyFilters();
+    }
   };
 
-  const handleToggleStatus = (cat) => {
-    const isActive = cat.isActive !== false;
+  const handleOpenModal = (brand = null) => {
+    setCurrentBrand(brand);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setCurrentBrand(null);
+    setIsModalOpen(false);
+  };
+
+  const handleViewDetail = (brand) => {
+    setDetailBrand(brand);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleSaveBrand = async (brandData) => {
+    try {
+      if (brandData.id) {
+        await updateBrand(brandData.id, brandData);
+        toast.success("Cập nhật thương hiệu thành công!");
+      } else {
+        await createBrand(brandData);
+        toast.success("Tạo thương hiệu mới thành công!");
+      }
+      handleCloseModal();
+      fetchBrands();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Helper: Check if brand has products
+  const checkBrandHasProducts = async (brandId) => {
+    try {
+      // Filter by this brand, size 1 just to check existence
+      const res = await filterProducts({ brands: brandId, size: 1 });
+      // Depending on API structure, it usually returns { content, totalElements } or just content array
+      // Based on typical Spring Data or similar:
+      if (res.totalElements !== undefined) return res.totalElements > 0;
+      // If it returns list directly
+      if (Array.isArray(res)) return res.length > 0;
+      if (res.content && Array.isArray(res.content)) return res.content.length > 0;
+
+      return false;
+    } catch (error) {
+      console.error("Error checking brand products:", error);
+      return false; // Fail safe? Or block? Let's assume false to allow disable if check fails, or maybe warn.
+    }
+  };
+
+  const handleToggleStatus = async (brand) => {
+    const isActive = brand.isActive !== false;
+
+    // [NEW] Check product count via API before disabling
+    if (isActive) {
+      const hasProducts = await checkBrandHasProducts(brand.id);
+      if (hasProducts) {
+        toast.error(`Không thể vô hiệu hóa thương hiệu "${brand.name}" vì đang có sản phẩm.`);
+        return;
+      }
+    }
+
     setConfirmModal({
       isOpen: true,
-      title: isActive ? "Vô hiệu hóa" : "Kích hoạt",
-      message: `Bạn có chắc chắn muốn ${isActive ? "vô hiệu hóa" : "kích hoạt"} danh mục "${cat.name}"?`,
+      title: isActive ? "Vô hiệu hóa thương hiệu" : "Kích hoạt thương hiệu",
+      message: isActive
+        ? `Bạn có chắc chắn muốn vô hiệu hóa thương hiệu "${brand.name}"?`
+        : `Bạn có chắc chắn muốn kích hoạt lại thương hiệu "${brand.name}"?`,
       variant: isActive ? "danger" : "success",
       confirmLabel: isActive ? "Vô hiệu hóa" : "Kích hoạt",
       onConfirm: async () => {
         try {
-          // Optimistic
           const newStatus = !isActive;
-          setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, isActive: newStatus } : c));
-          await updateCategory(cat.id, { ...cat, isActive: newStatus });
-          toast.success(`Đã ${newStatus ? 'kích hoạt' : 'vô hiệu hóa'} danh mục.`);
-        } catch (e) {
+          // Optimistic update
+          const updatedBrands = brands.map(b =>
+            b.id === brand.id ? { ...b, isActive: newStatus } : b
+          );
+          setBrands(updatedBrands);
+
+          await updateBrand(brand.id, { ...brand, isActive: newStatus });
+          toast.success(`Đã ${newStatus ? 'kích hoạt' : 'vô hiệu hóa'} thương hiệu "${brand.name}"`);
+        } catch (error) {
+          console.error(error);
           toast.error("Lỗi khi cập nhật trạng thái");
-          fetchCategories();
+          fetchBrands(); // Revert
         }
       }
     });
   };
 
-  const handleBulkDisable = () => {
-    const activeSelected = categories.filter(c => selectedCategories.includes(c.id) && c.isActive !== false);
-    if (!activeSelected.length) return;
+  const handleBulkDisable = async () => {
+    const activeSelected = brands.filter(b => selectedBrands.includes(b.id) && b.isActive !== false);
+    if (activeSelected.length === 0) return;
+
+    // Check all selected brands for products
+    const brandsWithProducts = [];
+    const brandsToDisable = [];
+
+    // This might be slow if many selected, but safe.
+    setIsLoading(true); // Show loading state briefly
+    await Promise.all(activeSelected.map(async (b) => {
+      const has = await checkBrandHasProducts(b.id);
+      if (has) brandsWithProducts.push(b);
+      else brandsToDisable.push(b);
+    }));
+    setIsLoading(false);
+
+    if (brandsWithProducts.length > 0) {
+      toast.error(`Không thể vô hiệu hóa ${brandsWithProducts.length} thương hiệu vì đang có sản phẩm. Chỉ vô hiệu hóa ${brandsToDisable.length} thương hiệu hợp lệ.`);
+    }
+
+    if (brandsToDisable.length === 0) return;
+
     setConfirmModal({
       isOpen: true,
       title: "Xác nhận vô hiệu hóa",
-      message: `Vô hiệu hóa ${activeSelected.length} danh mục đã chọn?`,
+      message: `Bạn có chắc chắn muốn vô hiệu hóa ${brandsToDisable.length} thương hiệu đã chọn?`,
       variant: "danger",
       confirmLabel: "Vô hiệu hóa",
       onConfirm: async () => {
         try {
-          setCategories(prev => prev.map(c => selectedCategories.includes(c.id) ? { ...c, isActive: false } : c));
-          setSelectedCategories([]);
-          await Promise.all(activeSelected.map(c => updateCategory(c.id, { ...c, isActive: false })));
-          toast.success(`Đã vô hiệu hóa ${activeSelected.length} danh mục.`);
-        } catch (e) { toast.error("Lỗi vô hiệu hóa"); fetchCategories(); }
+          // Optimistic UI Update
+          const updatedBrands = brands.map(b =>
+            selectedBrands.includes(b.id) && (brandsToDisable.some(d => d.id === b.id))
+              ? { ...b, isActive: false }
+              : b
+          );
+          setBrands(updatedBrands);
+          setSelectedBrands([]);
+
+          await Promise.all(brandsToDisable.map(b => updateBrand(b.id, { ...b, isActive: false })));
+          toast.success(`Đã vô hiệu hóa thành công ${brandsToDisable.length} thương hiệu.`);
+        } catch (error) {
+          console.error(error);
+          toast.error("Có lỗi xảy ra khi vô hiệu hóa thương hiệu.");
+          fetchBrands();
+        }
       }
     });
   };
 
   const handleBulkEnable = () => {
-    const inactiveSelected = categories.filter(c => selectedCategories.includes(c.id) && c.isActive === false);
-    if (!inactiveSelected.length) return;
+    const inactiveSelected = brands.filter(b => selectedBrands.includes(b.id) && b.isActive === false);
+    if (inactiveSelected.length === 0) return;
+
     setConfirmModal({
       isOpen: true,
       title: "Xác nhận kích hoạt",
-      message: `Kích hoạt lại ${inactiveSelected.length} danh mục đã chọn?`,
+      message: `Bạn có chắc chắn muốn kích hoạt lại ${inactiveSelected.length} thương hiệu đã chọn?`,
       variant: "success",
       confirmLabel: "Kích hoạt",
       onConfirm: async () => {
         try {
-          setCategories(prev => prev.map(c => selectedCategories.includes(c.id) ? { ...c, isActive: true } : c));
-          setSelectedCategories([]);
-          await Promise.all(inactiveSelected.map(c => updateCategory(c.id, { ...c, isActive: true })));
-          toast.success(`Đã kích hoạt ${inactiveSelected.length} danh mục.`);
-        } catch (e) { toast.error("Lỗi kích hoạt"); fetchCategories(); }
+          const updatedBrands = brands.map(b =>
+            selectedBrands.includes(b.id) ? { ...b, isActive: true } : b
+          );
+          setBrands(updatedBrands);
+          setSelectedBrands([]);
+
+          await Promise.all(inactiveSelected.map(b => updateBrand(b.id, { ...b, isActive: true })));
+          toast.success(`Đã kích hoạt thành công ${inactiveSelected.length} thương hiệu.`);
+        } catch (error) {
+          console.error(error);
+          toast.error("Có lỗi xảy ra khi kích hoạt thương hiệu.");
+          fetchBrands();
+        }
       }
     });
   };
 
-  const handlePageChange = (page) => setCurrentPage(page);
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
   const handleRefresh = () => {
-    setSearchTerm(''); setAppliedSearch('');
-    setStatusFilter('all'); setAppliedStatus('all');
-    setLevelFilter('all'); setAppliedLevel('all');
-    setCurrentPage(0); setSelectedCategories([]);
+    setSearchTerm('');
+    setStatusFilter('all');
+    setAppliedSearch('');
+    setAppliedStatus('all');
+    setCurrentPage(0);
+    setSelectedBrands([]);
+    fetchBrands();
   };
-  const handleSuggestionClick = (name) => {
+
+  const handleSuggestionClick = (brandName) => {
     isSuggestionClicked.current = true;
-    setSearchTerm(name); setAppliedSearch(name); setShowSuggestions(false);
+    setSearchTerm(brandName);
+    setAppliedSearch(brandName);
+    setShowSuggestions(false);
   };
+
   const handleSelectAll = (e) => {
-    const visibleIds = paginatedCategories.map(c => c.id);
-    if (e.target.checked) setSelectedCategories([...new Set([...selectedCategories, ...visibleIds])]);
-    else setSelectedCategories(selectedCategories.filter(id => !visibleIds.includes(id)));
-  };
-  const handleSelectCategory = (id) => {
-    setSelectedCategories(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  };
-
-  const getLevel = (cat) => {
-    let depth = 1; let current = cat;
-    while (current.parent && depth < 20) { depth++; current = current.parent; }
-    return depth;
+    if (e.target.checked) {
+      const visibleIds = paginatedBrands.map(b => b.id);
+      const newSelection = [...new Set([...selectedBrands, ...visibleIds])];
+      setSelectedBrands(newSelection);
+    } else {
+      const visibleIds = paginatedBrands.map(b => b.id);
+      const newSelection = selectedBrands.filter(id => !visibleIds.includes(id));
+      setSelectedBrands(newSelection);
+    }
   };
 
-  const LEVEL_COLORS = [
-    'bg-blue-100 text-blue-800 border-blue-200', 'bg-teal-100 text-teal-800 border-teal-200',
-    'bg-purple-100 text-purple-800 border-purple-200', 'bg-orange-100 text-orange-800 border-orange-200',
-    'bg-rose-100 text-rose-800 border-rose-200', 'bg-indigo-100 text-indigo-800 border-indigo-200',
-    'bg-pink-100 text-pink-800 border-pink-200', 'bg-amber-100 text-amber-800 border-amber-200',
-  ];
-  const getLevelColor = (level) => LEVEL_COLORS[(level - 1) % LEVEL_COLORS.length] || LEVEL_COLORS[0];
-  const maxDataLevel = categories.reduce((max, c) => Math.max(max, getLevel(c)), 1);
-  const levelOptions = Array.from({ length: maxDataLevel }, (_, i) => i + 1);
+  const handleSelectBrand = (id) => {
+    setSelectedBrands(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(item => item !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
 
   return (
     <div className="p-6 mx-auto space-y-6 bg-gray-50 rounded-2xl min-h-screen">
@@ -313,19 +409,18 @@ export default function CategoryManagement() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[#2B6377] flex items-center gap-2">
-            Quản lý Danh mục
+            Quản lý Thương hiệu
           </h1>
-          <p className="text-gray-500 mt-1">Quản lý phân cấp và hiển thị danh mục</p>
+          <p className="text-gray-500 mt-1">Danh sách các thương hiệu sản phẩm</p>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: "Tổng danh mục", value: categories.length, icon: Folder, color: "text-blue-600", bg: "bg-blue-100" },
-          { label: "Đang hoạt động", value: categories.filter(c => c.isActive !== false).length, icon: CircleCheckBig, color: "text-green-600", bg: "bg-green-100" },
-          { label: "Vô hiệu hóa", value: categories.filter(c => c.isActive === false).length, icon: AlertCircle, color: "text-red-600", bg: "bg-red-100" },
-          { label: "Danh mục gốc", value: categories.filter(c => !c.parent).length, icon: FolderOpen, color: "text-indigo-600", bg: "bg-indigo-100" },
+          { label: "Tổng thương hiệu", value: brands.length, icon: Layers, color: "text-blue-600", bg: "bg-blue-100" },
+          { label: "Đang hoạt động", value: brands.filter(b => b.isActive !== false).length, icon: CircleCheckBig, color: "text-green-600", bg: "bg-green-100" },
+          { label: "Vô hiệu hóa", value: brands.filter(b => b.isActive === false).length, icon: AlertCircle, color: "text-red-600", bg: "bg-red-100" },
         ].map((stat, index) => (
           <div key={index} className="rounded-2xl p-6 shadow-sm border border-gray-100 bg-[#D5E2E6]">
             <div className="flex items-center justify-between">
@@ -338,33 +433,32 @@ export default function CategoryManagement() {
               </div>
             </div>
           </div>
-        ))
-        }
-      </div >
+        ))}
+      </div>
 
       {/* Actions Bar */}
-      < div className="flex justify-end gap-3 mb-8" >
+      <div className="flex justify-end gap-3 mb-8">
         <button
           onClick={() => handleOpenModal()}
           className="bg-[#2B6377] flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-white shadow-md hover:shadow-lg hover:translate-y-0.5 hover:bg-[#2B6377]/80 transition"
         >
           <Plus className="w-5 h-5" />
-          Thêm danh mục
+          Thêm thương hiệu
         </button>
-      </div >
+      </div>
 
       {/* Filter / Search Bar */}
-      < div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8" >
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
         <div className="flex items-end gap-4 w-full flex-wrap">
 
           {/* Search Input */}
           <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Tìm kiếm danh mục</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Tìm kiếm thương hiệu</label>
             <div className="relative" ref={searchRef}>
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Nhập tên sản phẩm..."
+                placeholder="Nhập tên thương hiệu..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
@@ -381,15 +475,12 @@ export default function CategoryManagement() {
                       onClick={() => handleSuggestionClick(item.name)}
                     >
                       <img
-                        src={item.imageUrl || "https://placehold.co/40"}
+                        src={item.logo || item.imageUrl || "https://placehold.co/40"}
                         alt=""
                         className="w-8 h-8 rounded object-cover border border-gray-100"
                       />
                       <div>
                         <p className="text-sm font-medium text-gray-900 line-clamp-1">{item.name}</p>
-                        <p className="text-xs text-gray-500">
-                          {item.parent ? `Thuộc: ${item.parent.name}` : 'Danh mục gốc'}
-                        </p>
                       </div>
                     </div>
                   ))}
@@ -410,23 +501,6 @@ export default function CategoryManagement() {
                 <option value="all">Tất cả trạng thái</option>
                 <option value="active">Hoạt động</option>
                 <option value="inactive">Vô hiệu hóa</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Level Filter */}
-          <div className="w-44 shrink-0">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Cấp danh mục</label>
-            <div className="relative">
-              <select
-                value={levelFilter}
-                onChange={(e) => setLevelFilter(e.target.value)}
-                className="w-full pl-4 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#2B6377] appearance-none bg-white cursor-pointer"
-              >
-                <option value="all">Tất cả cấp</option>
-                {levelOptions.map(level => (
-                  <option key={level} value={`level${level}`}>Cấp {level}</option>
-                ))}
               </select>
             </div>
           </div>
@@ -452,36 +526,36 @@ export default function CategoryManagement() {
         </div>
 
         <div className="text-sm text-[#2B6377] whitespace-nowrap font-medium border-t border-gray-100 pt-3 mt-4">
-          Hiển thị <b>{filteredCategories.length}</b> danh mục
+          Hiển thị <b>{filteredBrands.length}</b> thương hiệu
         </div>
-      </div >
+      </div>
 
       {/* Bulk Actions */}
       {
-        selectedCategories.length > 0 && (
+        selectedBrands.length > 0 && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between mb-6 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-900">
-                Đã chọn: <span className="font-bold text-[#2B6377]">{selectedCategories.length}</span> danh mục
+                Đã chọn: <span className="font-bold text-[#2B6377]">{selectedBrands.length}</span> thương hiệu
               </span>
             </div>
             <div className="flex items-center gap-3">
-              {categories.some(c => selectedCategories.includes(c.id) && c.isActive === false) && (
+              {brands.some(b => selectedBrands.includes(b.id) && b.isActive === false) && (
                 <button
                   onClick={handleBulkEnable}
                   className="flex items-center gap-2 px-4 py-2 bg-white text-green-600 border border-green-200 rounded-lg hover:bg-green-50 hover:border-green-300 transition-colors shadow-sm"
                 >
                   <ToggleRight size={18} />
-                  Kích hoạt ({categories.filter(c => selectedCategories.includes(c.id) && c.isActive === false).length})
+                  Kích hoạt ({brands.filter(b => selectedBrands.includes(b.id) && b.isActive === false).length})
                 </button>
               )}
-              {categories.some(c => selectedCategories.includes(c.id) && c.isActive !== false) && (
+              {brands.some(b => selectedBrands.includes(b.id) && b.isActive !== false) && (
                 <button
                   onClick={handleBulkDisable}
                   className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors shadow-sm"
                 >
                   <ToggleLeft size={18} />
-                  Vô hiệu hóa ({categories.filter(c => selectedCategories.includes(c.id) && c.isActive !== false).length})
+                  Vô hiệu hóa ({brands.filter(b => selectedBrands.includes(b.id) && b.isActive !== false).length})
                 </button>
               )}
             </div>
@@ -503,10 +577,9 @@ export default function CategoryManagement() {
                     className="w-4 h-4 rounded border-gray-300 text-[#2B6377] focus:ring-[#2B6377]"
                   />
                 </th>
-                <th className="p-4 font-bold tracking-wider">Hình ảnh</th>
-                <th className="p-4 font-bold tracking-wider">Tên danh mục</th>
-                <th className="p-4 font-bold tracking-wider">Cấp danh mục</th>
-                <th className="p-4 font-bold tracking-wider">Danh mục cha</th>
+                <th className="p-4 font-bold tracking-wider">Logo</th>
+                <th className="p-4 font-bold tracking-wider">Tên thương hiệu</th>
+                <th className="p-4 font-bold tracking-wider">Mô tả</th>
                 <th className="p-4 font-bold tracking-wider text-center">Trạng thái</th>
                 <th className="p-4 font-bold tracking-wider text-right">Thao tác</th>
               </tr>
@@ -514,36 +587,35 @@ export default function CategoryManagement() {
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan="7" className="p-8 text-center text-gray-500">
+                  <td colSpan="6" className="p-8 text-center text-gray-500">
                     Đang tải dữ liệu...
                   </td>
                 </tr>
-              ) : paginatedCategories.length === 0 ? (
+              ) : paginatedBrands.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="p-12 text-center text-gray-500">
+                  <td colSpan="6" className="p-12 text-center text-gray-500">
                     <div className="flex flex-col items-center justify-center gap-3">
                       <AlertCircle size={40} className="text-gray-300" />
-                      <span className="text-lg font-medium text-gray-400">Chưa có danh mục nào phù hợp</span>
+                      <span className="text-lg font-medium text-gray-400">Chưa có thương hiệu nào phù hợp</span>
                     </div>
                   </td>
                 </tr>
               ) : (
-                paginatedCategories.map((cat, index) => {
-                  const isActive = cat.isActive !== false;
-                  const isSelected = selectedCategories.includes(cat.id);
-                  const level = getLevel(cat);
+                paginatedBrands.map((brand) => {
+                  const isActive = brand.isActive !== false;
+                  const isSelected = selectedBrands.includes(brand.id);
 
                   return (
                     <tr
-                      key={cat.id}
+                      key={brand.id}
                       className={`transition-colors cursor-pointer border-b last:border-0 ${isSelected ? "bg-sky-50" : isActive ? 'hover:bg-gray-50' : 'bg-gray-50 opacity-75'}`}
-                      onClick={() => handleSelectCategory(cat.id)}
+                      onClick={() => handleSelectBrand(brand.id)}
                     >
                       <td className="p-4">
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={() => handleSelectCategory(cat.id)}
+                          onChange={() => handleSelectBrand(brand.id)}
                           onClick={(e) => e.stopPropagation()}
                           className={`w-4 h-4 rounded border-gray-300 ${!isActive ? "text-gray-400" : "text-[#2B6377] focus:ring-[#2B6377]"}`}
                         />
@@ -551,44 +623,22 @@ export default function CategoryManagement() {
                       <td className="p-4">
                         <div className={`w-12 h-12 rounded-lg border border-gray-200 overflow-hidden bg-white p-1 ${!isActive ? 'grayscale' : ''}`}>
                           <img
-                            src={cat.imageUrl || "https://placehold.co/100?text=No+Img"}
-                            alt={cat.name}
+                            src={brand.logo || brand.imageUrl || "https://placehold.co/100?text=No+Img"}
+                            alt={brand.name}
                             className="w-full h-full object-contain"
                           />
                         </div>
                       </td>
                       <td className={`p-4 font-medium ${isActive ? 'text-gray-900' : 'text-gray-500 line-through'}`}>
                         <div className="flex flex-col">
-                          <span>{cat.name}</span>
-                          <div className="flex gap-2 text-[11px] font-normal text-gray-500">
-                            {categoryStats[cat.id]?.children > 0 && (
-                              <span>{categoryStats[cat.id].children} danh mục con</span>
-                            )}
-                            {/* Show product count only if it's a leaf (children == 0) */}
-                            {(!categoryStats[cat.id]?.children || categoryStats[cat.id]?.children === 0) && (
-                              <span>{categoryStats[cat.id]?.products || 0} sản phẩm</span>
-                            )}
-                          </div>
+                          <span>{brand.name}</span>
+                          <span className="text-[11px] font-normal text-gray-500">
+                            {brandCounts[brand.id] !== undefined ? `${brandCounts[brand.id]} sản phẩm` : '...'}
+                          </span>
                         </div>
                       </td>
-                      <td className="p-4">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full border border-opacity-50 font-semibold whitespace-nowrap ${getLevelColor(level)}`}>
-                          Cấp {level}
-                        </span>
-                      </td>
-                      <td className="p-4 text-gray-600">
-                        {cat.parent ? (
-                          <div className="flex flex-col gap-1">
-                            <span className={`inline-flex items-center w-fit px-2 py-0.5 rounded text-xs font-medium ${getLevelColor(getLevel(cat.parent))}`}>
-                              {cat.parent.name}
-                            </span>
-                            {cat.parent.parent && (
-                              <span className="text-[10px] text-gray-400 pl-1">Target: {cat.parent.parent.name}</span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 text-xs italic">Gốc</span>
-                        )}
+                      <td className="p-4 text-gray-600 max-w-xs truncate">
+                        {brand.description || <span className="text-gray-400 italic">Không có mô tả</span>}
                       </td>
                       <td className="p-4 text-center">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${isActive ? 'bg-green-100 text-green-700' : 'bg-gray-300 text-gray-700'}`}>
@@ -599,8 +649,8 @@ export default function CategoryManagement() {
                         <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                           {isActive && (
                             <button
-                              onClick={() => handleViewDetail(cat)}
-                              className="p-1.5 rounded-lg hover:bg-[#ccdfe3] text-[#2B6377] hover:text-[#235161] transition-colors"
+                              onClick={() => handleViewDetail(brand)}
+                              className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 hover:text-blue-700 transition-colors"
                               title="Xem chi tiết"
                             >
                               <Eye size={18} />
@@ -608,7 +658,7 @@ export default function CategoryManagement() {
                           )}
                           {isActive && (
                             <button
-                              onClick={() => handleOpenModal(cat)}
+                              onClick={() => handleOpenModal(brand)}
                               className="p-1.5 rounded-lg hover:bg-[#ccdfe3] text-amber-600 hover:text-amber-700 transition-colors"
                               title="Chỉnh sửa"
                             >
@@ -616,7 +666,7 @@ export default function CategoryManagement() {
                             </button>
                           )}
                           <button
-                            onClick={() => handleToggleStatus(cat)}
+                            onClick={() => handleToggleStatus(brand)}
                             className={`p-1.5 rounded-lg transition-colors hover:bg-[#ccdfe3] ${isActive ? 'text-green-600 hover:text-green-700' : 'text-gray-600 hover:text-gray-700'}`}
                             title={isActive ? "Vô hiệu hóa" : "Kích hoạt"}
                           >
@@ -632,30 +682,29 @@ export default function CategoryManagement() {
           </table>
         </div>
 
-        {filteredCategories.length > 0 && (
+        {filteredBrands.length > 0 && (
           <Pagination
             currentPage={currentPage}
-            totalPages={Math.ceil(filteredCategories.length / itemsPerPage)}
+            totalPages={Math.ceil(filteredBrands.length / itemsPerPage)}
             onPageChange={handlePageChange}
-            totalItems={filteredCategories.length}
+            totalItems={filteredBrands.length}
             itemsPerPage={itemsPerPage}
             className="border-0 border-t border-gray-200 rounded-none shadow-none"
           />
         )}
       </div>
 
-      <CategoryModal
+      <BrandModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        onSave={handleSaveCategory}
-        category={currentCategory}
+        onSave={handleSaveBrand}
+        brand={currentBrand}
       />
 
-      <CategoryDetailModal
+      <BrandDetailModal
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
-        category={detailCategory}
-        allCategories={categories}
+        brand={detailBrand}
       />
 
       <ConfirmationModal

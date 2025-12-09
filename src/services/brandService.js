@@ -9,3 +9,18 @@ export const getAllBrands = async () => {
     return [];
   }
 };
+
+export const createBrand = async (brandData) => {
+  const res = await api.post("/api/brands", brandData);
+  return res.data;
+};
+
+export const updateBrand = async (id, brandData) => {
+  const res = await api.put(`/api/brands/${id}`, brandData);
+  return res.data;
+};
+
+export const deleteBrand = async (id) => {
+  const res = await api.delete(`/api/brands/${id}`);
+  return res.data;
+};
