@@ -4,6 +4,7 @@ import {
   Route,
   useLocation,
 } from "react-router-dom";
+
 import { AuthProvider } from "./context/AuthContext";
 import ScrollToTop from "./components/ScrollToTop";
 import { ToastContainer } from "react-toastify";
@@ -12,7 +13,7 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import AdminLayout from "./components/admin/AdminLayout";
 
-// client pages
+// ===== CLIENT PAGES =====
 import SignupPage from "./pages/SignupPage";
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
@@ -30,10 +31,13 @@ import AddAddressPage from "./pages/AddAddressPage";
 import OrderPage from "./pages/OrderPage";
 import OrderDetailPage from "./pages/OrderDetailPage";
 import ProductReviewPage from "./pages/ProductReviewPage";
+import AddressPage from "./pages/AddressPage";
+import ProfilePage from "./pages/ProfilePage";
 import NotFound from "./pages/NotFound";
 
-// admin pages
+// ===== ADMIN PAGES =====
 import Dashboard from "./pages/admin/Dashboard";
+import Stats from "./pages/admin/Stats";
 import UserManagement from "./pages/admin/UserManagement";
 import AddEmployee from "./pages/admin/AddEmployee";
 import UserDetail from "./pages/admin/UserDetail";
@@ -48,7 +52,7 @@ import VoucherEditPage from "./pages/admin/VoucherEditPage";
 import "react-toastify/dist/ReactToastify.css";
 import "react-datepicker/dist/react-datepicker.css";
 
-/* ✅ COMPONENT BỌC */
+/* ✅ HEADER / FOOTER CHỈ CHO CLIENT */
 function LayoutWrapper({ children }) {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith("/admin");
@@ -70,7 +74,7 @@ export default function App() {
 
         <LayoutWrapper>
           <Routes>
-            {/* CLIENT */}
+            {/* ===== CLIENT ===== */}
             <Route path="/" element={<HomePage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/login" element={<LoginPage />} />
@@ -88,10 +92,13 @@ export default function App() {
             <Route path="/order" element={<OrderPage />} />
             <Route path="/orders/:orderId" element={<OrderDetailPage />} />
             <Route path="/review-product" element={<ProductReviewPage />} />
+            <Route path="/addresses" element={<AddressPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
 
-            {/* ADMIN */}
+            {/* ===== ADMIN ===== */}
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Dashboard />} />
+              <Route path="stats" element={<Stats />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="users/add" element={<AddEmployee />} />
               <Route path="users/:id" element={<UserDetail />} />
@@ -107,7 +114,7 @@ export default function App() {
               <Route path="vouchers/:id/edit" element={<VoucherEditPage />} />
             </Route>
 
-            {/* 404 */}
+            {/* ===== 404 ===== */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </LayoutWrapper>

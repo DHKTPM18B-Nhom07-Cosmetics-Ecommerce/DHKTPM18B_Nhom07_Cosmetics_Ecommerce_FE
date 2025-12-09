@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+// thông báo
+import { toast } from "react-toastify";
 
 import {
   getDefaultAddressForCurrentUser,
@@ -392,12 +394,13 @@ export default function CheckoutPage() {
   // ============
   const handleCheckout = async () => {
     if (!hasValidAddress) {
-      alert("Vui lòng thêm địa chỉ giao hàng để thanh toán!");
+      toast.warn("Vui lòng thêm địa chỉ giao hàng để thanh toán!");
+
       return;
     }
 
     if (!hasCartItems) {
-      alert("Giỏ hàng trống! Vui lòng thêm sản phẩm trước khi thanh toán.");
+      toast.warn("Giỏ hàng trống! Vui lòng thêm sản phẩm.");
       return;
     }
 
@@ -415,14 +418,14 @@ export default function CheckoutPage() {
         const fetchedCustomerId = await getCustomerIdByAccountId(accountId);
 
         if (!fetchedCustomerId) {
-          alert("Không tìm thấy thông tin khách hàng.");
+          toast.error("Không tìm thấy thông tin khách hàng.");
           return;
         }
 
         customerId = Number(fetchedCustomerId);
 
         if (isNaN(customerId)) {
-          alert("Customer ID không hợp lệ.");
+          toast.error("Customer ID không hợp lệ.");
           return;
         }
       } else {
@@ -469,7 +472,7 @@ export default function CheckoutPage() {
 
       // VALIDATE + NORMALIZE PHONE
       if (!addressInfo.shippingPhone) {
-        alert("Thiếu số điện thoại giao hàng");
+        toast.error("Thiếu số điện thoại giao hàng");
         return;
       }
 
@@ -480,7 +483,7 @@ export default function CheckoutPage() {
         addressInfo.shippingPhone.length < 9 ||
         addressInfo.shippingPhone.length > 12
       ) {
-        alert("Số điện thoại không hợp lệ");
+        toast.error("Số điện thoại không hợp lệ");
         return;
       }
 
@@ -525,7 +528,10 @@ export default function CheckoutPage() {
 
       const orderId = createdOrder?.id;
 
-      alert(`Đặt hàng thành công!${orderId ? ` Mã đơn: ${orderId}` : ""}`);
+      toast.success(
+        `Đặt hàng thành công${orderId ? ` • Mã đơn: ${orderId}` : ""}`,
+        { autoClose: 3000 }
+      );
 
       // CLEAR CART
       await clearOrderedItems(cartData.items);
@@ -548,10 +554,11 @@ export default function CheckoutPage() {
       }
     } catch (error) {
       console.error("Checkout error:", error);
-      alert(
+      toast.error(
         error.response?.data?.message ||
           error.message ||
-          "Đặt hàng thất bại. Vui lòng thử lại."
+          "Đặt hàng thất bại. Vui lòng thử lại.",
+        { autoClose: 3000 }
       );
     } finally {
       setIsSubmitting(false);

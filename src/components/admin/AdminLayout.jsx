@@ -12,6 +12,10 @@ const pathTranslations = {
   vouchers: "Mã giảm giá",
   create: "Thêm mới",
   edit: "Chỉnh sửa",
+  profile: "Hồ sơ cá nhân",
+  settings: "Cài đặt",
+  inventory: "Kho hàng",
+  stats: "Thống kê",
 };
 
 export default function AdminLayout() {
@@ -20,9 +24,10 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* HEADER */}
+      {/* HEADER ADMIN */}
       <HeaderNavbar />
 
+      {/* CHỪA CHỖ CHO HEADER FIXED */}
       <div className="pt-[72px]">
         {/* BREADCRUMB */}
         <div className="bg-white border-b px-6 py-2">
@@ -48,7 +53,7 @@ export default function AdminLayout() {
           </div>
         </div>
 
-        {/* CONTENT*/}
+        {/* CONTENT */}
         <main className="px-6 pt-4 pb-8">
           <Outlet />
         </main>

@@ -36,7 +36,7 @@ const transformGuestData = (localItems) => {
     };
 };
 
-// 2. Hàm map dữ liệu từ Backend (Giữ nguyên logic sửa ảnh hôm qua)
+// 2. Hàm map dữ liệu từ Backend 
 const transformCartData = (backendCart) => {
   if (!backendCart) return null;
   return {

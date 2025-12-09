@@ -191,7 +191,7 @@ const ProductItemDisplay = ({ item }) => {
 };
 
 // --- COMPONENT CHI TIẾT SẢN PHẨM (MỘT DÒNG) ---
-const OrderItemRow = ({ item }) => {
+const OrderItemRow = ({ item, orderStatus, orderId, onRateProduct, isReviewed }) => {
   const quantity = item.quantity;
   const unitPrice = parseFloat(item.unitPrice || 0);
   const discountAmount = parseFloat(item.discountAmount || 0);
@@ -227,6 +227,27 @@ const OrderItemRow = ({ item }) => {
       <div className="text-right w-1/5 font-bold text-gray-800">
         {formatCurrency(lineTotal)}
       </div>
+
+      {/* CỘT ĐÁNH GIÁ - Chỉ hiển thị khi đơn hàng đã hoàn thành */}
+      {orderStatus === 'DELIVERED' && (
+        <div className="w-1/6 text-center pl-2">
+          {isReviewed ? (
+            <button
+              disabled
+              className="inline-flex items-center justify-center px-3 py-1.5 bg-gray-200 border border-gray-300 text-gray-400 rounded-md text-sm font-medium cursor-not-allowed"
+            >
+              <Star className="w-4 h-4 mr-1" /> Đã đánh giá
+            </button>
+          ) : (
+            <button
+              onClick={() => onRateProduct(item)}
+              className="inline-flex items-center justify-center px-3 py-1.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md text-sm font-medium transition duration-150"
+            >
+              <Star className="w-4 h-4 mr-1" /> Đánh Giá
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -396,10 +417,64 @@ const OrderDetailPage = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [reviewedProducts, setReviewedProducts] = useState(new Set());
 
   // State cho modal
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [message, setMessage] = useState(null); // { type: 'success' | 'error', text: '...' }
+
+  // --- HÀM KIỂM TRA SẢN PHẨM ĐÃ ĐƯỢC ĐÁNH GIÁ ---
+  const checkReviewedProducts = async (customerId, orderDetails) => {
+    if (!customerId || !orderDetails || orderDetails.length === 0) {
+      return;
+    }
+
+    try {
+      const config = {
+        headers: {
+          Authorization: `Bearer ${userToken}`,
+        },
+      };
+
+      // Lấy danh sách đánh giá của khách hàng
+      const response = await axios.get(`http://localhost:8080/api/reviews/customer/${customerId}`, config);
+      
+      console.log('Reviews response:', response.data);
+      
+      // Kiểm tra nếu response.data là array
+      if (Array.isArray(response.data)) {
+        const reviews = response.data;
+        
+        // Tạo Set chứa các productId đã được đánh giá
+        const reviewedProductIds = new Set();
+        
+        reviews.forEach(review => {
+          // Log để debug
+          console.log('Review:', review);
+          
+          // Thử nhiều cách lấy productId
+          const productId = review.product?.id || review.productId;
+          
+          if (productId) {
+            reviewedProductIds.add(productId);
+            console.log('Added productId to reviewed set:', productId);
+          }
+        });
+
+        console.log('Reviewed Product IDs:', Array.from(reviewedProductIds));
+        console.log('Order Details:', orderDetails.map(item => ({
+          id: item.id,
+          productId: item.productVariant?.product?.id
+        })));
+
+        setReviewedProducts(reviewedProductIds);
+      }
+    } catch (err) {
+      console.error('Lỗi khi kiểm tra sản phẩm đã đánh giá:', err);
+      // Không làm gì nếu lỗi, chỉ log ra console
+      setReviewedProducts(new Set());
+    }
+  };
 
   // --- HÀM GỌI API LẤY CHI TIẾT ĐƠN HÀNG ---
   const fetchOrderDetail = useCallback(
@@ -458,6 +533,9 @@ const OrderDetailPage = () => {
         const finalData = mapApiData(response.data);
 
         setOrder(finalData);
+        
+        // Kiểm tra sản phẩm đã được đánh giá
+        await checkReviewedProducts(finalData.customer?.id, finalData.orderDetails);
       } catch (err) {
         console.error("Lỗi khi tải chi tiết đơn hàng:", err);
         const status = err.response?.status;
@@ -510,142 +588,123 @@ const OrderDetailPage = () => {
 
       // Cập nhật trạng thái hiển thị bằng dữ liệu trả về từ Backend
       setOrder(response.data);
-      setMessage({
-        type: "success",
-        text: `Yêu cầu hủy đơn hàng #${orderId} đã được gửi thành công. Đơn hàng sẽ được hủy sau khi nhân viên xác nhận.`,
-      });
+      setMessage({ type: 'success', text: `Yêu cầu hủy đơn hàng #${orderId} đã được gửi thành công. Đơn hàng sẽ được hủy sau khi nhân viên xác nhận. Lý do: ${cancelReason}` });
 
       // Re-fetch để cập nhật trạng thái mới nhất
       fetchOrderDetail(orderId);
     } catch (err) {
-      console.error("Lỗi khi gửi yêu cầu hủy đơn hàng:", err);
-      const errorMessage =
-        err.response?.data?.message ||
-        "Không thể hủy đơn hàng. Vui lòng kiểm tra trạng thái.";
-      setMessage({ type: "error", text: `Lỗi: ${errorMessage}` });
-    }
+            console.error('Lỗi khi gửi yêu cầu hủy đơn hàng:', err);
+            const errorMessage = err.response?.data?.message || 'Không thể hủy đơn hàng. Vui lòng kiểm tra trạng thái.';
+            setMessage({ type: 'error', text: `Lỗi: ${errorMessage}` });
+        }
   };
 
-  // 2. Khởi tạo Modal khi nhấn nút Hủy
-  const handleCancelOrder = () => {
-    // Chỉ cho phép hủy khi là PENDING
-    if (order.status !== "PENDING") {
-      setMessage({
-        type: "error",
-        text: 'Chỉ đơn hàng đang ở trạng thái "Chờ xử lý" mới có thể hủy.',
-      });
-      return;
-    }
 
-    if (!userToken) {
-      setMessage({
-        type: "error",
-        text: "Lỗi xác thực. Vui lòng đăng nhập lại.",
-      });
-      return;
-    }
+    // 2. Khởi tạo Modal khi nhấn nút Hủy
+    const handleCancelOrder = () => {
+        // Chỉ cho phép hủy khi là PENDING
+        if (order.status !== 'PENDING') {
+            setMessage({ type: 'error', text: 'Chỉ đơn hàng đang ở trạng thái "Chờ xử lý" mới có thể hủy.' });
+            return;
+        }
 
-    setIsCancelConfirmOpen(true);
-  };
+        if (!userToken) {
+            setMessage({ type: 'error', text: 'Lỗi xác thực. Vui lòng đăng nhập lại.' });
+            return;
+        }
 
-  const handleReorder = () => {
-    setMessage({
-      type: "info",
-      text: "Chức năng đặt lại đang được phát triển.",
-    });
-  };
+        setIsCancelConfirmOpen(true);
+    };
 
-  const handleReturn = () => {
-    setMessage({
-      type: "info",
-      text: "Chức năng yêu cầu trả hàng đang được phát triển.",
-    });
-  };
+    const handleReorder = () => {
+        setMessage({ type: 'info', text: 'Chức năng đặt lại đang được phát triển.' });
+    };
 
-  const handleRate = () => {
-    navigate("/review-product", {
-      state: {
-        orderId: orderId,
-      },
-    });
-  };
+    const handleReturn = () => {
+        setMessage({ type: 'info', text: 'Chức năng yêu cầu trả hàng đang được phát triển.' });
+    };
 
-  const renderActionButtons = (status) => {
-    const baseClass =
-      "font-semibold py-2 px-4 rounded-md transition duration-200 shadow-sm text-sm flex items-center justify-center";
+    const handleRate = () => {
+        navigate('/review-product', { 
+            state: { 
+                orderId: orderId 
+            } 
+        });
+    };
 
-    switch (status) {
-      case "PENDING":
-        // Nút Hủy khi là PENDING
+    const handleRateProduct = (item) => {
+        navigate('/review-product', { 
+            state: { 
+                orderId: orderId,
+                preSelectedProduct: item
+            } 
+        });
+    };
+
+
+    const renderActionButtons = (status) => {
+        const baseClass = 'font-semibold py-2 px-4 rounded-md transition duration-200 shadow-sm text-sm flex items-center justify-center';
+
+        switch (status) {
+            case 'PENDING':
+                // Nút Hủy khi là PENDING
+                return (
+                    <button
+                        onClick={handleCancelOrder} // Gọi hàm mở Modal
+                        className={`${baseClass} bg-red-600 text-white hover:bg-red-700`}
+                    >
+                        Yêu cầu Hủy
+                    </button>
+                );
+            case 'CONFIRMED':
+            case 'PROCESSING':
+            case 'SHIPPING':
+                // KHÔNG CÓ NÚT HỦY/MUA LẠI/TRẢ HÀNG khi đang trong quá trình vận chuyển
+                return <span className="text-gray-500 text-sm">Đang trong quy trình</span>;
+
+            case 'DELIVERED':
+                return (
+                    <div className="flex flex-wrap gap-3">
+                        <button
+                            onClick={handleReorder}
+                            className={`${baseClass} ${TEAL_BG} text-white hover:opacity-90`}
+                        >
+                            <ShoppingBag className="w-4 h-4 mr-2" /> Mua Lại
+                        </button>
+                        <button
+                            onClick={handleReturn}
+                            className={`${baseClass} bg-white border border-gray-300 text-gray-700 hover:bg-gray-100`}
+                        >
+                            <Repeat2 className="w-4 h-4 mr-2" /> Trả Hàng
+                        </button>
+                    </div>
+                );
+            case 'CANCELLED':
+            case 'RETURNED':
+            case 'REFUNDED':
+                return (
+                    <button
+                        onClick={handleReorder}
+                        className={`${baseClass} ${TEAL_BG} text-white hover:opacity-90`}
+                    >
+                        <ShoppingBag className="w-4 h-4 mr-2" /> Mua Lại
+                    </button>
+                );
+            default:
+                return <span className="text-gray-500 text-sm">Không có thao tác khả dụng</span>;
+        }
+    };
+    if (authLoading || loading) {
         return (
-          <button
-            onClick={handleCancelOrder} // Gọi hàm mở Modal
-            className={`${baseClass} bg-red-600 text-white hover:bg-red-700`}
-          >
-            Yêu cầu Hủy
-          </button>
-        );
-      case "CONFIRMED":
-      case "PROCESSING":
-      case "SHIPPING":
-        // KHÔNG CÓ NÚT HỦY/MUA LẠI/TRẢ HÀNG khi đang trong quá trình vận chuyển
-        return (
-          <span className="text-gray-500 text-sm">Đang trong quy trình</span>
-        );
-
-      case "DELIVERED":
-        return (
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={handleReorder}
-              className={`${baseClass} ${TEAL_BG} text-white hover:opacity-90`}
-            >
-              <ShoppingBag className="w-4 h-4 mr-2" /> Mua Lại
-            </button>
-            <button
-              onClick={handleReturn}
-              className={`${baseClass} bg-white border border-gray-300 text-gray-700 hover:bg-gray-100`}
-            >
-              <Repeat2 className="w-4 h-4 mr-2" /> Trả Hàng
-            </button>
-            <button
-              onClick={handleRate}
-              className={`${baseClass} bg-white border border-gray-300 text-gray-700 hover:bg-gray-100`}
-            >
-              <Star className="w-4 h-4 mr-2" /> Đánh Giá
-            </button>
-          </div>
-        );
-      case "CANCELLED":
-      case "RETURNED":
-      case "REFUNDED":
-        return (
-          <button
-            onClick={handleReorder}
-            className={`${baseClass} ${TEAL_BG} text-white hover:opacity-90`}
-          >
-            <ShoppingBag className="w-4 h-4 mr-2" /> Mua Lại
-          </button>
-        );
-      default:
-        return (
-          <span className="text-gray-500 text-sm">
-            Không có thao tác khả dụng
-          </span>
+            <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
+                <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16 text-center text-lg text-gray-600">
+                    Đang tải {authLoading ? 'thông tin xác thực' : 'chi tiết đơn hàng'}...
+                </div>
+            </div>
         );
     }
-  };
 
-  // --- Xử lý tải dữ liệu và lỗi (được giữ nguyên) ---
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
-        <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16 text-center text-lg text-gray-600">
-          Đang tải {authLoading ? "thông tin xác thực" : "chi tiết đơn hàng"}...
-        </div>
-      </div>
-    );
-  }
+
 
   if (error || !order) {
     return (
@@ -781,12 +840,27 @@ const OrderDetailPage = () => {
                 <div className="text-right w-1/5">Đơn Giá</div>
                 <div className="text-right w-1/5">Giảm Giá</div>
                 <div className="text-right w-1/5">Thành Tiền</div>
+                {order.status === 'DELIVERED' && (
+                  <div className="w-1/6 text-center">Thao tác</div>
+                )}
               </div>
 
               <div className="border-t border-gray-200 pt-2">
-                {orderItems.map((item) => (
-                  <OrderItemRow key={item.id} item={item} />
-                ))}
+                {orderItems.map((item) => {
+                  const productId = item.productVariant?.product?.id;
+                  const isReviewed = reviewedProducts.has(productId);
+                  
+                  return (
+                    <OrderItemRow 
+                      key={item.id} 
+                      item={item} 
+                      orderStatus={order.status}
+                      orderId={order.id}
+                      onRateProduct={handleRateProduct}
+                      isReviewed={isReviewed}
+                    />
+                  );
+                })}
               </div>
             </div>
 

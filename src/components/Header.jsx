@@ -25,48 +25,43 @@ export default function Header() {
   const { user, logout, isLoggedIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const displayUserName = user ? user.name : "Guest";
+  const displayUserName = user ? (user.fullName || user.name || 'Guest') : 'Guest';
 
-  // --- THÊM STATE CART COUNT ---
-  const [cartCount, setCartCount] = useState(0);
+  // --- STATE CART COUNT ---
+const [cartCount, setCartCount] = useState(0);
 
-  // --- HÀM CẬP NHẬT SỐ LƯỢNG ---
-  const updateCartCount = async () => {
-    // Nếu chưa đăng nhập thì không gọi API
-    const userStored = localStorage.getItem("user");
-    if (!userStored) {
-      setCartCount(0);
-      return;
-    }
-
-    try {
-      const cart = await getCartData();
-      if (cart && cart.items) {
-        // Tính tổng số lượng sản phẩm (quantity)
-        const count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
-        setCartCount(count);
-      } else {
-        setCartCount(0);
-      }
-    } catch (error) {
-      console.error("Lỗi lấy số lượng giỏ hàng", error);
-      setCartCount(0);
-    }
-  };
-
-  // --- USE EFFECT LẮNG NGHE SỰ KIỆN ---
-  useEffect(() => {
-    // 1. Gọi ngay khi load trang
-    updateCartCount();
-
-    // 2. Đăng ký lắng nghe sự kiện 'cart-updated' từ cartService
-    window.addEventListener("cart-updated", updateCartCount);
-
-    // 3. Cleanup khi component bị hủy
-    return () => {
-      window.removeEventListener("cart-updated", updateCartCount);
+    // --- HÀM CẬP NHẬT SỐ LƯỢNG (ĐÃ SỬA) ---
+    const updateCartCount = async () => {
+        try {
+            // Gọi getCartData() luôn (Service sẽ tự lo việc lấy từ DB hay Session)
+            const cart = await getCartData();
+            
+            if (cart && cart.items) {
+                // Tính tổng số lượng
+                const count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+                setCartCount(count);
+            } else {
+                setCartCount(0);
+            }
+        } catch (error) {
+            console.error("Lỗi lấy số lượng giỏ hàng", error);
+            setCartCount(0);
+        }
     };
-  }, [user]); // Chạy lại khi user thay đổi (đăng nhập/đăng xuất)
+
+    // --- USE EFFECT ---
+    useEffect(() => {
+        // 1. Gọi ngay khi load trang
+        updateCartCount();
+
+        // 2. Lắng nghe sự kiện
+        window.addEventListener('cart-updated', updateCartCount);
+
+        // 3. Cleanup
+        return () => {
+            window.removeEventListener('cart-updated', updateCartCount);
+        };
+    }, []); // Chỉ cần chạy 1 lần khi mount, logic bên trong tự xử lý user/guest
 
   const dropdownRef = useRef(null);
   const searchBoxRef = useRef(null);
@@ -249,7 +244,7 @@ export default function Header() {
   const handleLogout = () => {
     logout();
     setIsUserMenuOpen(false);
-    navigate("/products");
+    navigate("/");
   };
 
   // ==============================
@@ -263,11 +258,7 @@ export default function Header() {
             onClick={() => navigate("/")}
             className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition"
           >
-            <img 
-              src="/logo.png" 
-              alt="Logo" 
-              className="h-16 w-16 object-contain"
-            />
+
             <span className="text-2xl font-bold">EMBROSIA</span>
           </div>
 
