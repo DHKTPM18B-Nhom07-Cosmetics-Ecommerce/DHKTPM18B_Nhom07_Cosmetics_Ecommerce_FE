@@ -237,7 +237,7 @@ export default function HeaderNavbar() {
 
                 </div>
 
-                <div className="py-2">
+                {/* <div className="py-2">
                   <Link to="/admin/profile" className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-100 hover:text-[#2B6377] transition">
                     <User className="w-4 h-4" />
                     <span>Thông tin tài khoản</span>
@@ -246,7 +246,7 @@ export default function HeaderNavbar() {
                     <Settings className="w-4 h-4" />
                     <span>Cài đặt hệ thống</span>
                   </Link>
-                </div>
+                </div> */}
 
                 <div className="border-t my-1"></div>
 
