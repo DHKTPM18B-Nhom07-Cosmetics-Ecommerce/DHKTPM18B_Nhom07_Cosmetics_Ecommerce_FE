@@ -35,7 +35,7 @@ import NotFound from "./pages/NotFound";
 // admin pages
 import Dashboard from "./pages/admin/Dashboard";
 import UserManagement from "./pages/admin/UserManagement";
-import Stats from "./pages/admin/Stats.jsx"
+import Stats from "./pages/admin/Stats.jsx";
 import AddEmployee from "./pages/admin/AddEmployee";
 import UserDetail from "./pages/admin/UserDetail";
 import CategoryManagement from "./pages/admin/CategoryManagement";
@@ -64,8 +64,8 @@ function LayoutWrapper({ children }) {
   );
 }
 
-import AddressPage from './pages/AddressPage';
-import ProfilePage from './pages/ProfilePage';
+import AddressPage from "./pages/AddressPage";
+import ProfilePage from "./pages/ProfilePage";
 
 export default function App() {
   return (
