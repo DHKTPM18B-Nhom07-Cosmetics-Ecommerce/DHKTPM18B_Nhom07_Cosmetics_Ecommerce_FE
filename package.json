@@ -41,6 +41,7 @@
     "react-router-dom": "^7.10.1",
     "react-select": "^5.10.2",
     "react-toastify": "^11.0.5",
+    "recharts": "^3.5.1",
     "sass": "latest",
     "sass-embedded": "latest",
     "stylus": "latest",
