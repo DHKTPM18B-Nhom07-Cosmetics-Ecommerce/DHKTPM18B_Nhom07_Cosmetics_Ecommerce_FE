@@ -198,7 +198,11 @@ export default function ProductDetailPage() {
     : variants.length > 0
       ? variants[0].price
       : 0;
-  const currentStock = selectedSize ? selectedSize.quantity : 0;
+  const totalStock = variants.length > 0
+    ? variants.reduce((sum, v) => sum + (v.quantity || 0), 0)
+    : (product.quantity || 0);
+
+  const currentStock = selectedSize ? selectedSize.quantity : totalStock;
   const currentSold = selectedSize ? (selectedSize.sold || 0) : (product?.totalSold || 0);
 
   const handleSelectVariant = (variant) => {
@@ -224,6 +228,20 @@ export default function ProductDetailPage() {
                 <h1 className="text-lg font-bold text-gray-800 mb-2">
                   {product.name}
                 </h1>
+
+                {/* Stock Status Badge */}
+                {(() => {
+                  const overallStock = variants.length > 0
+                    ? variants.reduce((sum, v) => sum + (v.quantity || 0), 0)
+                    : (product.quantity || 0);
+
+                  if (overallStock === 0) {
+                    return <div className="text-red-600 font-bold mb-2 uppercase text-sm">(Tạm hết hàng)</div>;
+                  } else if (overallStock <= 10) {
+                    return <div className="text-orange-500 font-bold mb-2 uppercase text-sm">(Sắp hết hàng)</div>;
+                  }
+                  return null;
+                })()}
 
                 {(product.brandName || (product.brand && product.brand.name)) && (
                   <div
@@ -314,7 +332,8 @@ export default function ProductDetailPage() {
                     <div className="flex items-center gap-3 w-fit">
                       <button
                         onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                        className="w-8 h-8 border border-gray-300 rounded flex items-center justify-center hover:bg-gray-100 transition bg-white"
+                        disabled={currentStock === 0}
+                        className={`w-8 h-8 border border-gray-300 rounded flex items-center justify-center transition bg-white ${currentStock === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
                       >
                         −
                       </button>
@@ -325,43 +344,63 @@ export default function ProductDetailPage() {
                           setQuantity(Math.max(1, Number(e.target.value) || 1))
                         }
                         min="1"
-                        className="w-10 h-8 border border-gray-300 rounded text-center bg-white no-spinner text-sm"
+                        disabled={currentStock === 0}
+                        className={`w-10 h-8 border border-gray-300 rounded text-center bg-white no-spinner text-sm ${currentStock === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                       />
                       <button
                         onClick={() => setQuantity(quantity + 1)}
-                        className="w-8 h-8 border border-gray-300 rounded flex items-center justify-center hover:bg-gray-100 transition bg-white"
+                        disabled={currentStock === 0}
+                        className={`w-8 h-8 border border-gray-300 rounded flex items-center justify-center transition bg-white ${currentStock === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'}`}
                       >
                         +
                       </button>
                     </div>
                     <p className="text-sm text-gray-500 mt-2">
                       Kho: {currentStock}
+                      {currentStock === 0 ? (
+                        <span className="text-red-500 ml-1 font-medium">(Tạm hết hàng)</span>
+                      ) : currentStock <= 10 ? (
+                        <span className="text-orange-500 ml-1 font-medium">(Số lượng hàng trong kho thấp)</span>
+                      ) : null}
                     </p>
                   </div>
 
                   <div className="flex gap-2 mt-6">
-                    <button
-                      onClick={handleAddToCart}
-                      disabled={adding}
-                      className={`flex-1 px-2 py-2.5 rounded-lg font-bold transition flex items-center justify-center gap-2 h-12 whitespace-nowrap
-                      ${adding
-                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          : "text-[#2B6377] font-semibold border border-[#2B6377] rounded-lg hover:bg-[#2B6377] hover:text-white transition"
-                        }`}
-                    >
-                      {adding ? (
-                        <span>Processing...</span>
-                      ) : (
-                        <>
-                          <ShoppingCart className="w-5 h-5" />
-                          <span className="text-sm">Thêm vào giỏ</span>
-                        </>
-                      )}
-                    </button>
+                    {currentStock === 0 ? (
+                      <button
+                        disabled
+                        className="flex-1 px-4 py-2.5 rounded-lg font-bold bg-gray-300 text-gray-500 cursor-not-allowed border border-gray-300 h-12 text-sm uppercase"
+                      >
+                        Tạm hết hàng
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={handleAddToCart}
+                          disabled={adding}
+                          className={`flex-1 px-2 py-2.5 rounded-lg font-bold transition flex items-center justify-center gap-2 h-12 whitespace-nowrap
+                          ${adding
+                              ? "bg-gray-300 text-gray-500 cursor-not-allowed border border-gray-300"
+                              : "text-[#2B6377] font-semibold border border-[#2B6377] rounded-lg hover:bg-[#2B6377] hover:text-white transition"
+                            }`}
+                        >
+                          {adding ? (
+                            <span>Processing...</span>
+                          ) : (
+                            <>
+                              <ShoppingCart className="w-5 h-5" />
+                              <span className="text-sm">Thêm vào giỏ</span>
+                            </>
+                          )}
+                        </button>
 
-                    <button className="flex-1 bg-[#2B6377] text-white px-2 py-2.5 rounded-lg font-bold hover:bg-[#1f4654] transition flex items-center justify-center gap-2 h-12 shadow-sm hover:shadow-md whitespace-nowrap text-sm">
-                      Mua ngay
-                    </button>
+                        <button
+                          className="flex-1 px-2 py-2.5 rounded-lg font-bold transition flex items-center justify-center gap-2 h-12 shadow-sm whitespace-nowrap text-sm bg-[#2B6377] text-white hover:bg-[#1f4654] hover:shadow-md"
+                        >
+                          Mua ngay
+                        </button>
+                      </>
+                    )}
 
                     <button className="w-auto px-4 border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-[#ccdfe3] hover:border-[#2B6377] transition flex flex-col items-center justify-center gap-0.5 h-12 bg-white shrink-0 transition">
                       <Heart className="w-5 h-5" />
@@ -403,9 +442,6 @@ export default function ProductDetailPage() {
               <div className="text-center mt-4">
                 <button
                   onClick={() => {
-                    if (isExpanded && descriptionRef.current) {
-                      descriptionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
                     setIsExpanded(!isExpanded);
                   }}
                   className="mx-auto border border-[#2B6377] text-[#2B6377] px-8 py-2 rounded-[4px] font-semibold hover:bg-[#2B6377] hover:text-white transition-all duration-300 shadow-sm hover:shadow-md"

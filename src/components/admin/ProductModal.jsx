@@ -664,7 +664,11 @@ export default function ProductModal({ isOpen, onClose, onSave, product }) {
                                                                 {errors[`variant_${index}_price`] && <p className="text-red-500 text-xs mt-1">{errors[`variant_${index}_price`]}</p>}
                                                             </div>
                                                             <div>
-                                                                <label className="block text-sm font-medium text-gray-600 mb-1">Số lượng <span className="text-red-500">*</span></label>
+                                                                <label className="block text-sm font-medium text-gray-600 mb-1">
+                                                                    Số lượng <span className="text-red-500">*</span>
+                                                                    {Number(variant.quantity) === 0 && <span className="text-red-500 font-bold text-xs ml-2">(Tạm hết hàng)</span>}
+                                                                    {Number(variant.quantity) > 0 && Number(variant.quantity) <= 10 && <span className="text-orange-500 font-bold text-xs ml-2">(Sắp hết hàng)</span>}
+                                                                </label>
                                                                 <input
                                                                     type="number"
                                                                     min={0}

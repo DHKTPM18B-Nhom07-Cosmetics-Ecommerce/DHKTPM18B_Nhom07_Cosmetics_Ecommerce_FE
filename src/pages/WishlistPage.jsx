@@ -69,8 +69,8 @@ export default function WishlistPage() {
   };
 
   const handleViewProduct = (productId, variantId) => {
-    navigate(`/products/${productId}`, { 
-      state: { selectedVariantId: variantId } 
+    navigate(`/products/${productId}`, {
+      state: { selectedVariantId: variantId }
     });
   };
 
@@ -178,7 +178,7 @@ export default function WishlistPage() {
                   <div className="mb-3">
                     <ProductRating
                       rating={item.product.averageRating || 0}
-                      reviewCount={item.product.reviews?.length || 0}
+                      soldCount={item.product.totalSold || 0}
                     />
                   </div>
 
@@ -199,8 +199,8 @@ export default function WishlistPage() {
                   </button>
                 </div>
               </div>
-          );
-        })}
+            );
+          })}
         </div>
       </div>
 

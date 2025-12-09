@@ -135,8 +135,8 @@ export default function ProductCard({ product }) {
           }
           alt={product.name}
           className={`w-full aspect-square object-contain transition-all duration-500 ${product.images && product.images.length > 1
-              ? "group-hover:opacity-0"
-              : "group-hover:scale-105"
+            ? "group-hover:opacity-0"
+            : "group-hover:scale-105"
             }`}
         />
         {product.images && product.images.length > 1 && (
@@ -171,7 +171,7 @@ export default function ProductCard({ product }) {
         <div className="mb-3">
           <ProductRating
             rating={product.averageRating}
-            reviewCount={product.reviews?.length || 0}
+            soldCount={product.totalSold || 0}
           />
         </div>
 

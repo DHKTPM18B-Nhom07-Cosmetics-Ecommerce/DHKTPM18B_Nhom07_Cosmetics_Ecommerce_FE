@@ -857,7 +857,7 @@ const ProductManagement = () => {
                 <th className="p-4 font-bold tracking-wider">Sản phẩm</th>
                 <th className="p-4 font-bold tracking-wider">Danh mục</th>
                 <th className="p-4 font-bold tracking-wider">Giá</th>
-                <th className="p-4 font-bold tracking-wider">Số lượng</th>
+                <th className="p-4 font-bold tracking-wider">Tổng số lượng</th>
                 <th className="p-4 font-bold tracking-wider">Đã bán</th>
                 <th className="p-4 font-bold tracking-wider text-center">Trạng thái</th>
                 <th className="p-4 font-bold tracking-wider">Ngày tạo</th>
@@ -905,9 +905,37 @@ const ProductManagement = () => {
                             className="w-12 h-12 rounded-md object-contain border border-gray-200"
                             onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/50"; }}
                           />
-                          <div className="max-w-xs">
-                            <p className={`font-medium line-clamp-1 ${isDimmed ? "line-through text-gray-500" : "text-gray-900"}`}>{product.name}</p>
-                            <p className="text-xs text-[#2B6377] font-semibold">{product.brandName || "Chưa có thương hiệu"}</p>
+                          <div className="flex flex-col">
+                            <span className={`font-semibold text-gray-800 ${isDimmed ? "line-through text-gray-400" : ""}`}>{product.name}</span>
+
+
+                            {/* Variant Stats */}
+                            {!isInactive && product.variants && product.variants.length > 0 && (
+                              <div className="flex flex-col mt-0.5 gap-0.5">
+                                <span className="text-[10px] text-gray-500 font-medium">
+                                  ({product.variants.length} biến thể)
+                                </span>
+                                {(() => {
+                                  const oosCount = product.variants.filter(v => v.quantity === 0).length;
+                                  const lowStockCount = product.variants.filter(v => v.quantity > 0 && v.quantity <= 10).length;
+
+                                  return (
+                                    <>
+                                      {oosCount > 0 && (
+                                        <span className="text-[10px] text-red-500 font-bold">
+                                          ({oosCount} biến thể hết hàng)
+                                        </span>
+                                      )}
+                                      {lowStockCount > 0 && (
+                                        <span className="text-[10px] text-orange-500 font-bold">
+                                          ({lowStockCount} biến thể sắp hết hàng)
+                                        </span>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -915,22 +943,26 @@ const ProductManagement = () => {
                       <td className={`p-4 ${isDimmed ? "line-through opacity-60" : ""}`}>
                         <div className="flex flex-col">
                           <span className={`font-medium ${isDimmed ? "text-gray-500" : "text-[#2B6377]"}`}>
-                            {product.minPrice === product.maxPrice
-                              ? new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(product.minPrice || 0)
-                              : `${new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(product.minPrice || 0)} - ${new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(product.maxPrice || 0)}`
-                            }
+                            {product.minPrice === product.maxPrice ? (
+                              new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(product.minPrice || 0)
+                            ) : (
+                              <div className="flex flex-col">
+                                <span>{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(product.minPrice || 0)}</span>
+                                <span>{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(product.maxPrice || 0)}</span>
+                              </div>
+                            )}
                           </span>
                         </div>
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
                           <span className={`font-medium ${isDimmed
-                              ? "line-through text-gray-400"
-                              : isOutOfStock
-                                ? "text-red-600 bg-red-50 px-2 py-0.5 rounded-md border border-red-100"
-                                : isLowStock
-                                  ? "text-yellow-700 bg-yellow-50 px-2 py-0.5 rounded-md border border-yellow-100"
-                                  : "text-gray-700"
+                            ? "line-through text-gray-400"
+                            : isOutOfStock
+                              ? "text-red-600 bg-red-50 px-2 py-0.5 rounded-md border border-red-100"
+                              : isLowStock
+                                ? "text-yellow-700 bg-yellow-50 px-2 py-0.5 rounded-md border border-yellow-100"
+                                : "text-gray-700"
                             }`}>
                             {product.quantity}
                           </span>
@@ -939,12 +971,12 @@ const ProductManagement = () => {
                       <td className={`p-4 font-medium ${isDimmed ? "line-through text-gray-400" : "text-gray-900"}`}>{new Intl.NumberFormat("vi-VN").format(product.totalSold || 0)}</td>
                       <td className="p-4 text-center">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${isInactive
-                            ? "bg-gray-300 text-gray-700"
-                            : isOutOfStock
-                              ? "bg-red-100 text-red-700"
-                              : isLowStock
-                                ? "bg-yellow-100 text-yellow-700"
-                                : "bg-green-100 text-green-700"
+                          ? "bg-gray-300 text-gray-700"
+                          : isOutOfStock
+                            ? "bg-red-100 text-red-700"
+                            : isLowStock
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-green-100 text-green-700"
                           }`}>
                           {isInactive
                             ? product.status
@@ -994,7 +1026,7 @@ const ProductManagement = () => {
           className="border-0 border-t border-gray-200 rounded-none shadow-none"
         />
       </div>
-    </div>
+    </div >
   );
 };
 
