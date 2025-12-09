@@ -10,6 +10,7 @@ const ProductReviewPage = () => {
     const location = useLocation();
     
     const orderId = location.state?.orderId;
+    const preSelectedProduct = location.state?.preSelectedProduct;
     
     // States
     const [rating, setRating] = useState(0);
@@ -35,10 +36,16 @@ const ProductReviewPage = () => {
                 });
                 setOrderDetails(response.data);
                 console.log('Order Details:', response.data);
+                
+                // Ưu tiên sản phẩm được chọn từ trang chi tiết đơn hàng
+                if (preSelectedProduct) {
+                    setSelectedProduct(preSelectedProduct);
+                    console.log('Pre-Selected Product:', preSelectedProduct);
+                } 
                 // Tự động chọn sản phẩm đầu tiên nếu chỉ có 1 sản phẩm
-                if (response.data.orderDetails?.length === 1) {
+                else if (response.data.orderDetails?.length === 1) {
                     setSelectedProduct(response.data.orderDetails[0]);
-                    console.log('Selected Product:', response.data.orderDetails[0]);
+                    console.log('Auto-Selected Product:', response.data.orderDetails[0]);
                 }
                 setLoading(false);
             } catch (error) {
@@ -49,7 +56,7 @@ const ProductReviewPage = () => {
         };
 
         fetchOrderDetails();
-    }, [orderId, navigate]);
+    }, [orderId, navigate, preSelectedProduct]);
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('vi-VN', {
@@ -104,7 +111,7 @@ const ProductReviewPage = () => {
             });
             
             toast.success('Gửi đánh giá thành công!');
-            navigate('/order');
+            navigate(`/orders/${orderId}`);
         } catch (error) {
             toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi gửi đánh giá');
         }
@@ -171,8 +178,8 @@ const ProductReviewPage = () => {
                     <h2 className="text-2xl font-bold text-[#2C6B6E] mb-6">ĐÁNH GIÁ SẢN PHẨM</h2>
                     <p className="text-gray-600 mb-6">Chia sẻ trải nghiệm của bạn về sản phẩm</p>
 
-                    {/* Danh sách sản phẩm trong đơn hàng */}
-                    {orderDetails.orderDetails && orderDetails.orderDetails.length > 1 && (
+                    {/* Danh sách sản phẩm trong đơn hàng - Chỉ hiển thị nếu KHÔNG có preSelectedProduct */}
+                    {!preSelectedProduct && orderDetails.orderDetails && orderDetails.orderDetails.length > 1 && (
                         <div className="mb-6">
                             <h3 className="font-semibold mb-3">Chọn sản phẩm để đánh giá</h3>
                             <div className="space-y-2">

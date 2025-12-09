@@ -101,7 +101,7 @@ const CancelConfirmationModal = ({ isOpen, orderId, onConfirmCancel, onCancel })
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm  bg-opacity-50 font-sans">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 font-sans">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 m-4">
                 <h3 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2 flex items-center">
                     <AlertTriangle className="w-5 h-5 mr-2 text-red-500" /> Yêu cầu Hủy Đơn hàng #{orderId}
@@ -310,20 +310,6 @@ const OrderPage = () => {
                     </button>
                 );
 
-            case 'DELIVERED':
-                return (
-                    <button
-                        title="Đánh Giá"
-                        className={`${baseClass} bg-green-500 text-white hover:bg-green-600`}
-                        onClick={() => navigate('/review-product', {
-                            state: {
-                                orderId: orderId
-                            }
-                        })}
-                    >
-                        Đánh Giá
-                    </button>
-                );
 
             case 'CANCELLED':
                 return (
@@ -341,8 +327,7 @@ const OrderPage = () => {
             case 'SHIPPING':
                 return <span className="w-28 inline-block text-gray-500 text-xs">Đang trong quy trình</span>;
 
-            default:
-                return <span className="w-28 inline-block text-gray-500 text-xs">Không có thao tác</span>;
+        
         }
     };
 
@@ -377,12 +362,12 @@ const OrderPage = () => {
                 <Link to="/order" className={`flex items-center p-2 ${TEAL_TEXT} ${TEAL_ACTIVE_BG} rounded-md font-medium transition`}>
                     <Package className="w-4 h-4 mr-2" /> Quản lý đơn hàng
                 </Link>
-                <a className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
+                <Link to="/profile" className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
                     <User className="w-4 h-4 mr-2" /> Thông tin cá nhân
-                </a>
-                <a className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
+                </Link>
+                <Link to="/addresses" className={`flex items-center p-2 text-gray-700 ${TEAL_HOVER_BG} rounded-md transition`}>
                     <MapPin className="w-4 h-4 mr-2" /> Địa chỉ giao hàng
-                </a>
+                </Link>
                 <a
                     onClick={logout}
                     className="cursor-pointer flex items-center p-2 text-gray-700 hover:bg-red-50 rounded-md transition mt-4 border-t pt-2"

@@ -191,7 +191,7 @@ const ProductItemDisplay = ({ item }) => {
 };
 
 // --- COMPONENT CHI TIẾT SẢN PHẨM (MỘT DÒNG) ---
-const OrderItemRow = ({ item }) => {
+const OrderItemRow = ({ item, orderStatus, orderId, onRateProduct, isReviewed }) => {
   const quantity = item.quantity;
   const unitPrice = parseFloat(item.unitPrice || 0);
   const discountAmount = parseFloat(item.discountAmount || 0);
@@ -227,6 +227,27 @@ const OrderItemRow = ({ item }) => {
       <div className="text-right w-1/5 font-bold text-gray-800">
         {formatCurrency(lineTotal)}
       </div>
+
+      {/* CỘT ĐÁNH GIÁ - Chỉ hiển thị khi đơn hàng đã hoàn thành */}
+      {orderStatus === 'DELIVERED' && (
+        <div className="w-1/6 text-center pl-2">
+          {isReviewed ? (
+            <button
+              disabled
+              className="inline-flex items-center justify-center px-3 py-1.5 bg-gray-200 border border-gray-300 text-gray-400 rounded-md text-sm font-medium cursor-not-allowed"
+            >
+              <Star className="w-4 h-4 mr-1" /> Đã đánh giá
+            </button>
+          ) : (
+            <button
+              onClick={() => onRateProduct(item)}
+              className="inline-flex items-center justify-center px-3 py-1.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-md text-sm font-medium transition duration-150"
+            >
+              <Star className="w-4 h-4 mr-1" /> Đánh Giá
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -396,10 +417,64 @@ const OrderDetailPage = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [reviewedProducts, setReviewedProducts] = useState(new Set());
 
   // State cho modal
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [message, setMessage] = useState(null); // { type: 'success' | 'error', text: '...' }
+
+  // --- HÀM KIỂM TRA SẢN PHẨM ĐÃ ĐƯỢC ĐÁNH GIÁ ---
+  const checkReviewedProducts = async (customerId, orderDetails) => {
+    if (!customerId || !orderDetails || orderDetails.length === 0) {
+      return;
+    }
+
+    try {
+      const config = {
+        headers: {
+          Authorization: `Bearer ${userToken}`,
+        },
+      };
+
+      // Lấy danh sách đánh giá của khách hàng
+      const response = await axios.get(`http://localhost:8080/api/reviews/customer/${customerId}`, config);
+      
+      console.log('Reviews response:', response.data);
+      
+      // Kiểm tra nếu response.data là array
+      if (Array.isArray(response.data)) {
+        const reviews = response.data;
+        
+        // Tạo Set chứa các productId đã được đánh giá
+        const reviewedProductIds = new Set();
+        
+        reviews.forEach(review => {
+          // Log để debug
+          console.log('Review:', review);
+          
+          // Thử nhiều cách lấy productId
+          const productId = review.product?.id || review.productId;
+          
+          if (productId) {
+            reviewedProductIds.add(productId);
+            console.log('Added productId to reviewed set:', productId);
+          }
+        });
+
+        console.log('Reviewed Product IDs:', Array.from(reviewedProductIds));
+        console.log('Order Details:', orderDetails.map(item => ({
+          id: item.id,
+          productId: item.productVariant?.product?.id
+        })));
+
+        setReviewedProducts(reviewedProductIds);
+      }
+    } catch (err) {
+      console.error('Lỗi khi kiểm tra sản phẩm đã đánh giá:', err);
+      // Không làm gì nếu lỗi, chỉ log ra console
+      setReviewedProducts(new Set());
+    }
+  };
 
   // --- HÀM GỌI API LẤY CHI TIẾT ĐƠN HÀNG ---
   const fetchOrderDetail = useCallback(
@@ -458,6 +533,9 @@ const OrderDetailPage = () => {
         const finalData = mapApiData(response.data);
 
         setOrder(finalData);
+        
+        // Kiểm tra sản phẩm đã được đánh giá
+        await checkReviewedProducts(finalData.customer?.id, finalData.orderDetails);
       } catch (err) {
         console.error("Lỗi khi tải chi tiết đơn hàng:", err);
         const status = err.response?.status;
@@ -554,6 +632,15 @@ const OrderDetailPage = () => {
         });
     };
 
+    const handleRateProduct = (item) => {
+        navigate('/review-product', { 
+            state: { 
+                orderId: orderId,
+                preSelectedProduct: item
+            } 
+        });
+    };
+
 
     const renderActionButtons = (status) => {
         const baseClass = 'font-semibold py-2 px-4 rounded-md transition duration-200 shadow-sm text-sm flex items-center justify-center';
@@ -589,12 +676,6 @@ const OrderDetailPage = () => {
                             className={`${baseClass} bg-white border border-gray-300 text-gray-700 hover:bg-gray-100`}
                         >
                             <Repeat2 className="w-4 h-4 mr-2" /> Trả Hàng
-                        </button>
-                        <button
-                            onClick={handleRate}
-                            className={`${baseClass} bg-white border border-gray-300 text-gray-700 hover:bg-gray-100`}
-                        >
-                            <Star className="w-4 h-4 mr-2" /> Đánh Giá
                         </button>
                     </div>
                 );
@@ -759,12 +840,27 @@ const OrderDetailPage = () => {
                 <div className="text-right w-1/5">Đơn Giá</div>
                 <div className="text-right w-1/5">Giảm Giá</div>
                 <div className="text-right w-1/5">Thành Tiền</div>
+                {order.status === 'DELIVERED' && (
+                  <div className="w-1/6 text-center">Thao tác</div>
+                )}
               </div>
 
               <div className="border-t border-gray-200 pt-2">
-                {orderItems.map((item) => (
-                  <OrderItemRow key={item.id} item={item} />
-                ))}
+                {orderItems.map((item) => {
+                  const productId = item.productVariant?.product?.id;
+                  const isReviewed = reviewedProducts.has(productId);
+                  
+                  return (
+                    <OrderItemRow 
+                      key={item.id} 
+                      item={item} 
+                      orderStatus={order.status}
+                      orderId={order.id}
+                      onRateProduct={handleRateProduct}
+                      isReviewed={isReviewed}
+                    />
+                  );
+                })}
               </div>
             </div>
 

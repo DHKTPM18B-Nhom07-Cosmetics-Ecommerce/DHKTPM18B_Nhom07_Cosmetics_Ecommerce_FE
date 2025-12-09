@@ -431,13 +431,7 @@ export default function ProductDetailPage() {
                       </>
                     )}
                   </button>
-                  <button className="flex-1 bg-[#2B6377] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#1f4654] transition flex items-center justify-center gap-2 text-sm">
-                    Mua ngay
-                  </button>
-                  <button className="flex-1 border-2 border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:border-[#2B6377] hover:text-[#2B6377] transition flex items-center justify-center gap-2">
-                    <Heart className="w-5 h-5" />
-                    Yêu thích
-                  </button>
+                  
                 </div>
               </div>
             </div>
