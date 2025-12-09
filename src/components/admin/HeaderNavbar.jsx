@@ -9,7 +9,7 @@ export default function HeaderNavbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  
+
   // State quản lý Dropdown & Thông báo
   const [alerts, setAlerts] = useState([]);
   const [showNotification, setShowNotification] = useState(false);
@@ -110,8 +110,8 @@ export default function HeaderNavbar() {
                 key={item.name}
                 to={item.path}
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition duration-200 ${(location.pathname.startsWith(item.path) && item.path !== '/admin') || location.pathname === item.path
-                    ? 'bg-white/15 text-white shadow-inner'
-                    : 'text-gray-200 hover:bg-white/10 hover:text-white'
+                  ? 'bg-white/15 text-white shadow-inner'
+                  : 'text-gray-200 hover:bg-white/10 hover:text-white'
                   }`}
               >
                 {item.name}
