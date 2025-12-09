@@ -3,10 +3,12 @@ import { Bell, Search, ChevronDown, User, LogOut, Settings, AlertTriangle } from
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { getSystemAlerts } from '../../services/api';
+import { useAuth } from "../../context/AuthContext";
 
 export default function HeaderNavbar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   
   // State quản lý Dropdown & Thông báo
   const [alerts, setAlerts] = useState([]);
@@ -87,8 +89,7 @@ export default function HeaderNavbar() {
 
   // --- 4. HÀM ĐĂNG XUẤT ---
   const handleLogout = () => {
-    localStorage.removeItem('token'); 
-    localStorage.removeItem('user');
+    logout();
     navigate('/login');
   };
 
