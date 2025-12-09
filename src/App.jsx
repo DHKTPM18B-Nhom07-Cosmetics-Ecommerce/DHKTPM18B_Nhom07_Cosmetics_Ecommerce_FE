@@ -42,6 +42,7 @@ import OrderSuccessPage from "./pages/OrderSuccessPage";
 import WishlistPage from "./pages/WishlistPage";
 
 import AddressPage from './pages/AddressPage';
+import ProfilePage from './pages/ProfilePage';
 
 export default function App() {
   return (
@@ -73,6 +74,7 @@ export default function App() {
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />
           <Route path="/review-product" element={<ProductReviewPage />} />
           <Route path="/addresses" element={<AddressPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
 
           {/* Admin */}
           <Route path="/admin" element={<AdminLayout />}>
