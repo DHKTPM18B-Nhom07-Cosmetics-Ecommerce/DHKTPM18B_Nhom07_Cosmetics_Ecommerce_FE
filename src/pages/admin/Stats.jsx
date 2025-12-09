@@ -113,7 +113,7 @@ const Stats = () => {
     const adminToken = user?.token;
     const userRole = user?.role;
 
-    const isAuthorized = userRole === 'ADMIN' || userRole === 'EMPLOYEE';
+    const isAuthorized = userRole === 'ADMIN';
 
     // --- State Quản lý Dữ liệu ---
     const [salesData, setSalesData] = useState([]); 
@@ -242,7 +242,7 @@ const Stats = () => {
         return (
             <div className="p-8 bg-white rounded-lg shadow-md max-w-xl mx-auto mt-16 text-center">
                 <h2 className="text-xl font-bold text-red-600 mb-4">Không có quyền truy cập</h2>
-                <p className="text-gray-700">Bạn cần đăng nhập bằng tài khoản Quản trị viên hoặc Nhân viên để xem trang này.</p>
+                <p className="text-gray-700">Bạn cần đăng nhập bằng tài khoản Quản trị viên để xem trang này.</p>
             </div>
         );
     }
