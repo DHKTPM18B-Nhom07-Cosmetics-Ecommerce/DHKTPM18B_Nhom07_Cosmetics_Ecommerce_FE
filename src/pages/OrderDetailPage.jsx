@@ -613,8 +613,6 @@ const OrderDetailPage = () => {
                 return <span className="text-gray-500 text-sm">Không có thao tác khả dụng</span>;
         }
     };
-
-    // --- Xử lý tải dữ liệu và lỗi (được giữ nguyên) ---
     if (authLoading || loading) {
         return (
             <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
@@ -625,115 +623,7 @@ const OrderDetailPage = () => {
         );
     }
 
-    if (!userToken) {
-      setMessage({
-        type: "error",
-        text: "Lỗi xác thực. Vui lòng đăng nhập lại.",
-      });
-      return;
-    }
 
-    setIsCancelConfirmOpen(true);
-  };
-
-  const handleReorder = () => {
-    setMessage({
-      type: "info",
-      text: "Chức năng đặt lại đang được phát triển.",
-    });
-  };
-
-  const handleReturn = () => {
-    setMessage({
-      type: "info",
-      text: "Chức năng yêu cầu trả hàng đang được phát triển.",
-    });
-  };
-
-  const handleRate = () => {
-    navigate("/review-product", {
-      state: {
-        orderId: orderId,
-      },
-    });
-  };
-
-  const renderActionButtons = (status) => {
-    const baseClass =
-      "font-semibold py-2 px-4 rounded-md transition duration-200 shadow-sm text-sm flex items-center justify-center";
-
-    switch (status) {
-      case "PENDING":
-        // Nút Hủy khi là PENDING
-        return (
-          <button
-            onClick={handleCancelOrder} // Gọi hàm mở Modal
-            className={`${baseClass} bg-red-600 text-white hover:bg-red-700`}
-          >
-            Yêu cầu Hủy
-          </button>
-        );
-      case "CONFIRMED":
-      case "PROCESSING":
-      case "SHIPPING":
-        // KHÔNG CÓ NÚT HỦY/MUA LẠI/TRẢ HÀNG khi đang trong quá trình vận chuyển
-        return (
-          <span className="text-gray-500 text-sm">Đang trong quy trình</span>
-        );
-
-      case "DELIVERED":
-        return (
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={handleReorder}
-              className={`${baseClass} ${TEAL_BG} text-white hover:opacity-90`}
-            >
-              <ShoppingBag className="w-4 h-4 mr-2" /> Mua Lại
-            </button>
-            <button
-              onClick={handleReturn}
-              className={`${baseClass} bg-white border border-gray-300 text-gray-700 hover:bg-gray-100`}
-            >
-              <Repeat2 className="w-4 h-4 mr-2" /> Trả Hàng
-            </button>
-            <button
-              onClick={handleRate}
-              className={`${baseClass} bg-white border border-gray-300 text-gray-700 hover:bg-gray-100`}
-            >
-              <Star className="w-4 h-4 mr-2" /> Đánh Giá
-            </button>
-          </div>
-        );
-      case "CANCELLED":
-      case "RETURNED":
-      case "REFUNDED":
-        return (
-          <button
-            onClick={handleReorder}
-            className={`${baseClass} ${TEAL_BG} text-white hover:opacity-90`}
-          >
-            <ShoppingBag className="w-4 h-4 mr-2" /> Mua Lại
-          </button>
-        );
-      default:
-        return (
-          <span className="text-gray-500 text-sm">
-            Không có thao tác khả dụng
-          </span>
-        );
-    }
-  };
-
-  // --- Xử lý tải dữ liệu và lỗi (được giữ nguyên) ---
-  if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
-        <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16 text-center text-lg text-gray-600">
-          Đang tải {authLoading ? "thông tin xác thực" : "chi tiết đơn hàng"}...
-        </div>
-      </div>
-    );
-  }
 
   if (error || !order) {
     return (
