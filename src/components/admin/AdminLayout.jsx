@@ -16,6 +16,7 @@ const pathTranslations = {
     "settings": "Cài đặt",
     "inventory": "Kho hàng",
     "stats": "Thống kê",
+    "add":"Thêm tài khoản"
     // Bạn có thể thêm các đường dẫn khác vào đây
 };
 
