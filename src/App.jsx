@@ -101,6 +101,7 @@ export default function App() {
               <Route path="users/add" element={<AddEmployee />} />
               <Route path="users/:id" element={<UserDetail />} />
               <Route path="brands" element={<BrandManagement />} />
+              <Route path="stats" element={<Stats />} />
               <Route path="categories" element={<CategoryManagement />} />
               <Route path="products" element={<ProductManagement />} />
               <Route path="orders" element={<OrderManagement />} />
