@@ -305,17 +305,6 @@ const Stats = () => {
 
                     {/* Nút Apply Filters */}
                     <div className="shrink-0 ml-auto flex gap-3">
-                        {(filterType === 'CUSTOM' || filterType !== '7DAYS') && (
-                            <button
-                                onClick={handleApplyCustomFilter}
-                                disabled={loading}
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors hover:bg-opacity-90 disabled:opacity-50 text-sm"
-                                style={{ backgroundColor: LIGHT_TEAL_BG, color: TEAL_COLOR }}
-                            >
-                                <Filter className="w-5 h-5" />
-                                Áp dụng
-                            </button>
-                        )}
 
                         {/* Nút Refresh */}
                         <button
